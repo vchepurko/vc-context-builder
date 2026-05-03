@@ -13,32 +13,35 @@ class TsJsParser(BaseParser):
 
     def extract(self, file_path: str) -> Dict[str, List[str]]:
         content = self._read_file(file_path)
-
         if not content:
             return {"exports": [], "dependencies": []}
 
-        # 1. Pre-processing: Remove comments to avoid false positives
-        # Strip block comments (/* ... */)
-        content = re.sub(r'/\*[\s\S]*?\*/', '', content)
-        # Strip inline comments (// ...)
-        content = re.sub(r'//.*', '', content)
+        dependencies = set()
+        exports = set()
 
-        exports = []
-        dependencies = []
+        # 1. Standart ES6 imports
+        standard_deps = re.findall(r'from\s+["\']([^"\']+)["\']', content)
+        dependencies.update(standard_deps)
 
-        # 2. Extract Exports (handles async, default, abstract, and standard types)
-        export_pattern = r'export\s+(?:default\s+)?(?:async\s+)?(?:abstract\s+)?(?:class|function|const|let|var|interface|type)\s+([a-zA-Z0-9_]+)'
-        exports.extend(re.findall(export_pattern, content))
+        # 2. WordPress REST API Endpoints (Heuristic)
+        wp_endpoints = re.findall(r'["\'](/wp-json/[^"\']+)["\']', content)
+        dependencies.update(wp_endpoints)
 
-        # 3. Extract Static Imports
-        import_pattern = r'import\s+.*?from\s+[\'"]([a-zA-Z0-9_/\.-]+)[\'"]'
-        dependencies.extend(re.findall(import_pattern, content))
+        # 3. Global Data Dependencies (window._mpqData, etc.)
+        globals_found = re.findall(r'window\.([a-zA-Z0-9_]+)', content)
+        for g in globals_found:
+            dependencies.add(f"global:{g}")
 
-        # 4. Extract Dynamic Imports and Requires
-        dynamic_import_pattern = r'(?:require|import)\s*\(\s*[\'"]([a-zA-Z0-9_/\.-]+)[\'"]\s*\)'
-        dependencies.extend(re.findall(dynamic_import_pattern, content))
+        # 4. DOM Anchors (IDs)
+        dom_ids = re.findall(r'getElementById\(["\']([^"\']+)["\']', content)
+        for d_id in dom_ids:
+            dependencies.add(f"dom:#{d_id}")
+
+        # 5. Simple JS Functions (Exports)
+        funcs = re.findall(r'function\s+([a-zA-Z0-9_]+)\s*\(', content)
+        exports.update(funcs)
 
         return {
-            "exports": list(set(exports)),
-            "dependencies": list(set(dependencies))
+            "exports": list(exports),
+            "dependencies": list(dependencies)
         }
