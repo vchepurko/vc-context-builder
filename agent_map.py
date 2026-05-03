@@ -4,7 +4,7 @@ import logging
 from typing import List
 
 # Import our custom heuristic parser
-from file_parser import FileParser
+from parsers import get_parser, get_supported_extensions, get_supported_filenames
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
@@ -20,24 +20,23 @@ class ContextBuilder:
             '.git', 'node_modules', 'vendor', '__pycache__',
             'dist', 'build', '.venv', 'venv'
         }
-        self.allowed_exts = {'.py', '.php', '.js', '.ts', '.html'}
+        # The core dynamically queries parsers for supported formats
+        self.allowed_exts = get_supported_extensions()
+        self.allowed_filenames = get_supported_filenames()
+
         self.map_filename = '_module_map.json'
         self.root_map_filename = 'agent_root.json'
         self.readme_filename = 'AGENT_README.md'
         self.processed_modules: List[str] = []
 
-    def run(self) -> None:
-        """Main entry point to start the scanning process."""
-        logging.info("Starting vc-context-builder...")
-        self._scan_directories(self.root_dir)
-        self._build_root_map()
-        self._generate_agent_sop()
-        logging.info("Context build complete. Agent SOP is ready.")
-
     def _scan_directories(self, current_dir: str) -> None:
         for root, dirs, files in os.walk(current_dir):
             dirs[:] = [d for d in dirs if d not in self.ignore_dirs]
-            valid_files = [f for f in files if os.path.splitext(f)[1] in self.allowed_exts]
+
+            valid_files = []
+            for f in files:
+                if f in self.allowed_filenames or os.path.splitext(f)[1] in self.allowed_exts:
+                    valid_files.append(f)
 
             if not valid_files:
                 continue
@@ -47,6 +46,33 @@ class ContextBuilder:
             if self._needs_update(root, valid_files):
                 logging.info(f"Updating context map for: {root}")
                 self._build_module_map(root, valid_files)
+
+    def _build_module_map(self, dir_path: str, files: List[str]) -> None:
+        map_file_path = os.path.join(dir_path, self.map_filename)
+        module_data = {"directory": dir_path, "files": {}}
+
+        for f in files:
+            file_path = os.path.join(dir_path, f)
+            # Pass the full filename; the registry decides whether to match by name or extension
+            parser = get_parser(f)
+            if parser:
+                module_data["files"][f] = parser.extract(file_path)
+            else:
+                module_data["files"][f] = {"exports": [], "dependencies": []}
+
+        try:
+            with open(map_file_path, 'w', encoding='utf-8') as f:
+                json.dump(module_data, f, indent=2)
+        except IOError as e:
+            logging.error(f"Failed to write {map_file_path}: {e}")
+
+    def run(self) -> None:
+        """Main entry point to start the scanning process."""
+        logging.info("Starting vc-context-builder...")
+        self._scan_directories(self.root_dir)
+        self._build_root_map()
+        self._generate_agent_sop()
+        logging.info("Context build complete. Agent SOP is ready.")
 
     def _needs_update(self, dir_path: str, files: List[str]) -> bool:
         map_file_path = os.path.join(dir_path, self.map_filename)
@@ -77,21 +103,6 @@ class ContextBuilder:
             return True # Если что-то сломалось, надежнее просто обновить
 
         return False
-
-    def _build_module_map(self, dir_path: str, files: List[str]) -> None:
-        map_file_path = os.path.join(dir_path, self.map_filename)
-        module_data = {"directory": dir_path, "files": {}}
-
-        for f in files:
-            file_path = os.path.join(dir_path, f)
-            ext = os.path.splitext(f)[1]
-            module_data["files"][f] = FileParser.parse(file_path, ext)
-
-        try:
-            with open(map_file_path, 'w', encoding='utf-8') as f:
-                json.dump(module_data, f, indent=2)
-        except IOError as e:
-            logging.error(f"Failed to write {map_file_path}: {e}")
 
     def _build_root_map(self) -> None:
         root_map_path = os.path.join(self.root_dir, self.root_map_filename)

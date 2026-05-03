@@ -3,7 +3,7 @@ from typing import Dict, List
 from parsers.base_parser import BaseParser
 
 class TsJsParser(BaseParser):
-    extensions = ['.js', '.ts']
+    extensions = ['.js', '.tspython agent_map.py']
 
     def extract(self, file_path: str) -> Dict[str, List[str]]:
         content = self._read_file(file_path)

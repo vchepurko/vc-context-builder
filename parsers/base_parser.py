@@ -1,28 +1,47 @@
 from abc import ABC, abstractmethod
 from typing import Dict, List, Type
 import logging
+import os
 
 class BaseParser(ABC):
-    """Abstract base class for all language-specific parsers."""
+    """Abstract base class for all language-specific and infrastructure parsers."""
 
-    # Здесь автоматически будут храниться все парсеры: {'.py': PythonParser(), ...}
-    _registry: Dict[str, 'BaseParser'] = {}
+    _ext_registry: Dict[str, 'BaseParser'] = {}
+    _file_registry: Dict[str, 'BaseParser'] = {}
 
     @classmethod
     def __init_subclass__(cls, **kwargs):
-        """Magic method that auto-registers any subclass of BaseParser."""
+        """Auto-registers parsers based on their 'extensions' and 'filenames' attributes."""
         super().__init_subclass__(**kwargs)
 
-        # Класс-наследник обязан иметь атрибут extensions
-        if hasattr(cls, 'extensions'):
+        parser_instance = None
+        if hasattr(cls, 'extensions') or hasattr(cls, 'filenames'):
             parser_instance = cls()
+
+        if hasattr(cls, 'extensions'):
             for ext in cls.extensions:
-                cls._registry[ext] = parser_instance
+                cls._ext_registry[ext] = parser_instance
+
+        if hasattr(cls, 'filenames'):
+            for fname in cls.filenames:
+                cls._file_registry[fname] = parser_instance
 
     @classmethod
-    def get_parser(cls, ext: str) -> 'BaseParser':
-        """Retrieve a parser by file extension."""
-        return cls._registry.get(ext)
+    def get_parser(cls, filename: str) -> 'BaseParser':
+        """Retrieve a parser by exact filename first, then fallback to extension."""
+        if filename in cls._file_registry:
+            return cls._file_registry[filename]
+
+        ext = os.path.splitext(filename)[1]
+        return cls._ext_registry.get(ext)
+
+    @classmethod
+    def get_supported_extensions(cls) -> set:
+        return set(cls._ext_registry.keys())
+
+    @classmethod
+    def get_supported_filenames(cls) -> set:
+        return set(cls._file_registry.keys())
 
     @abstractmethod
     def extract(self, file_path: str) -> Dict[str, List[str]]:
