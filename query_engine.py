@@ -42,6 +42,8 @@ class QueryEngine:
     SYMBOLS_FILENAME = "agent_symbols.json"
     TESTS_FILENAME = "agent_tests.json"
     ROUTES_FILENAME = "agent_routes.json"
+    CALLBACKS_FILENAME = "agent_callbacks.json"
+    FSM_FLOW_FILENAME = "agent_fsm_flows.json"
     MAP_FILENAME = "_module_map.json"
     IGNORE_DIRS = {
         ".git", "node_modules", "vendor", "__pycache__",
@@ -60,6 +62,8 @@ class QueryEngine:
         # not yet attempted; ``{}`` = read but artifact absent / empty.
         self._tests: Optional[Dict[str, Any]] = None
         self._routes: Optional[Dict[str, Dict[str, Any]]] = None
+        self._callbacks: Optional[Dict[str, List[Dict[str, Any]]]] = None
+        self._fsm_flows: Optional[Dict[str, Dict[str, Any]]] = None
 
     # ------------------------------------------------------------------
     # Lazy loaders
@@ -105,6 +109,33 @@ class QueryEngine:
             except (OSError, json.JSONDecodeError):
                 self._routes = {}
         return self._routes
+
+    def _load_callbacks(self) -> Dict[str, List[Dict[str, Any]]]:
+        """Return ``agent_callbacks.json`` content (or ``{}`` if missing).
+
+        Same graceful-degradation contract as the other optional
+        artifact loaders — Feature D is fresh and may be absent on
+        older builds.
+        """
+        if self._callbacks is None:
+            path = os.path.join(self.project_root, self.CALLBACKS_FILENAME)
+            try:
+                with open(path, "r", encoding="utf-8") as fh:
+                    self._callbacks = json.load(fh)
+            except (OSError, json.JSONDecodeError):
+                self._callbacks = {}
+        return self._callbacks
+
+    def _load_fsm_flows(self) -> Dict[str, Dict[str, Any]]:
+        """Return ``agent_fsm_flows.json`` content (or ``{}`` if missing)."""
+        if self._fsm_flows is None:
+            path = os.path.join(self.project_root, self.FSM_FLOW_FILENAME)
+            try:
+                with open(path, "r", encoding="utf-8") as fh:
+                    self._fsm_flows = json.load(fh)
+            except (OSError, json.JSONDecodeError):
+                self._fsm_flows = {}
+        return self._fsm_flows
 
     def _iter_module_maps(self) -> Iterable[Tuple[str, Dict[str, Any]]]:
         """Yield ``(relative_directory, parsed_map_json)`` for each
@@ -186,17 +217,47 @@ class QueryEngine:
             out["test"] = test_entry
         return out
 
+    # Legacy umbrella roles — when a caller asks for an old name we
+    # union the new, more specific buckets so older queries keep
+    # working. Members include the umbrella itself so symbols still
+    # tagged with it (e.g. fallback ``aiogram-handler`` for non-message
+    # event types) aren't lost.
+    _ROLE_UMBRELLAS: Dict[str, set] = {
+        "aiogram-handler": {
+            "aiogram-handler",
+            "callback-handler",
+            "command-handler",
+            "fsm-message-handler",
+            "text-match-handler",
+            "catch-all-handler",
+        },
+    }
+
     def find_by_role(self, role: str) -> List[str]:
         """Return all symbol names tagged with ``role``.
 
         Roles live in ``agent_root.json.roles`` (e.g. ``webhook``,
         ``route``, ``migration``, ``scheduler-job``, ...). Returns an
         empty list when the role is unknown.
+
+        Legacy umbrella names (e.g. ``aiogram-handler``) expand to the
+        union of the more specific subroles introduced when the parser
+        learned to split them — old call sites keep working.
         """
         root = self._load_root()
         roles = root.get("roles") or {}
+        members = self._ROLE_UMBRELLAS.get(role)
+        if members is not None:
+            seen: set = set()
+            out: List[str] = []
+            for member in members:
+                for name in roles.get(member) or ():
+                    if name not in seen:
+                        seen.add(name)
+                        out.append(name)
+            out.sort()
+            return out
         bucket = roles.get(role) or []
-        # Defensive copy.
         return list(bucket)
 
     def who_calls(self, symbol: str) -> List[Dict[str, str]]:
@@ -296,10 +357,28 @@ class QueryEngine:
         }
 
     def list_roles(self) -> Dict[str, int]:
-        """``role → count`` map across the whole project."""
+        """``role → count`` map across the whole project.
+
+        Synthetic umbrella counts (e.g. ``aiogram-handler``) are added
+        on top of the raw subrole counts so an agent grep'ing for
+        "how many aiogram handlers" still finds the answer with one
+        lookup.
+        """
         root = self._load_root()
         roles = root.get("roles") or {}
-        return {r: len(names) for r, names in roles.items()}
+        out: Dict[str, int] = {r: len(names) for r, names in roles.items()}
+        for umbrella, members in self._ROLE_UMBRELLAS.items():
+            seen: set = set()
+            for m in members:
+                for n in roles.get(m) or ():
+                    seen.add(n)
+            if seen:
+                # Always overwrite with the synthetic count — an existing
+                # raw bucket under the umbrella name (legacy fallback
+                # tags) is a strict subset of the union, so the synthetic
+                # count is the right answer.
+                out[umbrella] = len(seen)
+        return out
 
     def list_modules(self) -> List[str]:
         """All scanned module folders, in the order recorded by the builder."""
@@ -410,6 +489,34 @@ class QueryEngine:
         """Routes whose ``callers_js`` list mentions ``file_path``."""
         from route_bridge import route_for_js_file  # type: ignore[import-not-found]
         return route_for_js_file(self._load_routes(), file_path)
+
+    # ------------------------------------------------------------------
+    # Feature D — aiogram callback_data resolver
+    # ------------------------------------------------------------------
+
+    def find_callback(self, data: str) -> List[Dict[str, Any]]:
+        """Resolve an aiogram ``callback_data`` string to its handler(s).
+
+        Tries an exact lookup first, then falls back to the longest
+        matching ``startswith`` prefix. Empty list when nothing matches
+        or the index is missing.
+        """
+        from callback_index import find_callback as _find  # type: ignore[import-not-found]
+        return _find(self._load_callbacks(), data)
+
+    # ------------------------------------------------------------------
+    # Feature F — aiogram FSM flow graph
+    # ------------------------------------------------------------------
+
+    def trace_fsm_flow(self, state: str) -> Optional[Dict[str, Any]]:
+        """Resolve an FSM state to its lifecycle graph.
+
+        Accepts the full ``StatesGroup.field`` form or a bare field name
+        when it's unambiguous. Returns ``None`` for unknown / ambiguous
+        states or when the index is missing.
+        """
+        from fsm_flow import trace_fsm_flow as _trace  # type: ignore[import-not-found]
+        return _trace(self._load_fsm_flows(), state)
 
     # ------------------------------------------------------------------
     # Internal: reverse-dependency index for who_calls

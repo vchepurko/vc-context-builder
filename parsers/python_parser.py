@@ -8,11 +8,13 @@ try:
     # (which is the case via agent_map.py).
     from symbols import (
         extract_decorator_roles,
+        is_states_group_class,
         is_webhook_function,
         path_role,
     )
 except Exception:  # pragma: no cover — graceful degradation
     extract_decorator_roles = lambda _node: None  # type: ignore
+    is_states_group_class = lambda _node: False  # type: ignore
     is_webhook_function = lambda _node: False  # type: ignore
     path_role = lambda _p: None  # type: ignore
 
@@ -158,6 +160,12 @@ class PythonParser(BaseParser):
             # Scheduler-job tagging via cross-codebase scan.
             if role is None and scheduler_jobs and node.name in scheduler_jobs:
                 role = "scheduler-job"
+        elif isinstance(node, ast.ClassDef):
+            # ``class X(StatesGroup)`` → aiogram FSM state group. Tag
+            # only the class itself; the field assignments inside aren't
+            # top-level exports so they don't appear in the index.
+            if is_states_group_class(node):
+                role = "fsm-state"
 
         # Path-derived fallback (repository / service / api-client).
         # `migration` for non-upgrade/downgrade exports in versions/ would
