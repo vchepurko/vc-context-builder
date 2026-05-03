@@ -43,6 +43,7 @@ class QueryEngine:
     TESTS_FILENAME = "agent_tests.json"
     ROUTES_FILENAME = "agent_routes.json"
     CALLBACKS_FILENAME = "agent_callbacks.json"
+    FSM_FLOW_FILENAME = "agent_fsm_flows.json"
     MAP_FILENAME = "_module_map.json"
     IGNORE_DIRS = {
         ".git", "node_modules", "vendor", "__pycache__",
@@ -62,6 +63,7 @@ class QueryEngine:
         self._tests: Optional[Dict[str, Any]] = None
         self._routes: Optional[Dict[str, Dict[str, Any]]] = None
         self._callbacks: Optional[Dict[str, List[Dict[str, Any]]]] = None
+        self._fsm_flows: Optional[Dict[str, Dict[str, Any]]] = None
 
     # ------------------------------------------------------------------
     # Lazy loaders
@@ -123,6 +125,17 @@ class QueryEngine:
             except (OSError, json.JSONDecodeError):
                 self._callbacks = {}
         return self._callbacks
+
+    def _load_fsm_flows(self) -> Dict[str, Dict[str, Any]]:
+        """Return ``agent_fsm_flows.json`` content (or ``{}`` if missing)."""
+        if self._fsm_flows is None:
+            path = os.path.join(self.project_root, self.FSM_FLOW_FILENAME)
+            try:
+                with open(path, "r", encoding="utf-8") as fh:
+                    self._fsm_flows = json.load(fh)
+            except (OSError, json.JSONDecodeError):
+                self._fsm_flows = {}
+        return self._fsm_flows
 
     def _iter_module_maps(self) -> Iterable[Tuple[str, Dict[str, Any]]]:
         """Yield ``(relative_directory, parsed_map_json)`` for each
@@ -490,6 +503,20 @@ class QueryEngine:
         """
         from callback_index import find_callback as _find  # type: ignore[import-not-found]
         return _find(self._load_callbacks(), data)
+
+    # ------------------------------------------------------------------
+    # Feature F — aiogram FSM flow graph
+    # ------------------------------------------------------------------
+
+    def trace_fsm_flow(self, state: str) -> Optional[Dict[str, Any]]:
+        """Resolve an FSM state to its lifecycle graph.
+
+        Accepts the full ``StatesGroup.field`` form or a bare field name
+        when it's unambiguous. Returns ``None`` for unknown / ambiguous
+        states or when the index is missing.
+        """
+        from fsm_flow import trace_fsm_flow as _trace  # type: ignore[import-not-found]
+        return _trace(self._load_fsm_flows(), state)
 
     # ------------------------------------------------------------------
     # Internal: reverse-dependency index for who_calls

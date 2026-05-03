@@ -182,6 +182,21 @@ def _tool_specs() -> List[Dict[str, Any]]:
                 "required": ["data"],
             },
         },
+        {
+            "name": "trace_fsm_flow",
+            "description": (
+                "Trace an aiogram FSM state's lifecycle: where it's "
+                "declared, which handlers ENTER it via state.set_state, "
+                "and which handlers CONSUME it via decorator filter. "
+                "Accepts 'AddStaffState.waiting_user_id' or just "
+                "'waiting_user_id' when unambiguous."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {"state": {"type": "string"}},
+                "required": ["state"],
+            },
+        },
     ]
 
 
@@ -206,6 +221,7 @@ class _Dispatcher:
             "route_callers":     self._route_callers,
             "route_for_js_call": self._route_for_js_call,
             "find_callback":     self._find_callback,
+            "trace_fsm_flow":    self._trace_fsm_flow,
         }
 
     def call(self, name: str, args: Dict[str, Any]) -> Any:
@@ -246,6 +262,9 @@ class _Dispatcher:
 
     def _find_callback(self, args: Dict[str, Any]) -> Any:
         return self.engine.find_callback(str(args.get("data", "")))
+
+    def _trace_fsm_flow(self, args: Dict[str, Any]) -> Any:
+        return self.engine.trace_fsm_flow(str(args.get("state", "")))
 
 
 # ----------------------------------------------------------------------

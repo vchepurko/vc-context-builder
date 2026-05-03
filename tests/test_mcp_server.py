@@ -68,6 +68,8 @@ class McpServerTests(FixtureMixin, unittest.TestCase):
             "route_callers", "route_for_js_call",
             # Feature D — aiogram callback_data resolver.
             "find_callback",
+            # Feature F — aiogram FSM flow graph.
+            "trace_fsm_flow",
         })
 
     def test_tools_call_find_symbol(self) -> None:
