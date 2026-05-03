@@ -1,3 +1,4 @@
 _module_map.json
 agent_root.json
 __pycache__/
+.idea/
