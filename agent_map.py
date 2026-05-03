@@ -56,13 +56,25 @@ class ContextBuilder:
 
         try:
             map_mtime = os.path.getmtime(map_file_path)
+
+            # 1. Проверяем, редактировали ли существующие файлы
             for f in files:
                 file_path = os.path.join(dir_path, f)
                 if os.path.getmtime(file_path) > map_mtime:
                     return True
-        except OSError as e:
-            logging.warning(f"Error reading file metadata in {dir_path}: {e}")
-            return True
+
+            # 2. ФИКС: Проверяем, не удалили ли (или добавили) файлы
+            with open(map_file_path, 'r', encoding='utf-8') as f:
+                old_data = json.load(f)
+                old_files = set(old_data.get("files", {}).keys())
+                current_files = set(files)
+
+                if old_files != current_files:
+                    return True # Состав файлов изменился, нужно обновить
+
+        except (OSError, json.JSONDecodeError) as e:
+            logging.warning(f"Error reading metadata in {dir_path}: {e}")
+            return True # Если что-то сломалось, надежнее просто обновить
 
         return False
 
