@@ -1,10 +1,19 @@
 import os
+import sys
 import json
 import logging
-from typing import List
+from typing import Dict, List, Set
+
+# Ensure sibling modules (`symbols`, `parsers`) resolve when this script is
+# invoked from the project root via `python3 .ai-context/agent_map.py`.
+_HERE = os.path.dirname(os.path.abspath(__file__))
+if _HERE not in sys.path:
+    sys.path.insert(0, _HERE)
 
 # Import our custom heuristic parser
 from parsers import get_parser, get_supported_extensions, get_supported_filenames
+from parsers.python_parser import PythonParser
+from symbols import extract_scheduler_jobs_from_codebase
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
@@ -26,12 +35,23 @@ class ContextBuilder:
 
         self.map_filename = '_module_map.json'
         self.root_map_filename = 'agent_root.json'
+        self.symbols_filename = 'agent_symbols.json'
         self.readme_filename = 'AGENT_README.md'
         self.processed_modules: List[str] = []
 
         # Top-level project dirs that look like packages — used to prune
         # stdlib + third-party noise from dependency lists.
         self.own_packages = self._discover_own_packages()
+
+        # One-shot AST scan: every callable name registered as a
+        # scheduler job, so the parser can tag them later.
+        self.scheduler_jobs: Set[str] = extract_scheduler_jobs_from_codebase(
+            self.root_dir, self.ignore_dirs
+        )
+        if self.scheduler_jobs:
+            logging.info(
+                "Detected %d scheduler-job callable(s).", len(self.scheduler_jobs)
+            )
 
     def _discover_own_packages(self) -> set:
         """Top-level dir names (e.g. 'bot', 'services') treated as the
@@ -89,7 +109,14 @@ class ContextBuilder:
         for f in files:
             file_path = os.path.join(dir_path, f)
             parser = get_parser(f)
-            data = parser.extract(file_path) if parser else {"exports": [], "dependencies": []}
+            if parser is None:
+                data = {"exports": [], "dependencies": []}
+            elif isinstance(parser, PythonParser):
+                # Pass the cross-file scheduler-job set so the parser can
+                # tag matching callables with role: scheduler-job.
+                data = parser.extract(file_path, scheduler_jobs=self.scheduler_jobs)
+            else:
+                data = parser.extract(file_path)
 
             # Filter dependency noise (stdlib + third-party).
             data["dependencies"] = self._filter_deps(data.get("dependencies", []))
@@ -124,6 +151,10 @@ class ContextBuilder:
         logging.info("Starting vc-context-builder...")
         self._scan_directories(self.root_dir)
         self._build_root_map()
+        # Symbol index uses the maps just written, so it has to come
+        # AFTER root-map and BEFORE the SOP regen (so the SOP can refer
+        # to it by name without the file going stale).
+        self._build_symbol_index()
         self._generate_agent_sop()
         logging.info("Context build complete. Agent SOP is ready.")
 
@@ -157,19 +188,149 @@ class ContextBuilder:
 
         return False
 
+    # ------------------------------------------------------------------
+    # Aggregations: roles + symbol index
+    # ------------------------------------------------------------------
+
+    def _iter_all_module_maps(self):
+        """Yield ``(map_path, parsed_json)`` for every ``_module_map.json``
+        currently sitting on disk under ``root_dir``. The set may be a
+        superset of files we just wrote (caches that didn't need updating
+        this run still count) — exactly the right behaviour for building
+        an aggregate index.
+        """
+        for cur, dirs, files in os.walk(self.root_dir):
+            dirs[:] = [d for d in dirs if d not in self.ignore_dirs]
+            if self.map_filename not in files:
+                continue
+            mp = os.path.join(cur, self.map_filename)
+            try:
+                with open(mp, 'r', encoding='utf-8') as fh:
+                    yield mp, json.load(fh)
+            except (OSError, json.JSONDecodeError) as e:
+                logging.warning(f"Skipping unreadable map {mp}: {e}")
+
+    @staticmethod
+    def _rel_norm(file_path: str, root_dir: str) -> str:
+        """Stable relpath with forward slashes, no leading './'."""
+        try:
+            rel = os.path.relpath(file_path, root_dir)
+        except ValueError:
+            rel = file_path
+        rel = rel.replace(os.sep, '/')
+        while rel.startswith('./'):
+            rel = rel[2:]
+        return rel
+
     def _build_root_map(self) -> None:
         root_map_path = os.path.join(self.root_dir, self.root_map_filename)
+
+        # Aggregate roles across every module map. We re-read maps from
+        # disk (vs holding state in memory) so this works even when most
+        # directories were skipped via the mtime cache.
+        roles: Dict[str, List[str]] = {}
+        seen_per_role: Dict[str, set] = {}
+
+        for _mp, data in self._iter_all_module_maps():
+            files = data.get("files", {})
+            for _fname, fdata in files.items():
+                exports = fdata.get("exports", []) or []
+                for exp in exports:
+                    if not isinstance(exp, dict):
+                        continue
+                    role = exp.get("role")
+                    name = exp.get("name")
+                    if not role or not name:
+                        continue
+                    bucket = roles.setdefault(role, [])
+                    seen = seen_per_role.setdefault(role, set())
+                    if name in seen:
+                        continue
+                    seen.add(name)
+                    bucket.append(name)
+
+        for r in roles:
+            roles[r].sort()
+
         root_data = {
             "project_root": os.path.abspath(self.root_dir),
             "modules": self.processed_modules,
-            "entry_instruction": f"Read {self.readme_filename} first, then navigate modules via {self.map_filename}."
+            "entry_instruction": (
+                f"Read {self.readme_filename} first, then navigate modules "
+                f"via {self.map_filename}."
+            ),
         }
+        if roles:
+            # Emit roles in a deterministic key order so diffs stay clean.
+            root_data["roles"] = {k: roles[k] for k in sorted(roles)}
 
         try:
             with open(root_map_path, 'w', encoding='utf-8') as f:
                 json.dump(root_data, f, indent=2)
         except IOError as e:
             logging.error(f"Failed to write root map: {e}")
+
+    def _build_symbol_index(self) -> None:
+        """Walk every ``_module_map.json`` and emit a project-wide
+        ``agent_symbols.json``: ``{symbol_name → {file, kind, params, doc, role}}``.
+
+        Collision rule: when the same symbol name lives in multiple
+        files, prefer the **shortest path** (likely the canonical
+        definition over a re-export). Tie-break alphabetically on file
+        path to keep builds deterministic.
+        """
+        index: Dict[str, Dict[str, str]] = {}
+
+        for _mp, data in self._iter_all_module_maps():
+            directory = data.get("directory") or "."
+            files = data.get("files", {})
+            for fname, fdata in files.items():
+                # Skip non-Python entries that emit string exports
+                # (Dockerfile / docker-compose) — those aren't symbols.
+                if not isinstance(fdata, dict):
+                    continue
+                file_rel = self._rel_norm(
+                    os.path.join(directory, fname), self.root_dir
+                )
+                exports = fdata.get("exports", []) or []
+                for exp in exports:
+                    if not isinstance(exp, dict):
+                        continue
+                    name = exp.get("name")
+                    if not name:
+                        continue
+
+                    candidate: Dict[str, str] = {"file": file_rel}
+                    for k in ("kind", "params", "doc", "role"):
+                        v = exp.get(k)
+                        if v:
+                            candidate[k] = v
+
+                    existing = index.get(name)
+                    if existing is None:
+                        index[name] = candidate
+                        continue
+
+                    # Resolve collision: shortest-path wins; tie-break
+                    # alphabetical for determinism.
+                    new_path = candidate["file"]
+                    old_path = existing["file"]
+                    new_score = (len(new_path), new_path)
+                    old_score = (len(old_path), old_path)
+                    if new_score < old_score:
+                        index[name] = candidate
+
+        # Sort keys for deterministic output (idempotent builds).
+        ordered = {k: index[k] for k in sorted(index)}
+        out_path = os.path.join(self.root_dir, self.symbols_filename)
+        try:
+            with open(out_path, 'w', encoding='utf-8') as f:
+                json.dump(ordered, f, indent=2, ensure_ascii=False)
+            logging.info(
+                "Wrote symbol index: %s (%d symbols).", self.symbols_filename, len(ordered)
+            )
+        except IOError as e:
+            logging.error(f"Failed to write symbol index: {e}")
 
     def _generate_agent_sop(self) -> None:
         """Generates Standard Operating Procedure for AI Agents."""
@@ -183,16 +344,35 @@ class ContextBuilder:
             "This repo ships hierarchical context graphs so you can answer\n"
             "questions and edit code WITHOUT loading the full source tree.\n\n"
             "## Cardinal rule: read narrowly, write fully\n\n"
+            f"**Three artifacts, three purposes — pick the right one first.**\n\n"
+            f"- `{self.root_map_filename}` — directory list + `roles` aggregator\n"
+            "  (\"all routes / migrations / scheduler jobs / webhooks\").\n"
+            f"- `{self.symbols_filename}` — flat `{{name → {{file, kind, params,\n"
+            "  doc, role}}}}` index. **O(1) lookup** for \"where is symbol X?\"\n"
+            f"- `<dir>/{self.map_filename}` — per-folder zoom-in: every export\n"
+            "  in every file with shape and own-package deps.\n\n"
+            f"### Step 0 — \"show me all <role>\" queries\n"
+            f"   If the user asks \"list all routes / migrations / scheduler\n"
+            f"   jobs / repositories / services / api-clients / webhooks\", read\n"
+            f"   `{self.root_map_filename}` and use its `roles` section.\n"
+            f"   No folder iteration needed.\n\n"
             f"1. **Start tiny.** Read `{self.root_map_filename}` (one short JSON,\n"
-            "   ~few hundred tokens). It lists every module folder. **Stop here\n"
-            "   if the question is structural** (\"where is X handled?\", \"what\n"
-            "   modules exist?\"). Don't fetch maps preemptively.\n\n"
+            "   ~few hundred tokens). It lists every module folder + the\n"
+            "   `roles` aggregator. **Stop here if the question is structural**\n"
+            "   (\"where is X handled?\", \"what modules exist?\"). Don't fetch\n"
+            "   maps preemptively.\n\n"
+            f"### Step 1.5 — \"where is symbol X defined?\"\n"
+            f"   Before opening any module map, check `{self.symbols_filename}`.\n"
+            "   It's a single flat dict — one read, one lookup. The value\n"
+            "   tells you the file, kind, signature, docstring summary, and\n"
+            "   role tag. Only zoom into the module map if you need to see\n"
+            "   that file's neighbours.\n\n"
             f"2. **Zoom in.** When you know which folder you need, read\n"
             f"   `<that-folder>/{self.map_filename}` — and only that one. Each map\n"
             "   lists every file's public exports (name + kind + signature +\n"
-            "   docstring summary) and its own-package dependencies. That is\n"
-            "   usually enough to answer \"is there already a function for X?\"\n"
-            "   or \"what does file Y expose?\".\n\n"
+            "   docstring summary + optional `role`) and its own-package\n"
+            "   dependencies. That is usually enough to answer \"is there\n"
+            "   already a function for X?\" or \"what does file Y expose?\".\n\n"
             "3. **Open source only when editing or when summary is insufficient.**\n"
             "   The map shows shapes; the file holds the body. Don't open a\n"
             "   `.py` file just to check what it imports — the map already says.\n\n"
@@ -200,6 +380,15 @@ class ContextBuilder:
             "   reading-vs-acting decision. Loading every `_module_map.json`\n"
             "   defeats the point: tens of thousands of tokens of dependency\n"
             "   data when you needed two functions.\n\n"
+            "## Role tags (extensible — see .ai-context/symbols.py)\n"
+            "- `route` — FastAPI HTTP route (`@router.get/post/...`).\n"
+            "- `aiogram-handler` — `@router.message(...)` / `@router.callback_query(...)`.\n"
+            "- `webhook` — payment/event webhook (best-effort name + signature heuristic).\n"
+            "- `migration` — Alembic `upgrade()` / `downgrade()` in `alembic/versions/`.\n"
+            "- `scheduler-job` — function name registered via `scheduler.add_job(...)`.\n"
+            "- `repository` — every export from `database/repositories/*.py`.\n"
+            "- `service` — every export from `services/*.py`.\n"
+            "- `api-client` — every export from `bot/api_client/*.py`.\n\n"
             "## What you will NOT find in maps\n"
             "- Stdlib / third-party imports (filtered out as noise).\n"
             "- Private (`_prefixed`) helpers or nested defs.\n"
@@ -209,8 +398,9 @@ class ContextBuilder:
             "Maps refresh automatically on every `git commit` (pre-commit\n"
             "hook). If you bypassed the hook, run:\n"
             f"```\npython3 .ai-context/agent_map.py\n```\n\n"
-            "**Never hand-edit `_module_map.json` or `agent_root.json`** —\n"
-            "the next commit will overwrite your changes.\n"
+            f"**Never hand-edit `{self.map_filename}`, `{self.root_map_filename}`, or\n"
+            f"`{self.symbols_filename}`** — the next commit will overwrite\n"
+            "your changes. The symbol index is auto-generated.\n"
         )
         try:
             with open(readme_path, 'w', encoding='utf-8') as f:
