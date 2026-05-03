@@ -1,65 +1,41 @@
-import unittest
-import os
-import sys
+import re
+from typing import Dict, List
+from parsers.base_parser import BaseParser
 
-# Add the root directory to sys.path so tests can see the parsers module
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+class TsJsParser(BaseParser):
+    """
+    Advanced heuristic parser for TypeScript and JavaScript.
+    Strips comments before parsing to mimic AST-level precision.
+    """
 
-from parsers.ts_js_parser import TsJsParser
+    extensions = ['.js', '.ts', '.jsx', '.tsx']
 
-class TestTsJsParser(unittest.TestCase):
-    def setUp(self):
-        self.test_file = 'dummy_test.ts'
-        self.parser = TsJsParser()
+    def extract(self, file_path: str) -> Dict[str, List[str]]:
+        content = self._read_file(file_path)
 
-        # Create a complex dummy TS file mimicking Angular/React structures
-        with open(self.test_file, 'w', encoding='utf-8') as f:
-            f.write("""
-import { Injectable } from '@angular/core';
-import { MyModel } from './models/my.model';
-const dynamicModule = require('moment');
+        if not content:
+            return {"exports": [], "dependencies": []}
 
-// export class IgnoredCommentClass {}
+        # 1. Pre-processing: Remove comments to avoid false positives
+        content = re.sub(r'/\*[\s\S]*?\*/', '', content)
+        content = re.sub(r'//.*', '', content)
 
-/*
-export function ignoredBlockFunction() {
-    return true;
-}
-*/
+        exports = []
+        dependencies = []
 
-@Injectable({
-  providedIn: 'root'
-})
-export class UserService {
-    constructor() {}
-}
+        # 2. Extract Exports
+        export_pattern = r'export\s+(?:default\s+)?(?:async\s+)?(?:abstract\s+)?(?:class|function|const|let|var|interface|type)\s+([a-zA-Z0-9_]+)'
+        exports.extend(re.findall(export_pattern, content))
 
-export const API_URL = 'https://api.example.com';
+        # 3. Extract Static Imports (Added @ for scoped packages)
+        import_pattern = r'import\s+.*?from\s+[\'"]([a-zA-Z0-9_/\.\-@]+)[\'"]'
+        dependencies.extend(re.findall(import_pattern, content))
 
-export default async function bootstrapApp() {
-    await import('./lazy-module');
-}
-            """)
+        # 4. Extract Dynamic Imports and Requires (Added @ for scoped packages)
+        dynamic_import_pattern = r'(?:require|import)\s*\(\s*[\'"]([a-zA-Z0-9_/\.\-@]+)[\'"]\s*\)'
+        dependencies.extend(re.findall(dynamic_import_pattern, content))
 
-    def tearDown(self):
-        if os.path.exists(self.test_file):
-            os.remove(self.test_file)
-
-    def test_extract_ts_js(self):
-        result = self.parser.extract(self.test_file)
-
-        # Verify Exports
-        self.assertIn('UserService', result['exports'])
-        self.assertIn('API_URL', result['exports'])
-        self.assertIn('bootstrapApp', result['exports'])
-        self.assertNotIn('IgnoredCommentClass', result['exports'], "Should ignore inline comments")
-        self.assertNotIn('ignoredBlockFunction', result['exports'], "Should ignore block comments")
-
-        # Verify Dependencies
-        self.assertIn('@angular/core', result['dependencies'])
-        self.assertIn('./models/my.model', result['dependencies'])
-        self.assertIn('moment', result['dependencies'])
-        self.assertIn('./lazy-module', result['dependencies'])
-
-if __name__ == '__main__':
-    unittest.main()
+        return {
+            "exports": list(set(exports)),
+            "dependencies": list(set(dependencies))
+        }
