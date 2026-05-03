@@ -7,6 +7,16 @@ mkdir -p .git/hooks
 cat << 'EOF' > .git/hooks/pre-commit
 #!/bin/bash
 
+echo "🧪 Running unit tests..."
+# Run all tests in the tests/ directory
+python3 -m unittest discover tests/
+
+# If tests fail, abort the commit
+if [ $? -ne 0 ]; then
+  echo "❌ Tests failed! Commit aborted. Please fix the code."
+  exit 1
+fi
+
 echo "🤖 vc-context-builder: Updating Agent Context Graph..."
 
 # Run the context builder core
@@ -21,4 +31,4 @@ EOF
 # Make the hook executable
 chmod +x .git/hooks/pre-commit
 
-echo "🎉 Pre-commit hook installed successfully! Context maps will now auto-update on every commit."
+echo "🎉 Pre-commit hook with testing enabled installed successfully!"
