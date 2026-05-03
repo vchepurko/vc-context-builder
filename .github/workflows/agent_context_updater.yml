@@ -1,0 +1,38 @@
+name: 🤖 Auto-Update Agent Context Graph
+
+on:
+  push:
+    branches: [ "main" ]
+    # Ignore commits that only modify JSON context maps to prevent infinite loops
+    paths-ignore:
+      - '**/*_module_map.json'
+      - 'agent_root.json'
+      - 'AGENT_README.md'
+
+permissions:
+  contents: write
+
+jobs:
+  update-context:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run vc-context-builder
+        run: python agent_map.py
+
+      - name: Commit Context Changes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "🤖 chore: auto-update AI agent context maps"
+          file_pattern: "**/*_module_map.json agent_root.json AGENT_README.md"
+          commit_user_name: "vc-agent-bot"
+          commit_user_email: "actions@github.com"
