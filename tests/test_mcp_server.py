@@ -51,7 +51,7 @@ class McpServerTests(FixtureMixin, unittest.TestCase):
         self.assertEqual(result["serverInfo"]["name"], "vc-context")
         self.assertIn("tools", result["capabilities"])
 
-    def test_tools_list_exposes_six_tools(self) -> None:
+    def test_tools_list_exposes_all_tools(self) -> None:
         responses = _drive(self.root, [
             {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
             {"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}},
@@ -60,8 +60,12 @@ class McpServerTests(FixtureMixin, unittest.TestCase):
         tools = responses[1]["result"]["tools"]
         names = {t["name"] for t in tools}
         self.assertEqual(names, {
+            # Original six.
             "find_symbol", "find_by_role", "who_calls",
             "summarise_module", "list_roles", "list_modules",
+            # Feature A / B / C additions.
+            "lint_violations", "find_test",
+            "route_callers", "route_for_js_call",
         })
 
     def test_tools_call_find_symbol(self) -> None:

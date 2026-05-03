@@ -15,6 +15,10 @@ from parsers import get_parser, get_supported_extensions, get_supported_filename
 from parsers.python_parser import PythonParser
 from symbols import extract_scheduler_jobs_from_codebase
 
+# Feature artifacts — built after the symbol index in `run()`.
+from test_linking import build_test_index, write_test_index, TESTS_FILENAME
+from route_bridge import build_route_index, write_route_index, ROUTES_FILENAME
+
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
 class ContextBuilder:
@@ -36,6 +40,8 @@ class ContextBuilder:
         self.map_filename = '_module_map.json'
         self.root_map_filename = 'agent_root.json'
         self.symbols_filename = 'agent_symbols.json'
+        self.tests_filename = TESTS_FILENAME
+        self.routes_filename = ROUTES_FILENAME
         self.readme_filename = 'AGENT_README.md'
         self.processed_modules: List[str] = []
 
@@ -155,6 +161,9 @@ class ContextBuilder:
         # AFTER root-map and BEFORE the SOP regen (so the SOP can refer
         # to it by name without the file going stale).
         self._build_symbol_index()
+        # Feature B + C — depend on the symbol index being on disk.
+        self._build_test_index()
+        self._build_route_index()
         self._generate_agent_sop()
         logging.info("Context build complete. Agent SOP is ready.")
 
@@ -259,6 +268,14 @@ class ContextBuilder:
                 f"Read {self.readme_filename} first, then navigate modules "
                 f"via {self.map_filename}."
             ),
+            # Lets agents know which extra artifacts the builder
+            # produced — they're free to ignore the ones they don't
+            # support, but at least they don't have to probe for them.
+            "artifacts": [
+                self.symbols_filename,
+                self.tests_filename,
+                self.routes_filename,
+            ],
         }
         if roles:
             # Emit roles in a deterministic key order so diffs stay clean.
@@ -332,6 +349,48 @@ class ContextBuilder:
         except IOError as e:
             logging.error(f"Failed to write symbol index: {e}")
 
+    # ------------------------------------------------------------------
+    # Feature B — test linking artifact
+    # ------------------------------------------------------------------
+
+    def _build_test_index(self) -> None:
+        """Read agent_symbols.json, link each symbol to nearest test, write
+        agent_tests.json. Empty index is still emitted so consumers can
+        rely on the file's presence after a successful build.
+        """
+        symbols_path = os.path.join(self.root_dir, self.symbols_filename)
+        try:
+            with open(symbols_path, 'r', encoding='utf-8') as fh:
+                symbols = json.load(fh)
+        except (OSError, json.JSONDecodeError) as e:
+            logging.warning(f"Skipping test index: {e}")
+            return
+        try:
+            index = build_test_index(self.root_dir, symbols)
+            write_test_index(self.root_dir, index)
+            with_test = sum(1 for v in index.values() if v)
+            logging.info(
+                "Wrote test index: %s (%d/%d symbols linked).",
+                self.tests_filename, with_test, len(index),
+            )
+        except OSError as e:
+            logging.error(f"Failed to write test index: {e}")
+
+    # ------------------------------------------------------------------
+    # Feature C — cross-language route bridge
+    # ------------------------------------------------------------------
+
+    def _build_route_index(self) -> None:
+        try:
+            index = build_route_index(self.root_dir)
+            write_route_index(self.root_dir, index)
+            logging.info(
+                "Wrote route index: %s (%d route(s)).",
+                self.routes_filename, len(index),
+            )
+        except OSError as e:
+            logging.error(f"Failed to write route index: {e}")
+
     def _generate_agent_sop(self) -> None:
         """Generates Standard Operating Procedure for AI Agents."""
         readme_path = os.path.join(self.root_dir, self.readme_filename)
@@ -344,11 +403,20 @@ class ContextBuilder:
             "This repo ships hierarchical context graphs so you can answer\n"
             "questions and edit code WITHOUT loading the full source tree.\n\n"
             "## Cardinal rule: read narrowly, write fully\n\n"
-            f"**Three artifacts, three purposes — pick the right one first.**\n\n"
+            f"**Five artifacts, five purposes — pick the right one first.**\n\n"
             f"- `{self.root_map_filename}` — directory list + `roles` aggregator\n"
-            "  (\"all routes / migrations / scheduler jobs / webhooks\").\n"
+            "  + `artifacts` listing (\"all routes / migrations / scheduler\n"
+            "  jobs / webhooks\").\n"
             f"- `{self.symbols_filename}` — flat `{{name → {{file, kind, params,\n"
-            "  doc, role}}}}` index. **O(1) lookup** for \"where is symbol X?\"\n"
+            "  doc, role, test}}}}` index. **O(1) lookup** for \"where is\n"
+            "  symbol X?\"\n"
+            f"- `{self.tests_filename}` — `{{symbol → {{test_file,\n"
+            "  test_function, line} | null}}` map. Use to find the nearest\n"
+            "  existing test for a symbol you're about to change.\n"
+            f"- `{self.routes_filename}` — `{{path → {{method, handler, file,\n"
+            "  callers_js}}}}` cross-language bridge. Use to see which JS/TS\n"
+            "  call-sites depend on a backend route before you change its\n"
+            "  shape.\n"
             f"- `<dir>/{self.map_filename}` — per-folder zoom-in: every export\n"
             "  in every file with shape and own-package deps.\n\n"
             f"### Step 0 — \"show me all <role>\" queries\n"
@@ -389,6 +457,21 @@ class ContextBuilder:
             "- `repository` — every export from `database/repositories/*.py`.\n"
             "- `service` — every export from `services/*.py`.\n"
             "- `api-client` — every export from `bot/api_client/*.py`.\n\n"
+            "## Action-tier queries (need to *do* something, not just look up)\n"
+            "- \"Did I break a project rule?\" →\n"
+            "  MCP `lint_violations` or CLI `vc-context lint`. Reads\n"
+            "  `.vc-context/conventions.json` at the parent project root.\n"
+            "  Empty list when the file is absent — opt-in.\n"
+            "- \"Where should I add a test for symbol X?\" →\n"
+            "  MCP `find_test(symbol=X)` or CLI `vc-context test X`. Returns\n"
+            "  the nearest existing test so you can colocate the new case.\n"
+            f"  See `{self.tests_filename}` for the prebuilt map; the live\n"
+            "  fallback handles fresh symbols.\n"
+            "- \"What JS code calls this backend route?\" →\n"
+            "  MCP `route_callers(path)` or CLI\n"
+            "  `vc-context route-callers /api/foo`. Lists every JS/TS call-\n"
+            "  site that hits the route. Use BEFORE changing a route's\n"
+            "  contract.\n\n"
             "## What you will NOT find in maps\n"
             "- Stdlib / third-party imports (filtered out as noise).\n"
             "- Private (`_prefixed`) helpers or nested defs.\n"

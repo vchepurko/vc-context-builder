@@ -16,6 +16,17 @@
 
 In all three cases the cardinal rule still applies: read narrowly.
 
+## Action-tier queries (Features A / B / C)
+
+- "Did I break a project rule?" — `lint_violations` (MCP) /
+  `vc-context lint` (CLI). Driven by `.vc-context/conventions.json`
+  at the parent project root.
+- "Where should I add a test for symbol X?" — `find_test` (MCP) /
+  `vc-context test X` (CLI). Backed by `agent_tests.json`.
+- "What JS code calls this backend route?" — `route_callers` (MCP) /
+  `vc-context route-callers /api/foo` (CLI). Backed by
+  `agent_routes.json`.
+
 ## System Architecture
 This repository utilizes `vc-context-builder` to maintain a real-time, hierarchical Retrieval-Augmented Generation (RAG) context map.
 

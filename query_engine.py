@@ -40,6 +40,8 @@ class QueryEngine:
 
     ROOT_FILENAME = "agent_root.json"
     SYMBOLS_FILENAME = "agent_symbols.json"
+    TESTS_FILENAME = "agent_tests.json"
+    ROUTES_FILENAME = "agent_routes.json"
     MAP_FILENAME = "_module_map.json"
     IGNORE_DIRS = {
         ".git", "node_modules", "vendor", "__pycache__",
@@ -54,6 +56,10 @@ class QueryEngine:
         self._module_maps: Optional[List[Tuple[str, Dict[str, Any]]]] = None
         # Reverse-index for who_calls — built once on demand.
         self._reverse_deps: Optional[Dict[str, List[Dict[str, str]]]] = None
+        # Optional per-tier caches for the new artifacts. ``None`` =
+        # not yet attempted; ``{}`` = read but artifact absent / empty.
+        self._tests: Optional[Dict[str, Any]] = None
+        self._routes: Optional[Dict[str, Dict[str, Any]]] = None
 
     # ------------------------------------------------------------------
     # Lazy loaders
@@ -72,6 +78,33 @@ class QueryEngine:
             with open(path, "r", encoding="utf-8") as fh:
                 self._symbols = json.load(fh)
         return self._symbols
+
+    def _load_tests(self) -> Dict[str, Any]:
+        """Return ``agent_tests.json`` content (or ``{}`` if missing).
+
+        Unlike the root/symbols loaders, a missing artifact is NOT an
+        error — Feature B degrades gracefully when the builder didn't
+        generate it.
+        """
+        if self._tests is None:
+            path = os.path.join(self.project_root, self.TESTS_FILENAME)
+            try:
+                with open(path, "r", encoding="utf-8") as fh:
+                    self._tests = json.load(fh)
+            except (OSError, json.JSONDecodeError):
+                self._tests = {}
+        return self._tests
+
+    def _load_routes(self) -> Dict[str, Dict[str, Any]]:
+        """Return ``agent_routes.json`` content (or ``{}`` if missing)."""
+        if self._routes is None:
+            path = os.path.join(self.project_root, self.ROUTES_FILENAME)
+            try:
+                with open(path, "r", encoding="utf-8") as fh:
+                    self._routes = json.load(fh)
+            except (OSError, json.JSONDecodeError):
+                self._routes = {}
+        return self._routes
 
     def _iter_module_maps(self) -> Iterable[Tuple[str, Dict[str, Any]]]:
         """Yield ``(relative_directory, parsed_map_json)`` for each
@@ -133,15 +166,25 @@ class QueryEngine:
         """Return the symbol record from ``agent_symbols.json``.
 
         The record carries ``file`` plus whichever of ``kind``, ``params``,
-        ``doc``, ``role`` the indexer captured. ``None`` if the symbol
-        is unknown.
+        ``doc``, ``role`` the indexer captured. When ``agent_tests.json``
+        is present and has a non-null entry for this symbol, the result
+        also gains a ``test`` field.
+
+        ``None`` if the symbol is unknown.
         """
         symbols = self._load_symbols()
         entry = symbols.get(name)
         if entry is None:
             return None
         # Return a shallow copy so callers can't mutate the cache.
-        return dict(entry)
+        out = dict(entry)
+        # Fold in the test record (Feature B). Best-effort — when the
+        # tests artifact is missing we just don't add the field.
+        tests = self._load_tests()
+        test_entry = tests.get(name)
+        if test_entry:
+            out["test"] = test_entry
+        return out
 
     def find_by_role(self, role: str) -> List[str]:
         """Return all symbol names tagged with ``role``.
@@ -262,6 +305,111 @@ class QueryEngine:
         """All scanned module folders, in the order recorded by the builder."""
         root = self._load_root()
         return list(root.get("modules") or [])
+
+    # ------------------------------------------------------------------
+    # Feature A — convention linter
+    # ------------------------------------------------------------------
+
+    def lint_violations(self) -> List[Dict[str, Any]]:
+        """Run the convention linter (``.vc-context/conventions.json``).
+
+        Empty list when the config file is missing — the linter is
+        opt-in. See ``conventions.py`` for the rule schema and the
+        supported rule kinds.
+        """
+        # Local import keeps the engine import-cheap when the linter
+        # isn't used.
+        from conventions import lint_project  # type: ignore[import-not-found]
+        return lint_project(self.project_root)
+
+    # ------------------------------------------------------------------
+    # Feature B — test linking
+    # ------------------------------------------------------------------
+
+    def find_test(self, symbol: str) -> Optional[Dict[str, Any]]:
+        """Return the test record for ``symbol`` or ``None``.
+
+        Reads from the prebuilt ``agent_tests.json`` when available;
+        falls back to a live scan via ``test_linking.find_test_for_symbol``
+        so the tool still works before the builder has run.
+        """
+        tests = self._load_tests()
+        if symbol in tests:
+            entry = tests[symbol]
+            return dict(entry) if isinstance(entry, dict) else None
+
+        # Live fallback — useful right after a fresh symbol lands and
+        # the user hasn't rebuilt yet.
+        symbol_entry = self._symbols_get(symbol)
+        if symbol_entry is None:
+            return None
+        from test_linking import find_test_for_symbol  # type: ignore[import-not-found]
+        return find_test_for_symbol(self.project_root, symbol,
+                                    symbol_entry.get("file") or "")
+
+    def coverage_stats(self) -> Dict[str, Dict[str, int]]:
+        """Return per-role coverage counts plus an overall total.
+
+        Shape: ``{role_or_'overall': {with_test, total}}``.
+        Roles without an entry in ``agent_root.json`` are silently
+        omitted; symbols without a role are counted only in
+        ``overall``.
+        """
+        symbols = self._load_symbols()
+        tests = self._load_tests()
+
+        def _has_test(name: str) -> bool:
+            entry = tests.get(name)
+            return isinstance(entry, dict) and bool(entry.get("test_file"))
+
+        role_buckets: Dict[str, Dict[str, int]] = {}
+        for name, entry in symbols.items():
+            role = entry.get("role") if isinstance(entry, dict) else None
+            if role:
+                bucket = role_buckets.setdefault(role, {"with_test": 0, "total": 0})
+                bucket["total"] += 1
+                if _has_test(name):
+                    bucket["with_test"] += 1
+
+        overall = {"with_test": 0, "total": 0}
+        for name in symbols:
+            overall["total"] += 1
+            if _has_test(name):
+                overall["with_test"] += 1
+        # Keep the overall bucket last for stable rendering.
+        ordered: Dict[str, Dict[str, int]] = {
+            r: role_buckets[r] for r in sorted(role_buckets)
+        }
+        ordered["overall"] = overall
+        return ordered
+
+    def _symbols_get(self, name: str) -> Optional[Dict[str, Any]]:
+        symbols = self._load_symbols()
+        entry = symbols.get(name)
+        return dict(entry) if isinstance(entry, dict) else None
+
+    # ------------------------------------------------------------------
+    # Feature C — cross-language route bridge
+    # ------------------------------------------------------------------
+
+    def find_route(self, path: str) -> Optional[Dict[str, Any]]:
+        """Return the full route record (with ``callers_js``) or ``None``.
+
+        Accepts either the bare URL path (``/api/foo``) or a
+        method-prefixed key (``GET /api/foo``).
+        """
+        from route_bridge import find_route_for_path  # type: ignore[import-not-found]
+        return find_route_for_path(self._load_routes(), path)
+
+    def route_callers(self, path: str) -> List[Dict[str, Any]]:
+        """JS/TS call-sites for the given route path. Empty when none/missing."""
+        from route_bridge import callers_for_route  # type: ignore[import-not-found]
+        return callers_for_route(self._load_routes(), path)
+
+    def route_for_js_call(self, file_path: str) -> List[Dict[str, Any]]:
+        """Routes whose ``callers_js`` list mentions ``file_path``."""
+        from route_bridge import route_for_js_file  # type: ignore[import-not-found]
+        return route_for_js_file(self._load_routes(), file_path)
 
     # ------------------------------------------------------------------
     # Internal: reverse-dependency index for who_calls

@@ -121,6 +121,52 @@ def _tool_specs() -> List[Dict[str, Any]]:
             "description": "Return every scanned module folder.",
             "inputSchema": {"type": "object", "properties": {}},
         },
+        {
+            "name": "lint_violations",
+            "description": (
+                "Run the convention linter and return all violations. "
+                "Rules live in .vc-context/conventions.json at the parent "
+                "project root. Empty list when the file is missing."
+            ),
+            "inputSchema": {"type": "object", "properties": {}},
+        },
+        {
+            "name": "find_test",
+            "description": (
+                "Return the nearest existing test for a symbol "
+                "(test_file, test_function, line) or null. Reads "
+                "agent_tests.json with a live-scan fallback."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {"symbol": {"type": "string"}},
+                "required": ["symbol"],
+            },
+        },
+        {
+            "name": "route_callers",
+            "description": (
+                "Return the JS/TS call-sites that hit a backend route "
+                "path (e.g. '/api/foo' or 'GET /api/foo')."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {"path": {"type": "string"}},
+                "required": ["path"],
+            },
+        },
+        {
+            "name": "route_for_js_call",
+            "description": (
+                "Return every backend route whose callers_js list "
+                "mentions the given JS/TS file path."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {"file_path": {"type": "string"}},
+                "required": ["file_path"],
+            },
+        },
     ]
 
 
@@ -134,12 +180,16 @@ class _Dispatcher:
     def __init__(self, engine: QueryEngine) -> None:
         self.engine = engine
         self._handlers: Dict[str, Callable[[Dict[str, Any]], Any]] = {
-            "find_symbol":      self._find_symbol,
-            "find_by_role":     self._find_by_role,
-            "who_calls":        self._who_calls,
-            "summarise_module": self._summarise_module,
-            "list_roles":       self._list_roles,
-            "list_modules":     self._list_modules,
+            "find_symbol":       self._find_symbol,
+            "find_by_role":      self._find_by_role,
+            "who_calls":         self._who_calls,
+            "summarise_module":  self._summarise_module,
+            "list_roles":        self._list_roles,
+            "list_modules":      self._list_modules,
+            "lint_violations":   self._lint_violations,
+            "find_test":         self._find_test,
+            "route_callers":     self._route_callers,
+            "route_for_js_call": self._route_for_js_call,
         }
 
     def call(self, name: str, args: Dict[str, Any]) -> Any:
@@ -165,6 +215,18 @@ class _Dispatcher:
 
     def _list_modules(self, args: Dict[str, Any]) -> Any:
         return self.engine.list_modules()
+
+    def _lint_violations(self, args: Dict[str, Any]) -> Any:
+        return self.engine.lint_violations()
+
+    def _find_test(self, args: Dict[str, Any]) -> Any:
+        return self.engine.find_test(str(args.get("symbol", "")))
+
+    def _route_callers(self, args: Dict[str, Any]) -> Any:
+        return self.engine.route_callers(str(args.get("path", "")))
+
+    def _route_for_js_call(self, args: Dict[str, Any]) -> Any:
+        return self.engine.route_for_js_call(str(args.get("file_path", "")))
 
 
 # ----------------------------------------------------------------------

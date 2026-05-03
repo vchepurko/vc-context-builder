@@ -50,6 +50,11 @@ def _print_symbol(name: str, entry: Dict[str, Any]) -> None:
         print("  doc:")
         for line in str(entry["doc"]).splitlines():
             print(f"    {line}")
+    test = entry.get("test")
+    if isinstance(test, dict) and test.get("test_file"):
+        line = test.get("line")
+        suffix = f":{line}" if line else ""
+        print(f"  test: {test.get('test_file')}{suffix}  ({test.get('test_function')})")
 
 
 def _print_callers(symbol: str, callers: List[Dict[str, str]]) -> None:
@@ -201,6 +206,131 @@ def cmd_build(args: argparse.Namespace) -> int:
 
 
 # ----------------------------------------------------------------------
+# Feature A — convention linter
+# ----------------------------------------------------------------------
+
+def _print_violations(violations: List[Dict[str, Any]]) -> None:
+    if not violations:
+        print("No violations.")
+        return
+    # Group by rule_id for readability.
+    by_rule: Dict[str, List[Dict[str, Any]]] = {}
+    for v in violations:
+        by_rule.setdefault(v["rule_id"], []).append(v)
+    for rule_id in sorted(by_rule):
+        bucket = by_rule[rule_id]
+        sev = bucket[0].get("severity", "warn")
+        print(f"[{sev.upper()}] {rule_id}  ({len(bucket)} hit(s))")
+        for v in bucket:
+            print(f"  {v['file']}:{v['line']}  {v['message']}")
+
+
+def cmd_lint(args: argparse.Namespace) -> int:
+    engine = _engine(args)
+    violations = engine.lint_violations()
+    if args.json:
+        _emit_json(violations)
+    else:
+        _print_violations(violations)
+    # Exit 1 on any error-severity hit, 0 otherwise (warn/info don't
+    # break CI by default).
+    from conventions import has_error  # type: ignore[import-not-found]
+    return 1 if has_error(violations) else 0
+
+
+# ----------------------------------------------------------------------
+# Feature B — test linking
+# ----------------------------------------------------------------------
+
+def cmd_test(args: argparse.Namespace) -> int:
+    engine = _engine(args)
+    entry = engine.find_test(args.symbol)
+    if entry is None:
+        if args.json:
+            _emit_json(None)
+        else:
+            print(f"No test found for {args.symbol}.")
+        return 1
+    if args.json:
+        _emit_json({"symbol": args.symbol, **entry})
+    else:
+        print(f"{args.symbol}")
+        print(f"  test_file: {entry.get('test_file')}")
+        print(f"  test_function: {entry.get('test_function')}")
+        if entry.get("line"):
+            print(f"  line: {entry['line']}")
+    return 0
+
+
+def cmd_coverage(args: argparse.Namespace) -> int:
+    engine = _engine(args)
+    stats = engine.coverage_stats()
+    if args.json:
+        _emit_json(stats)
+        return 0
+    if not stats:
+        print("No symbols indexed.")
+        return 0
+    width = max(len(k) for k in stats)
+    for role in stats:
+        bucket = stats[role]
+        with_t = bucket["with_test"]
+        total = bucket["total"]
+        pct = (100.0 * with_t / total) if total else 0.0
+        print(f"  {role.ljust(width)}  {with_t}/{total}  ({pct:.0f}%)")
+    return 0
+
+
+# ----------------------------------------------------------------------
+# Feature C — route bridge
+# ----------------------------------------------------------------------
+
+def _print_route(entry: Dict[str, Any]) -> None:
+    print(f"  path:    {entry.get('path')}")
+    print(f"  method:  {entry.get('method')}")
+    print(f"  handler: {entry.get('handler')}")
+    print(f"  file:    {entry.get('file')}:{entry.get('line')}")
+    callers = entry.get("callers_js") or []
+    if callers:
+        print(f"  callers_js: ({len(callers)})")
+        for c in callers:
+            print(f"    {c.get('file')}:{c.get('line')}  {c.get('raw')}")
+    else:
+        print("  callers_js: (none)")
+
+
+def cmd_route(args: argparse.Namespace) -> int:
+    engine = _engine(args)
+    entry = engine.find_route(args.path)
+    if entry is None:
+        if args.json:
+            _emit_json(None)
+        else:
+            print(f"No route found: {args.path}", file=sys.stderr)
+        return 1
+    if args.json:
+        _emit_json(entry)
+    else:
+        _print_route(entry)
+    return 0
+
+
+def cmd_route_callers(args: argparse.Namespace) -> int:
+    engine = _engine(args)
+    callers = engine.route_callers(args.path)
+    if args.json:
+        _emit_json(callers)
+        return 0 if callers else 1
+    if not callers:
+        print(f"No JS callers for {args.path}.")
+        return 1
+    print(f"{len(callers)} JS caller(s) for {args.path}:")
+    for c in callers:
+        print(f"  {c.get('file')}:{c.get('line')}  {c.get('raw')}")
+    return 0
+
+
+# ----------------------------------------------------------------------
 # Argparse wiring
 # ----------------------------------------------------------------------
 
@@ -245,6 +375,42 @@ def _build_parser() -> argparse.ArgumentParser:
 
     p_build = sub.add_parser("build", help="Run the builder (agent_map.py).")
     p_build.set_defaults(handler=cmd_build)
+
+    # Feature A — convention linter
+    p_lint = sub.add_parser(
+        "lint",
+        help="Report convention violations from .vc-context/conventions.json.",
+    )
+    p_lint.set_defaults(handler=cmd_lint)
+
+    # Feature B — test linking
+    p_test = sub.add_parser(
+        "test",
+        help="Find the nearest test for a symbol.",
+    )
+    p_test.add_argument("symbol")
+    p_test.set_defaults(handler=cmd_test)
+
+    p_cov = sub.add_parser(
+        "coverage",
+        help="Print symbol-test linking ratio per role and overall.",
+    )
+    p_cov.set_defaults(handler=cmd_coverage)
+
+    # Feature C — route bridge
+    p_route = sub.add_parser(
+        "route",
+        help="Look up a backend route by URL path.",
+    )
+    p_route.add_argument("path")
+    p_route.set_defaults(handler=cmd_route)
+
+    p_rcal = sub.add_parser(
+        "route-callers",
+        help="List JS/TS call-sites that hit this route path.",
+    )
+    p_rcal.add_argument("path")
+    p_rcal.set_defaults(handler=cmd_route_callers)
 
     return parser
 

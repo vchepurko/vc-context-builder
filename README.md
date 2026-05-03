@@ -122,7 +122,7 @@ Expect `serverInfo.name = "vc-context"`.
 # Symlink once, then use from anywhere in the project tree:
 ln -s "$PWD/.ai-context/bin/vc-context" /usr/local/bin/vc-context
 
-vc-context find <symbol>            # one symbol — file / kind / params / doc / role
+vc-context find <symbol>            # one symbol — file / kind / params / doc / role / test
 vc-context calls <symbol>           # who imports the file containing <symbol>
 vc-context role <role>              # every symbol with that role tag
 vc-context module <relative/path>   # one folder summary
@@ -130,11 +130,50 @@ vc-context roles                    # role → count map
 vc-context modules                  # scanned folder list
 vc-context build                    # rebuild artifacts manually
 
+# Action-tier (Features A / B / C):
+vc-context lint                     # convention violations from .vc-context/conventions.json
+vc-context test <symbol>            # nearest existing test for <symbol>
+vc-context coverage                 # symbol-test linking ratio per role
+vc-context route <path>             # backend route record
+vc-context route-callers <path>     # JS/TS call-sites that hit a route
+
 vc-context find <symbol> --json     # machine-readable; works on every subcommand
 vc-context --root /abs/path …       # query a different project
 ```
 
-Exit codes: `0` on hit, `1` on miss / unknown role / unknown module.
+Exit codes: `0` on hit, `1` on miss / unknown role / unknown module /
+error-severity lint hit.
+
+### Conventions config (Feature A)
+
+Drop a `.vc-context/conventions.json` in the **parent project root**
+(NOT the submodule). Stdlib JSON, tiny schema:
+
+```json
+{
+  "rules": [
+    {
+      "id": "handlers-via-api-client",
+      "description": "Bot handlers must not import database.* directly.",
+      "match_path": "bot/handlers/**/*.py",
+      "forbid_import": "database",
+      "severity": "error"
+    },
+    {
+      "id": "no-print",
+      "description": "No print() — use the logger.",
+      "match_path": "**/*.py",
+      "forbid_call": "print",
+      "severity": "warn"
+    }
+  ]
+}
+```
+
+Rule kinds: `forbid_import` (package name) / `forbid_call` (bare
+function name). `match_path` is an `fnmatch` glob with `**` support.
+`severity`: `error` flips `vc-context lint` exit code; `warn` / `info`
+do not. Missing config = no rules = no error — opt-in by design.
 
 More worked examples in [`USAGE.md`](USAGE.md).
 
