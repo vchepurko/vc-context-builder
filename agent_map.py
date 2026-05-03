@@ -23,6 +23,11 @@ from custom_roles import (
 # Feature artifacts — built after the symbol index in `run()`.
 from test_linking import build_test_index, write_test_index, TESTS_FILENAME
 from route_bridge import build_route_index, write_route_index, ROUTES_FILENAME
+from callback_index import (
+    CALLBACKS_FILENAME,
+    collect_callbacks,
+    write_callback_index,
+)
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
@@ -47,6 +52,7 @@ class ContextBuilder:
         self.symbols_filename = 'agent_symbols.json'
         self.tests_filename = TESTS_FILENAME
         self.routes_filename = ROUTES_FILENAME
+        self.callbacks_filename = CALLBACKS_FILENAME
         self.readme_filename = 'AGENT_README.md'
         self.processed_modules: List[str] = []
 
@@ -247,6 +253,7 @@ class ContextBuilder:
         # Feature B + C — depend on the symbol index being on disk.
         self._build_test_index()
         self._build_route_index()
+        self._build_callback_index()
         self._generate_agent_sop()
         logging.info("Context build complete. Agent SOP is ready.")
 
@@ -358,6 +365,7 @@ class ContextBuilder:
                 self.symbols_filename,
                 self.tests_filename,
                 self.routes_filename,
+                self.callbacks_filename,
             ],
         }
         if roles:
@@ -475,6 +483,21 @@ class ContextBuilder:
             )
         except OSError as e:
             logging.error(f"Failed to write route index: {e}")
+
+    # ------------------------------------------------------------------
+    # Feature D — aiogram callback_data index
+    # ------------------------------------------------------------------
+
+    def _build_callback_index(self) -> None:
+        try:
+            index = collect_callbacks(self.root_dir)
+            write_callback_index(self.root_dir, index)
+            logging.info(
+                "Wrote callback index: %s (%d entries).",
+                self.callbacks_filename, len(index),
+            )
+        except OSError as e:
+            logging.error(f"Failed to write callback index: {e}")
 
     def _generate_agent_sop(self) -> None:
         """Generates Standard Operating Procedure for AI Agents."""

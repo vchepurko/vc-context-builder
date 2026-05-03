@@ -66,6 +66,8 @@ class McpServerTests(FixtureMixin, unittest.TestCase):
             # Feature A / B / C additions.
             "lint_violations", "find_test",
             "route_callers", "route_for_js_call",
+            # Feature D — aiogram callback_data resolver.
+            "find_callback",
         })
 
     def test_tools_call_find_symbol(self) -> None:

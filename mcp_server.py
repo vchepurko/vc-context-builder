@@ -167,6 +167,21 @@ def _tool_specs() -> List[Dict[str, Any]]:
                 "required": ["file_path"],
             },
         },
+        {
+            "name": "find_callback",
+            "description": (
+                "Resolve an aiogram callback_data string (e.g. "
+                "'adm:staff_add' or 'adm:staff_detail:42') to the "
+                "handler(s) that listen for it. Tries an exact match "
+                "first, then falls back to the longest startswith "
+                "prefix in the index."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {"data": {"type": "string"}},
+                "required": ["data"],
+            },
+        },
     ]
 
 
@@ -190,6 +205,7 @@ class _Dispatcher:
             "find_test":         self._find_test,
             "route_callers":     self._route_callers,
             "route_for_js_call": self._route_for_js_call,
+            "find_callback":     self._find_callback,
         }
 
     def call(self, name: str, args: Dict[str, Any]) -> Any:
@@ -227,6 +243,9 @@ class _Dispatcher:
 
     def _route_for_js_call(self, args: Dict[str, Any]) -> Any:
         return self.engine.route_for_js_call(str(args.get("file_path", "")))
+
+    def _find_callback(self, args: Dict[str, Any]) -> Any:
+        return self.engine.find_callback(str(args.get("data", "")))
 
 
 # ----------------------------------------------------------------------

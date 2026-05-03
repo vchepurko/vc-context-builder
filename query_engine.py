@@ -42,6 +42,7 @@ class QueryEngine:
     SYMBOLS_FILENAME = "agent_symbols.json"
     TESTS_FILENAME = "agent_tests.json"
     ROUTES_FILENAME = "agent_routes.json"
+    CALLBACKS_FILENAME = "agent_callbacks.json"
     MAP_FILENAME = "_module_map.json"
     IGNORE_DIRS = {
         ".git", "node_modules", "vendor", "__pycache__",
@@ -60,6 +61,7 @@ class QueryEngine:
         # not yet attempted; ``{}`` = read but artifact absent / empty.
         self._tests: Optional[Dict[str, Any]] = None
         self._routes: Optional[Dict[str, Dict[str, Any]]] = None
+        self._callbacks: Optional[Dict[str, List[Dict[str, Any]]]] = None
 
     # ------------------------------------------------------------------
     # Lazy loaders
@@ -105,6 +107,22 @@ class QueryEngine:
             except (OSError, json.JSONDecodeError):
                 self._routes = {}
         return self._routes
+
+    def _load_callbacks(self) -> Dict[str, List[Dict[str, Any]]]:
+        """Return ``agent_callbacks.json`` content (or ``{}`` if missing).
+
+        Same graceful-degradation contract as the other optional
+        artifact loaders — Feature D is fresh and may be absent on
+        older builds.
+        """
+        if self._callbacks is None:
+            path = os.path.join(self.project_root, self.CALLBACKS_FILENAME)
+            try:
+                with open(path, "r", encoding="utf-8") as fh:
+                    self._callbacks = json.load(fh)
+            except (OSError, json.JSONDecodeError):
+                self._callbacks = {}
+        return self._callbacks
 
     def _iter_module_maps(self) -> Iterable[Tuple[str, Dict[str, Any]]]:
         """Yield ``(relative_directory, parsed_map_json)`` for each
@@ -458,6 +476,20 @@ class QueryEngine:
         """Routes whose ``callers_js`` list mentions ``file_path``."""
         from route_bridge import route_for_js_file  # type: ignore[import-not-found]
         return route_for_js_file(self._load_routes(), file_path)
+
+    # ------------------------------------------------------------------
+    # Feature D — aiogram callback_data resolver
+    # ------------------------------------------------------------------
+
+    def find_callback(self, data: str) -> List[Dict[str, Any]]:
+        """Resolve an aiogram ``callback_data`` string to its handler(s).
+
+        Tries an exact lookup first, then falls back to the longest
+        matching ``startswith`` prefix. Empty list when nothing matches
+        or the index is missing.
+        """
+        from callback_index import find_callback as _find  # type: ignore[import-not-found]
+        return _find(self._load_callbacks(), data)
 
     # ------------------------------------------------------------------
     # Internal: reverse-dependency index for who_calls
