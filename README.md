@@ -1,50 +1,197 @@
 # 🤖 vc-context-builder
 
-A zero-dependency, auto-updating Context Graph Builder for LLM coding agents (Cursor, Copilot, Claude).
+Zero-dependency, auto-updating **code intelligence layer for LLM agents**.
 
-It scans your project, parses ASTs (Abstract Syntax Trees) and heuristics, and builds a real-time `_module_map.json` for every directory. This gives AI agents a perfect, hallucination-free understanding of your project's architecture, dependencies, and available functions/classes.
+The builder scans your project, parses ASTs + path heuristics, and emits
+three artifacts that let an agent navigate the repo **without loading the
+full source tree into its context window**:
 
-## 🌟 Features
-* **Zero Dependencies:** Written in pure Python. No `node_modules`, no external libraries.
-* **Deep Parsing:** * `Python` (Native AST parsing)
-    * `PHP` (WordPress/WooCommerce hooks, traits, interfaces)
-    * `JS/TS` (React/Angular syntax, dynamic imports)
-    * `DevOps` (Dockerfiles, Makefiles, GitHub Actions)
-* **Self-Healing:** Automatically ignores unchanged directories using `mtime` and file composition checks.
-* **Auto-Updating:** Integrates directly into your `pre-commit` workflow.
+| Artifact | Granularity | Typical use |
+|---|---|---|
+| `agent_root.json` | project-level | "what modules exist? which symbols are routes / migrations / scheduler-jobs?" |
+| `agent_symbols.json` | one entry per symbol | "where is `add_admin` defined? what does it return?" |
+| `<dir>/_module_map.json` | one entry per file | "what does `bot/handlers/admin.py` expose?" |
 
-## 🚀 Installation (Git Submodule)
+On top of those, two query surfaces:
 
-The best way to use this tool is to add it as a Git submodule to your main project. This keeps the builder isolated and easily updatable.
+| Surface | Who it's for | Token cost |
+|---|---|---|
+| **MCP server** | Claude Code, Cursor, Codex CLI ≥ 0.x, Continue, Aider+plugin | ~150 bytes per call — JSON files **never enter context** |
+| **CLI** (`vc-context …`) | shell pipes, CI, generic LLM-with-shell-access agents, humans | ~200-2000 bytes per call |
+| **JSON files** (fallback) | any text-LLM | reads the whole artifact (~hundreds of KB total) |
 
-1. Navigate to your target project root:
-   ```bash
-   cd your-project-root
-   ```
-   
-2. Add the context builder as a submodule:
-   ```bash
-   git submodule add [https://github.com/YOUR_USERNAME/vc-context-builder.git](https://github.com/YOUR_USERNAME/vc-context-builder.git) .ai-context
-    ```
-   
-3. Run the automated installer:
-   ```bash
-   ./.ai-context/install.sh
-   ```
-
-### What does the installer do?
-* **Creates a pre-commit git hook** in your parent project.
-* **Generates the initial AI context maps** (`agent_root.json` and `_module_map.json` files).
-* **Automatically adds the `.ai-context` folder to your `.gitignore`** to prevent recursive mapping.
+Same query engine behind all three. Pick the lightest your agent supports.
 
 ---
 
-### 🛠 How It Works
-Once installed, you don't need to do anything manually.
-Every time you run `git commit` in your project, the builder will automatically run in the background, update the JSON context maps for any modified folders, and stage them with your commit.
+## What gets indexed
+
+- **Python** — top-level functions / classes via `ast`, with signatures + first-line docstring + decorator-based role detection.
+- **PHP** — WordPress / WooCommerce hooks, traits, interfaces.
+- **JS / TS** — React / Angular syntax, dynamic imports.
+- **DevOps** — Dockerfiles, Makefiles, GitHub Actions.
+
+Auto-detected roles for Python:
+`route`, `aiogram-handler`, `webhook`, `migration`, `scheduler-job`,
+`repository`, `service`, `api-client`. Detection mixes AST decorators
+with file-path heuristics.
+
+Filtered out (intentional): stdlib + third-party imports, private
+helpers, empty `__init__.py` files, glue modules with nothing to expose.
 
 ---
 
-### 🔌 Extending Parsers
-Want to add support for **Go**, **Ruby**, or **Rust**?
-Simply create a new file in `.ai-context/parsers/`, inherit from `BaseParser`, define your `extensions`, and the system will auto-register it.
+## Installation
+
+```bash
+cd your-project-root
+git submodule add https://github.com/vchepurko/vc-context-builder.git .ai-context
+git -C .ai-context checkout main
+./.ai-context/install.sh
+```
+
+`install.sh` is **pre-commit-aware**:
+
+- If the parent project already uses [pre-commit](https://pre-commit.com),
+  it appends `vc-context-builder` as a `local` hook and runs
+  `pre-commit install`. **Existing hooks (ruff, pytest, …) keep working.**
+- Otherwise it writes a standalone `.git/hooks/pre-commit`,
+  preserving any prior one as `pre-commit.legacy.<timestamp>`.
+- It does **not** add `.ai-context/` to `.gitignore` — that breaks
+  submodule tracking.
+
+After install, every `git commit` regenerates the artifacts in the
+background and stages them automatically.
+
+---
+
+## Quick taste — three ways to ask the same question
+
+> "Where is `add_admin` defined and what's its signature?"
+
+**MCP** (Claude Code / Cursor / Codex CLI):
+
+```jsonc
+// agent calls a tool — no JSON enters its context window
+tools/call: find_symbol("add_admin")
+→ {"file": "bot/api_client/staff.py", "kind": "async-func",
+   "params": "(user_id: int, role: str='manager')",
+   "doc": "POST /api/admin/staff/admins — add or update an admin row.",
+   "role": "api-client"}
+```
+
+**CLI** (shell, CI, generic agent):
+
+```bash
+$ vc-context find add_admin
+add_admin  bot/api_client/staff.py
+  async-func (user_id: int, role: str='manager')  [api-client]
+  POST /api/admin/staff/admins — add or update an admin row.
+```
+
+**JSON fallback** (universal):
+
+```bash
+$ jq '.add_admin' agent_symbols.json
+{ "file": "bot/api_client/staff.py", "kind": "async-func", ... }
+```
+
+Same answer. Different cost per look-up.
+
+---
+
+## Wiring an MCP host
+
+See [`MCP_SETUP.md`](MCP_SETUP.md) — copy-paste blocks for Claude Code,
+Cursor, Codex CLI, Continue, and a generic stdio host.
+
+Smoke test (no agent needed):
+
+```bash
+echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' \
+  | python3 .ai-context/mcp_server.py | head -1
+```
+
+Expect `serverInfo.name = "vc-context"`.
+
+---
+
+## CLI cheatsheet
+
+```bash
+# Symlink once, then use from anywhere in the project tree:
+ln -s "$PWD/.ai-context/bin/vc-context" /usr/local/bin/vc-context
+
+vc-context find <symbol>            # one symbol — file / kind / params / doc / role
+vc-context calls <symbol>           # who imports the file containing <symbol>
+vc-context role <role>              # every symbol with that role tag
+vc-context module <relative/path>   # one folder summary
+vc-context roles                    # role → count map
+vc-context modules                  # scanned folder list
+vc-context build                    # rebuild artifacts manually
+
+vc-context find <symbol> --json     # machine-readable; works on every subcommand
+vc-context --root /abs/path …       # query a different project
+```
+
+Exit codes: `0` on hit, `1` on miss / unknown role / unknown module.
+
+More worked examples in [`USAGE.md`](USAGE.md).
+
+---
+
+## Extending the parsers
+
+Drop a new parser into `parsers/` that subclasses `BaseParser`:
+
+```python
+# parsers/go_parser.py
+from parsers.base_parser import BaseParser
+
+class GoParser(BaseParser):
+    extensions = ['.go']
+
+    def extract(self, file_path: str):
+        # … parse a .go file, return:
+        return {
+            "exports": [{"name": "...", "kind": "func", "params": "(...)"}],
+            "dependencies": ["..."],
+        }
+```
+
+Auto-registered on import via `BaseParser.__init_subclass__`. Add the
+import to `parsers/__init__.py` and you're done — no central registry
+to update.
+
+---
+
+## How big is the win
+
+Honest numbers from a real Python repo (~50K LOC, 1231 indexed symbols):
+
+| Scenario | Without builder | With JSON tier | With MCP tier |
+|---|---|---|---|
+| "find one symbol" | ~10K tokens (grep + read candidates) | ~55K tokens (load `agent_symbols.json`) | **~150 bytes** |
+| "list all webhooks" | ~30K tokens (grep + cross-check) | ~250 tokens (read `roles` block) | ~80 bytes |
+| "describe one folder" | full file reads | ~2K tokens (one map) | ~2K tokens (returned as text) |
+
+Discovery-phase savings sit around **30-50% of total session tokens** in
+practice — not the marketing 70×. Edit + verify phases dominate; this
+tool only attacks the orientation slice.
+
+---
+
+## What this tool is **not**
+
+- Not a runtime call-graph — `who_calls` is a best-effort static
+  heuristic, not a true call graph.
+- Not an LLM-summary engine — docstrings are extracted verbatim, not
+  generated.
+- Not a coverage / metrics tool — no test mapping, no hot-path data.
+- Not a refactor sandbox — purely read-only outside of `git commit`.
+
+---
+
+## License & contributing
+
+See `LICENSE`. Issues + PRs welcome — keep the zero-dependency rule.
