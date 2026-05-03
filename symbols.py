@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import ast
 import os
+import re
 from typing import Optional, Set
 
 
@@ -61,6 +62,84 @@ def _decorator_call_chain(dec: ast.AST) -> Optional[tuple[str, str]]:
     return (func.value.id, func.attr)
 
 
+# Heuristic patterns used by `_classify_aiogram_message` below.
+# A positional arg that looks like ``StateGroupName.field`` (capitalised
+# identifier + lowercase attribute) is treated as an aiogram FSM filter.
+_FSM_STATE_REF_RE = re.compile(r"^[A-Z][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def _decorator_filter_args_text(dec: ast.AST) -> list:
+    """Return ``ast.unparse`` text of every positional and keyword-arg value
+    of a decorator call. Empty list when the decorator is bare.
+
+    Used to peek at aiogram message/callback filters without re-implementing
+    the whole expression matcher — we just look at the text.
+    """
+    if not isinstance(dec, ast.Call):
+        return []
+    out = []
+    for a in dec.args:
+        try:
+            out.append(ast.unparse(a))
+        except Exception:
+            pass
+    for kw in dec.keywords or ():
+        try:
+            out.append(ast.unparse(kw.value))
+        except Exception:
+            pass
+    return out
+
+
+def _classify_aiogram_message(dec: ast.Call) -> str:
+    """Pick the most specific role for ``@router.message(...)``.
+
+    Order — most specific first:
+
+    * ``catch-all-handler``    — bare ``@router.message()`` (no args).
+    * ``command-handler``      — first arg is ``Command(...)`` / ``CommandStart(...)``.
+    * ``fsm-message-handler``  — any arg looks like ``XxxState.field`` (StatesGroup ref).
+    * ``text-match-handler``   — uses ``F.text...`` filters and isn't FSM-bound.
+    * ``aiogram-handler``      — fallback for filters we don't classify.
+    """
+    args_text = _decorator_filter_args_text(dec)
+    if not args_text:
+        return "catch-all-handler"
+
+    # Command(...) / CommandStart(...)
+    for txt in args_text:
+        head = txt.split("(", 1)[0]
+        if head in {"Command", "CommandStart", "CommandObject"}:
+            return "command-handler"
+
+    # FSM state reference (e.g. AddStaffState.waiting_user_id). We skip
+    # ``F`` / ``F.<...>`` so a ``F.text`` filter doesn't get misclassified
+    # — `F` is always magic-filter, never a StatesGroup.
+    for txt in args_text:
+        if txt == "F" or txt.startswith("F.") or txt.startswith("F("):
+            continue
+        if _FSM_STATE_REF_RE.match(txt):
+            return "fsm-message-handler"
+
+    # Magic-filter on text content.
+    for txt in args_text:
+        if txt == "F.text" or txt.startswith("F.text") or "F.text" in txt:
+            return "text-match-handler"
+
+    return "aiogram-handler"
+
+
+def _classify_aiogram_callback(dec: ast.Call) -> str:
+    """Pick the role for ``@router.callback_query(...)``.
+
+    Currently flat — every ``callback_query`` decorator becomes a
+    ``callback-handler``. FSM-bound callbacks exist but are rare; the
+    role split lives mostly on the message side where the FSM/command
+    distinction matters.
+    """
+    return "callback-handler"
+
+
 def extract_decorator_roles(node: ast.AST) -> Optional[str]:
     """Inspect a FunctionDef / AsyncFunctionDef's decorator list and
     return a role string, or ``None`` if no pattern matches.
@@ -68,8 +147,11 @@ def extract_decorator_roles(node: ast.AST) -> Optional[str]:
     Order of preference (a function can satisfy multiple patterns; we
     return the most specific one):
 
-    1. `aiogram-handler` — `@router.message(...)` etc.
-    2. `route`           — `@router.get(...)`, `@app.post(...)`.
+    1. Aiogram subroles — see ``_classify_aiogram_message`` /
+       ``_classify_aiogram_callback`` for the precise split. Catches
+       ``@router.callback_query(...)``, ``@router.message(...)``, and
+       every other aiogram event method as a fallback ``aiogram-handler``.
+    2. ``route`` — ``@router.get(...)``, ``@app.post(...)``.
     """
     if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
         return None
@@ -81,8 +163,20 @@ def extract_decorator_roles(node: ast.AST) -> Optional[str]:
         if chain is None:
             continue
         base, method = chain
-        if method in _AIOGRAM_METHODS and base in {"router", "dp"}:
-            return "aiogram-handler"
+        if method not in _AIOGRAM_METHODS or base not in {"router", "dp"}:
+            continue
+        if not isinstance(dec, ast.Call):
+            # Bare ``@router.method`` form (rare). Treat as catch-all
+            # for ``message`` and as plain ``aiogram-handler`` otherwise.
+            return "catch-all-handler" if method == "message" else "aiogram-handler"
+        if method == "message":
+            return _classify_aiogram_message(dec)
+        if method == "callback_query":
+            return _classify_aiogram_callback(dec)
+        # Other aiogram events (edited_message, channel_post, ...) keep
+        # the umbrella tag — a finer split would be ceremony for
+        # rarely-used handler types.
+        return "aiogram-handler"
 
     # Then FastAPI.
     for dec in decorators:
@@ -94,6 +188,22 @@ def extract_decorator_roles(node: ast.AST) -> Optional[str]:
             return "route"
 
     return None
+
+
+def is_states_group_class(node: ast.AST) -> bool:
+    """Heuristic: ``True`` when ``node`` is ``class X(StatesGroup): ...``.
+
+    Matches both ``StatesGroup`` (bare import) and ``aiogram.fsm.state.StatesGroup``
+    (attribute form). False for non-class nodes.
+    """
+    if not isinstance(node, ast.ClassDef):
+        return False
+    for base in node.bases or ():
+        if isinstance(base, ast.Name) and base.id == "StatesGroup":
+            return True
+        if isinstance(base, ast.Attribute) and base.attr == "StatesGroup":
+            return True
+    return False
 
 
 # ---------------------------------------------------------------------------

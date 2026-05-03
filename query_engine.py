@@ -186,17 +186,47 @@ class QueryEngine:
             out["test"] = test_entry
         return out
 
+    # Legacy umbrella roles — when a caller asks for an old name we
+    # union the new, more specific buckets so older queries keep
+    # working. Members include the umbrella itself so symbols still
+    # tagged with it (e.g. fallback ``aiogram-handler`` for non-message
+    # event types) aren't lost.
+    _ROLE_UMBRELLAS: Dict[str, set] = {
+        "aiogram-handler": {
+            "aiogram-handler",
+            "callback-handler",
+            "command-handler",
+            "fsm-message-handler",
+            "text-match-handler",
+            "catch-all-handler",
+        },
+    }
+
     def find_by_role(self, role: str) -> List[str]:
         """Return all symbol names tagged with ``role``.
 
         Roles live in ``agent_root.json.roles`` (e.g. ``webhook``,
         ``route``, ``migration``, ``scheduler-job``, ...). Returns an
         empty list when the role is unknown.
+
+        Legacy umbrella names (e.g. ``aiogram-handler``) expand to the
+        union of the more specific subroles introduced when the parser
+        learned to split them — old call sites keep working.
         """
         root = self._load_root()
         roles = root.get("roles") or {}
+        members = self._ROLE_UMBRELLAS.get(role)
+        if members is not None:
+            seen: set = set()
+            out: List[str] = []
+            for member in members:
+                for name in roles.get(member) or ():
+                    if name not in seen:
+                        seen.add(name)
+                        out.append(name)
+            out.sort()
+            return out
         bucket = roles.get(role) or []
-        # Defensive copy.
         return list(bucket)
 
     def who_calls(self, symbol: str) -> List[Dict[str, str]]:
@@ -296,10 +326,28 @@ class QueryEngine:
         }
 
     def list_roles(self) -> Dict[str, int]:
-        """``role → count`` map across the whole project."""
+        """``role → count`` map across the whole project.
+
+        Synthetic umbrella counts (e.g. ``aiogram-handler``) are added
+        on top of the raw subrole counts so an agent grep'ing for
+        "how many aiogram handlers" still finds the answer with one
+        lookup.
+        """
         root = self._load_root()
         roles = root.get("roles") or {}
-        return {r: len(names) for r, names in roles.items()}
+        out: Dict[str, int] = {r: len(names) for r, names in roles.items()}
+        for umbrella, members in self._ROLE_UMBRELLAS.items():
+            seen: set = set()
+            for m in members:
+                for n in roles.get(m) or ():
+                    seen.add(n)
+            if seen:
+                # Always overwrite with the synthetic count — an existing
+                # raw bucket under the umbrella name (legacy fallback
+                # tags) is a strict subset of the union, so the synthetic
+                # count is the right answer.
+                out[umbrella] = len(seen)
+        return out
 
     def list_modules(self) -> List[str]:
         """All scanned module folders, in the order recorded by the builder."""
