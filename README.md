@@ -109,6 +109,38 @@ git -C .ai-context checkout main
 After install, every `git commit` regenerates the artifacts in the
 background and stages them automatically.
 
+### Project mode vs local mode
+
+Two ways to consume the artifacts. Pick whichever fits the team:
+
+| Mode | Marker | Hook stages artifacts? | Whose call |
+|---|---|---|---|
+| **project** *(default)* | none | yes — next commit picks them up | whole team agrees |
+| **local** | `.git/vc-context-local` | **no** — rebuilt only | one developer opts in |
+
+Local mode lets a single developer enjoy the CLI / MCP integration
+without polluting the team's git history with the JSON files. Toggle
+per-clone (never propagates):
+
+```bash
+./.ai-context/install.sh --local-only   # this clone only
+./.ai-context/install.sh --no-local     # back to project mode
+```
+
+`--local-only` also adds the artifact paths to `.git/info/exclude`
+so untracked files don't clutter `git status`. If the artifacts
+were already committed in the parent repo, `install.sh` prints a
+hint with the `git rm --cached …` invocation needed to fully
+untrack them — non-destructive, you opt in.
+
+The marker lives under `.git/`, so it never crosses clones, branches,
+or worktrees. You can also flip it manually:
+
+```bash
+touch  "$(git rev-parse --git-dir)/vc-context-local"   # enable
+rm -f  "$(git rev-parse --git-dir)/vc-context-local"   # disable
+```
+
 ---
 
 ## Quick taste — three ways to ask the same question

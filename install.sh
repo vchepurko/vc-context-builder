@@ -5,11 +5,43 @@
 # (https://pre-commit.com): if so, registers vc-context-builder as a
 # local hook entry in `.pre-commit-config.yaml` and re-installs the
 # framework hook. Otherwise falls back to writing a standalone
-# `.git/hooks/pre-commit` (preserving any existing one as `.legacy.<ts>`).
+# `.git/hooks/pre-commit` (preserving any existing one as
+# `.legacy.<ts>`).
 #
 # Idempotent: re-running won't duplicate hook entries.
-
+#
+# Flags:
+#   --local-only   Personal mode for THIS clone only — the hook
+#                  rebuilds artifacts but never stages them, and
+#                  the artifacts are added to .git/info/exclude so
+#                  they don't clutter `git status`. Toggleable
+#                  per-developer; not project-wide.
+#   --no-local     Disable personal mode — go back to project-wide
+#                  staging. Removes the marker + cleans up exclude.
+#   -h, --help     Show this help.
 set -e
+
+LOCAL_ONLY=false
+NO_LOCAL=false
+for arg in "$@"; do
+    case "$arg" in
+        --local-only) LOCAL_ONLY=true ;;
+        --no-local)   NO_LOCAL=true ;;
+        -h|--help)
+            sed -n '2,21p' "$0" | sed 's/^# \{0,1\}//'
+            exit 0
+            ;;
+        *)
+            echo "Unknown flag: $arg (try --help)" >&2
+            exit 2
+            ;;
+    esac
+done
+
+if $LOCAL_ONLY && $NO_LOCAL; then
+    echo "❌ --local-only and --no-local are mutually exclusive." >&2
+    exit 2
+fi
 
 BUILDER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$BUILDER_DIR")"
@@ -23,6 +55,11 @@ echo "🤖 Installing vc-context-builder into parent project..."
 python3 "$RELATIVE_DIR/agent_map.py"
 
 # 2. Decide hook strategy.
+#
+# The actual work runs from a single helper script
+# (`bin/vc-context-build-hook`) so the hook entry stays one line and
+# local-mode handling lives in one place.
+HOOK_ENTRY="$RELATIVE_DIR/bin/vc-context-build-hook"
 PRECOMMIT_CONFIG=".pre-commit-config.yaml"
 
 if [ -f "$PRECOMMIT_CONFIG" ]; then
@@ -37,7 +74,7 @@ if [ -f "$PRECOMMIT_CONFIG" ]; then
     hooks:
       - id: vc-context-builder
         name: vc-context-builder (agent context maps)
-        entry: bash -c 'python3 $RELATIVE_DIR/agent_map.py && git add -- "**/*_module_map.json" agent_root.json AGENT_README.md 2>/dev/null || true'
+        entry: $HOOK_ENTRY
         language: system
         pass_filenames: false
         always_run: true
@@ -68,19 +105,97 @@ else
 
     cat <<HOOK > .git/hooks/pre-commit
 #!/usr/bin/env bash
-echo "🤖 vc-context-builder: Updating Agent Context Graph..."
-python3 $RELATIVE_DIR/agent_map.py
-git add -- "**/*_module_map.json" agent_root.json AGENT_README.md 2>/dev/null || true
-echo "✅ Context Graph updated and staged!"
+exec "\$(git rev-parse --show-toplevel)/$HOOK_ENTRY"
 HOOK
     chmod +x .git/hooks/pre-commit
 fi
 
-# 3. NOTE: the previous version blindly appended `$RELATIVE_DIR/` to the
-#    parent .gitignore. Removed: when the builder lives as a git submodule
-#    that breaks tracking; when it's vendored, project owners decide
-#    themselves whether to ignore.
+# 3. Local-mode toggle.
+GIT_DIR="$(git rev-parse --absolute-git-dir 2>/dev/null || true)"
+MARKER="$GIT_DIR/vc-context-local"
+EXCLUDE="$GIT_DIR/info/exclude"
+EXCLUDE_BEGIN="# >>> vc-context-builder local mode"
+EXCLUDE_END="# <<< vc-context-builder local mode"
 
+strip_exclude_block() {
+    local f="$1"
+    [ -f "$f" ] || return 0
+    grep -q "$EXCLUDE_BEGIN" "$f" || return 0
+    # `END` is a reserved pattern in awk — use ENDM / BEGM to avoid it.
+    awk -v BEGM="$EXCLUDE_BEGIN" -v ENDM="$EXCLUDE_END" '
+        $0 == BEGM { skip=1; next }
+        $0 == ENDM { skip=0; next }
+        !skip { print }
+    ' "$f" > "$f.tmp" && mv "$f.tmp" "$f"
+}
+
+if $LOCAL_ONLY; then
+    if [ -z "$GIT_DIR" ]; then
+        echo "❌ --local-only requires a git directory; not in a git repo?" >&2
+        exit 1
+    fi
+    touch "$MARKER"
+    mkdir -p "$(dirname "$EXCLUDE")"
+    strip_exclude_block "$EXCLUDE"  # idempotent
+    {
+        echo "$EXCLUDE_BEGIN"
+        echo "agent_root.json"
+        echo "agent_symbols.json"
+        echo "agent_tests.json"
+        echo "agent_routes.json"
+        echo "AGENT_README.md"
+        echo "**/_module_map.json"
+        echo "$EXCLUDE_END"
+    } >> "$EXCLUDE"
+
+    echo ""
+    echo "🔒 Local mode enabled — artifacts will be regenerated but never staged."
+    echo "    Marker:  $MARKER"
+    echo "    Exclude: $EXCLUDE"
+
+    TRACKED=$(git ls-files \
+        agent_root.json \
+        agent_symbols.json \
+        agent_tests.json \
+        agent_routes.json \
+        AGENT_README.md \
+        '*_module_map.json' \
+        '**/*_module_map.json' \
+        2>/dev/null || true)
+    if [ -n "$TRACKED" ]; then
+        echo ""
+        echo "⚠️  These artifact files are already tracked in this repo:"
+        echo "$TRACKED" | sed 's/^/      /'
+        echo ""
+        echo "    Local mode prevents future staging, but won't untrack them."
+        echo "    To untrack:  git rm --cached <files>  (then commit)."
+    fi
+elif $NO_LOCAL; then
+    if [ -n "$GIT_DIR" ] && [ -f "$MARKER" ]; then
+        rm "$MARKER"
+        echo "🔓 Local mode disabled."
+    else
+        echo "ℹ️  Local mode was not active."
+    fi
+    if [ -f "$EXCLUDE" ] && grep -q "$EXCLUDE_BEGIN" "$EXCLUDE"; then
+        strip_exclude_block "$EXCLUDE"
+        echo "    Cleaned up $EXCLUDE."
+    fi
+elif [ -n "$GIT_DIR" ] && [ -f "$MARKER" ]; then
+    echo ""
+    echo "🔒 Local mode is currently ENABLED for this clone."
+    echo "    Pre-commit will rebuild but NOT stage artifacts."
+    echo "    Disable with: ./$RELATIVE_DIR/install.sh --no-local"
+fi
+
+# 4. NOTE: the previous version blindly appended `$RELATIVE_DIR/` to the
+#    parent .gitignore. Removed: when the builder lives as a git
+#    submodule that breaks tracking; when it's vendored, project owners
+#    decide themselves whether to ignore.
+
+echo ""
 echo "🎉 Installation complete!"
 echo "    Builder runs automatically on every commit via pre-commit."
-echo "    Manual run: python3 $RELATIVE_DIR/agent_map.py"
+echo "    Manual run:    python3 $RELATIVE_DIR/agent_map.py"
+echo "    Local mode:    ./$RELATIVE_DIR/install.sh --local-only"
+echo "    Project mode:  ./$RELATIVE_DIR/install.sh --no-local"

@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+# Pre-commit / standalone hook entry for vc-context-builder.
+#
+# Always regenerates the agent-context maps. Whether to stage them
+# depends on a per-clone preference:
+#
+#   project mode (default)   rebuild + `git add` artifacts → next
+#                            commit picks them up; the whole team
+#                            sees a synchronised view of the
+#                            codebase.
+#
+#   local mode               rebuild only, never stage. Artifacts
+#                            stay as personal scratch; the team's
+#                            git history stays free of the JSON
+#                            noise. Toggle via:
+#                              ./install.sh --local-only
+#                            (or just `touch .git/vc-context-local`).
+#
+# Per-clone marker: `<git-dir>/vc-context-local`. Lives under .git/
+# so it is never committed and is independent across worktrees /
+# branches.
+set -euo pipefail
+
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SUBMODULE="$(cd "$HERE/.." && pwd)"
+
+GIT_DIR="$(git rev-parse --absolute-git-dir 2>/dev/null || true)"
+
+python3 "$SUBMODULE/agent_map.py"
+
+if [ -n "$GIT_DIR" ] && [ -f "$GIT_DIR/vc-context-local" ]; then
+    echo "🔒 vc-context-builder: local mode — artifacts not staged."
+    exit 0
+fi
+
+# `**` in pathspec is interpreted by git itself (wildmatch), not the
+# shell — safe to pass the pattern literally without enabling
+# `shopt -s globstar`. Both root-level (`_module_map.json`) and
+# nested (`foo/_module_map.json`) need explicit patterns: `*` does
+# not cross `/`, and `**/*x` only matches when there IS a leading
+# segment.
+git add -- \
+    "*_module_map.json" \
+    "**/*_module_map.json" \
+    agent_root.json \
+    agent_symbols.json \
+    agent_tests.json \
+    agent_routes.json \
+    AGENT_README.md \
+    2>/dev/null || true
