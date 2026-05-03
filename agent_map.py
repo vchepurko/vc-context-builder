@@ -180,6 +180,7 @@ class ContextBuilder:
         try:
             with open(map_file_path, 'w', encoding='utf-8') as f:
                 json.dump(module_data, f, indent=2, ensure_ascii=False)
+                f.write("\n")
         except IOError as e:
             logging.error(f"Failed to write {map_file_path}: {e}")
 
@@ -366,6 +367,7 @@ class ContextBuilder:
         try:
             with open(root_map_path, 'w', encoding='utf-8') as f:
                 json.dump(root_data, f, indent=2)
+                f.write("\n")
         except IOError as e:
             logging.error(f"Failed to write root map: {e}")
 
@@ -425,6 +427,7 @@ class ContextBuilder:
         try:
             with open(out_path, 'w', encoding='utf-8') as f:
                 json.dump(ordered, f, indent=2, ensure_ascii=False)
+                f.write("\n")
             logging.info(
                 "Wrote symbol index: %s (%d symbols).", self.symbols_filename, len(ordered)
             )

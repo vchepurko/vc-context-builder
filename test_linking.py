@@ -157,4 +157,5 @@ def write_test_index(project_root: str, index: Dict[str, Any]) -> str:
     ordered = {k: index[k] for k in sorted(index)}
     with open(out_path, "w", encoding="utf-8") as fh:
         json.dump(ordered, fh, indent=2, ensure_ascii=False)
+        fh.write("\n")
     return out_path
