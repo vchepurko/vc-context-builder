@@ -1,0 +1,309 @@
+"""Shared query engine for the vc-context-builder artifacts.
+
+A single ``QueryEngine`` instance lazy-loads ``agent_root.json``,
+``agent_symbols.json``, and the per-folder ``_module_map.json`` files
+written by ``agent_map.py``. It exposes a small, RPC-friendly surface
+so CLI users and MCP clients never have to load the raw JSON into
+their context window.
+
+Stdlib only by design — the builder is zero-dependency, and so is
+this layer.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+from typing import Any, Dict, Iterable, List, Optional, Tuple
+
+
+class QueryEngine:
+    """Lazy-loading reader over the three artifact tiers.
+
+    Parameters
+    ----------
+    project_root:
+        Absolute or relative path to the directory that holds
+        ``agent_root.json`` / ``agent_symbols.json``. Per-folder
+        module maps are discovered by walking from this root.
+
+    Notes
+    -----
+    All loaders are lazy: nothing is read until the first method call
+    that needs that tier. Subsequent calls are served from in-memory
+    caches, so the engine is safe to keep around for the lifetime of
+    a CLI invocation or MCP server process.
+
+    The engine is **read-only** — it never mutates the artifacts. Only
+    ``agent_map.py`` writes them.
+    """
+
+    ROOT_FILENAME = "agent_root.json"
+    SYMBOLS_FILENAME = "agent_symbols.json"
+    MAP_FILENAME = "_module_map.json"
+    IGNORE_DIRS = {
+        ".git", "node_modules", "vendor", "__pycache__",
+        "dist", "build", ".venv", "venv", ".idea", ".vscode",
+    }
+
+    def __init__(self, project_root: str = ".") -> None:
+        self.project_root = os.path.abspath(project_root)
+        self._root: Optional[Dict[str, Any]] = None
+        self._symbols: Optional[Dict[str, Dict[str, Any]]] = None
+        # Each entry: (rel_dir, parsed_map_json)
+        self._module_maps: Optional[List[Tuple[str, Dict[str, Any]]]] = None
+        # Reverse-index for who_calls — built once on demand.
+        self._reverse_deps: Optional[Dict[str, List[Dict[str, str]]]] = None
+
+    # ------------------------------------------------------------------
+    # Lazy loaders
+    # ------------------------------------------------------------------
+
+    def _load_root(self) -> Dict[str, Any]:
+        if self._root is None:
+            path = os.path.join(self.project_root, self.ROOT_FILENAME)
+            with open(path, "r", encoding="utf-8") as fh:
+                self._root = json.load(fh)
+        return self._root
+
+    def _load_symbols(self) -> Dict[str, Dict[str, Any]]:
+        if self._symbols is None:
+            path = os.path.join(self.project_root, self.SYMBOLS_FILENAME)
+            with open(path, "r", encoding="utf-8") as fh:
+                self._symbols = json.load(fh)
+        return self._symbols
+
+    def _iter_module_maps(self) -> Iterable[Tuple[str, Dict[str, Any]]]:
+        """Yield ``(relative_directory, parsed_map_json)`` for each
+        module map under the project root.
+        """
+        if self._module_maps is None:
+            collected: List[Tuple[str, Dict[str, Any]]] = []
+            for cur, dirs, files in os.walk(self.project_root):
+                dirs[:] = [d for d in dirs if d not in self.IGNORE_DIRS]
+                if self.MAP_FILENAME not in files:
+                    continue
+                map_path = os.path.join(cur, self.MAP_FILENAME)
+                try:
+                    with open(map_path, "r", encoding="utf-8") as fh:
+                        data = json.load(fh)
+                except (OSError, json.JSONDecodeError):
+                    # Best-effort: a corrupt cache is not a query-time
+                    # error, the next builder run will rewrite it.
+                    continue
+                rel_dir = self._rel(cur)
+                collected.append((rel_dir, data))
+            # Stable ordering for deterministic output.
+            collected.sort(key=lambda item: item[0])
+            self._module_maps = collected
+        return self._module_maps
+
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+
+    def _rel(self, path: str) -> str:
+        """Project-relative path with forward slashes, no leading './'."""
+        try:
+            rel = os.path.relpath(path, self.project_root)
+        except ValueError:
+            rel = path
+        rel = rel.replace(os.sep, "/")
+        while rel.startswith("./"):
+            rel = rel[2:]
+        if rel == ".":
+            return ""
+        return rel
+
+    @staticmethod
+    def _first_line(doc: Optional[str]) -> Optional[str]:
+        if not doc:
+            return None
+        for line in doc.splitlines():
+            stripped = line.strip()
+            if stripped:
+                return stripped
+        return None
+
+    # ------------------------------------------------------------------
+    # Public API — one method per RPC
+    # ------------------------------------------------------------------
+
+    def find_symbol(self, name: str) -> Optional[Dict[str, Any]]:
+        """Return the symbol record from ``agent_symbols.json``.
+
+        The record carries ``file`` plus whichever of ``kind``, ``params``,
+        ``doc``, ``role`` the indexer captured. ``None`` if the symbol
+        is unknown.
+        """
+        symbols = self._load_symbols()
+        entry = symbols.get(name)
+        if entry is None:
+            return None
+        # Return a shallow copy so callers can't mutate the cache.
+        return dict(entry)
+
+    def find_by_role(self, role: str) -> List[str]:
+        """Return all symbol names tagged with ``role``.
+
+        Roles live in ``agent_root.json.roles`` (e.g. ``webhook``,
+        ``route``, ``migration``, ``scheduler-job``, ...). Returns an
+        empty list when the role is unknown.
+        """
+        root = self._load_root()
+        roles = root.get("roles") or {}
+        bucket = roles.get(role) or []
+        # Defensive copy.
+        return list(bucket)
+
+    def who_calls(self, symbol: str) -> List[Dict[str, str]]:
+        """Best-effort callers list for ``symbol``.
+
+        Heuristic
+        ---------
+        Each ``_module_map.json`` records, per file, the own-package
+        modules it depends on (``dependencies``). We:
+
+        1. Look up ``symbol`` in ``agent_symbols.json`` to find the
+           defining file.
+        2. Map that file to its top-level package segment
+           (``backend/routes/admin_routes.py`` → ``backend``).
+        3. Return every file whose ``dependencies`` list contains either
+           the symbol name itself or that package segment.
+
+        This is a structural approximation, not a true call graph — it
+        will over-report (any importer of the package looks like a
+        caller) and under-report (a relative import that didn't make
+        it into ``dependencies`` is invisible). Use it as a starting
+        list, then confirm by reading the source.
+        """
+        symbol_entry = self.find_symbol(symbol)
+        target_pkg: Optional[str] = None
+        if symbol_entry and symbol_entry.get("file"):
+            head = symbol_entry["file"].split("/", 1)[0]
+            if head and head not in (symbol_entry["file"],):
+                target_pkg = head
+
+        index = self._build_reverse_index()
+        seen: Dict[str, Dict[str, str]] = {}
+
+        # Direct hits on the symbol name.
+        for hit in index.get(symbol, []):
+            seen[hit["file"]] = hit
+        # Hits on the defining package — only when we know it.
+        if target_pkg:
+            for hit in index.get(target_pkg, []):
+                # Don't list the defining file as its own caller.
+                if symbol_entry and hit["file"] == symbol_entry.get("file"):
+                    continue
+                seen.setdefault(hit["file"], hit)
+
+        return sorted(seen.values(), key=lambda r: r["file"])
+
+    def summarise_module(self, folder: str) -> Optional[Dict[str, Any]]:
+        """Return a tight summary of a folder's ``_module_map.json``.
+
+        For each file in the folder we keep the export ``name``, ``kind``,
+        ``role``, and the first line of ``doc``. ``params`` are stripped
+        to keep the payload small — call ``find_symbol`` if you need a
+        signature.
+
+        Returns ``None`` when the folder has no module map.
+        """
+        normalised = folder.replace("\\", "/").strip("/")
+        # Allow leading "./" or "/" or absolute paths inside project_root.
+        if os.path.isabs(normalised):
+            normalised = self._rel(normalised)
+        target = os.path.join(self.project_root, normalised) if normalised else self.project_root
+        map_path = os.path.join(target, self.MAP_FILENAME)
+        if not os.path.exists(map_path):
+            return None
+        try:
+            with open(map_path, "r", encoding="utf-8") as fh:
+                data = json.load(fh)
+        except (OSError, json.JSONDecodeError):
+            return None
+
+        slim_files: Dict[str, Any] = {}
+        for fname, fdata in (data.get("files") or {}).items():
+            if not isinstance(fdata, dict):
+                slim_files[fname] = fdata
+                continue
+            slim_exports = []
+            for exp in fdata.get("exports") or []:
+                if not isinstance(exp, dict):
+                    slim_exports.append(exp)
+                    continue
+                slim = {"name": exp.get("name"), "kind": exp.get("kind")}
+                role = exp.get("role")
+                if role:
+                    slim["role"] = role
+                first = self._first_line(exp.get("doc"))
+                if first:
+                    slim["doc"] = first
+                slim_exports.append(slim)
+            slim_files[fname] = {
+                "exports": slim_exports,
+                "dependencies": fdata.get("dependencies") or [],
+            }
+
+        return {
+            "directory": data.get("directory") or normalised or ".",
+            "files": slim_files,
+        }
+
+    def list_roles(self) -> Dict[str, int]:
+        """``role → count`` map across the whole project."""
+        root = self._load_root()
+        roles = root.get("roles") or {}
+        return {r: len(names) for r, names in roles.items()}
+
+    def list_modules(self) -> List[str]:
+        """All scanned module folders, in the order recorded by the builder."""
+        root = self._load_root()
+        return list(root.get("modules") or [])
+
+    # ------------------------------------------------------------------
+    # Internal: reverse-dependency index for who_calls
+    # ------------------------------------------------------------------
+
+    def _build_reverse_index(self) -> Dict[str, List[Dict[str, str]]]:
+        """Walk every module map once, return ``token → [callers]``.
+
+        ``token`` is anything that appears in a file's ``dependencies``
+        list (an own-package name, sometimes a symbol). Callers are
+        ``{file, kind}`` records — ``kind`` taken from the first export
+        of that file when present, otherwise ``"file"``.
+        """
+        if self._reverse_deps is not None:
+            return self._reverse_deps
+
+        index: Dict[str, List[Dict[str, str]]] = {}
+        for rel_dir, data in self._iter_module_maps():
+            base = data.get("directory") or rel_dir or ""
+            base = base.replace("\\", "/")
+            while base.startswith("./"):
+                base = base[2:]
+            for fname, fdata in (data.get("files") or {}).items():
+                if not isinstance(fdata, dict):
+                    continue
+                rel_file = f"{base}/{fname}" if base else fname
+                rel_file = rel_file.lstrip("/")
+                # Pick a kind hint from the first structured export.
+                kind = "file"
+                for exp in fdata.get("exports") or []:
+                    if isinstance(exp, dict) and exp.get("kind"):
+                        kind = exp["kind"]
+                        break
+                deps = fdata.get("dependencies") or []
+                for dep in deps:
+                    if not isinstance(dep, str):
+                        continue
+                    bucket = index.setdefault(dep, [])
+                    if not any(b["file"] == rel_file for b in bucket):
+                        bucket.append({"file": rel_file, "kind": kind})
+
+        for bucket in index.values():
+            bucket.sort(key=lambda r: r["file"])
+        self._reverse_deps = index
+        return index

@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Thin wrapper: invoke the vc-context CLI bundled in this submodule.
+# Symlink this into PATH (e.g. `ln -s "$PWD/.ai-context/bin/vc-context" ~/.local/bin/`)
+# so agents and humans can call it from anywhere.
+set -euo pipefail
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SUBMODULE="$(cd "$HERE/.." && pwd)"
+exec python3 "$SUBMODULE/cli.py" "$@"

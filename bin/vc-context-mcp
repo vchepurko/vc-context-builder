@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Thin wrapper: launch the vc-context MCP server over stdio.
+# Wire this path into your MCP host config (Claude Code / Cursor /
+# Codex CLI) — see MCP_SETUP.md.
+set -euo pipefail
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SUBMODULE="$(cd "$HERE/.." && pwd)"
+exec python3 "$SUBMODULE/mcp_server.py" "$@"

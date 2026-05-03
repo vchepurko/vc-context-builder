@@ -1,5 +1,21 @@
 # 🤖 AI Agent Standard Operating Procedure (SOP)
 
+## Three ways to query (pick the lightest one)
+
+1. **MCP-aware agent** (Claude Code, Cursor, Codex CLI ≥ 0.X, Continue):
+   register the MCP server (see `.ai-context/MCP_SETUP.md`). Call tools
+   directly — JSON files never enter your context.
+
+2. **Generic LLM with shell access**: invoke the CLI from a tool —
+   `vc-context find <name>`, `vc-context role webhook`. Each call
+   returns ~100–500 bytes of JSON.
+
+3. **No tools, only file reading**: fall back to the JSON artifacts
+   (`agent_root.json` → `agent_symbols.json` → `_module_map.json`).
+   This is the universal-but-most-token-expensive path.
+
+In all three cases the cardinal rule still applies: read narrowly.
+
 ## System Architecture
 This repository utilizes `vc-context-builder` to maintain a real-time, hierarchical Retrieval-Augmented Generation (RAG) context map.
 
