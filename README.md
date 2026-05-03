@@ -28,16 +28,62 @@ Same query engine behind all three. Pick the lightest your agent supports.
 
 - **Python** — top-level functions / classes via `ast`, with signatures + first-line docstring + decorator-based role detection.
 - **PHP** — WordPress / WooCommerce hooks, traits, interfaces.
-- **JS / TS** — React / Angular syntax, dynamic imports.
+- **JS / TS / JSX / TSX** — top-level functions, arrow declarations,
+  classes; signature capture for both arrow + function-statement form;
+  JSDoc first-line summaries; built-in role detection for React
+  components, React hooks, Express routes, Vue composables.
 - **DevOps** — Dockerfiles, Makefiles, GitHub Actions.
 
-Auto-detected roles for Python:
-`route`, `aiogram-handler`, `webhook`, `migration`, `scheduler-job`,
-`repository`, `service`, `api-client`. Detection mixes AST decorators
-with file-path heuristics.
+Auto-detected built-in roles:
+
+| Language | Roles |
+|---|---|
+| Python | `route`, `aiogram-handler`, `webhook`, `migration`, `scheduler-job`, `repository`, `service`, `api-client` |
+| JS / TS | `react-component`, `react-hook`, `express-route`, `vue-composable` |
+
+Detection mixes AST/regex pattern matching with file-path heuristics.
 
 Filtered out (intentional): stdlib + third-party imports, private
 helpers, empty `__init__.py` files, glue modules with nothing to expose.
+
+### Custom roles
+
+Built-ins not enough? Drop a `.vc-context/roles.json` in the parent
+project root to declare extra roles via glob path + regex matchers.
+The submodule then works on Go / Ruby / WordPress / anything without
+code changes.
+
+```jsonc
+{
+  "roles": [
+    {
+      "id": "wordpress-hook",
+      "match_path": "**/*.php",
+      "match_call": "(add_action|add_filter)",
+      "priority": 5
+    },
+    {
+      "id": "rails-controller",
+      "match_path": "app/controllers/**/*.rb",
+      "match_function_name": "_controller$",
+      "priority": 10
+    }
+  ]
+}
+```
+
+Matchers (any combinable per role): `match_path` (glob with `**` and
+`{a,b}` brace alternation), `match_decorator_or_call` (regex against
+decorators or registration calls), `match_function_name` (regex on
+the symbol name), `match_function_returns` (regex on the function
+body), `match_call` (regex on the function body for a called symbol),
+`match_kind` (one of `func` / `async-func` / `class`).
+
+Built-in roles default to priority `0`; custom roles default to `5`,
+so they override built-ins by default. Bump `priority` higher to win
+over other custom rules.
+
+Missing config = built-in roles only, no error. Opt-in by design.
 
 ---
 

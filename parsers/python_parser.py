@@ -75,7 +75,12 @@ class PythonParser(BaseParser):
                     continue
                 seen.add(name)
                 exports.append(
-                    self._summarise(node, file_role=file_role, scheduler_jobs=scheduler_jobs)
+                    self._summarise(
+                        node,
+                        file_role=file_role,
+                        scheduler_jobs=scheduler_jobs,
+                        source=content,
+                    )
                 )
 
             elif isinstance(node, ast.Import):
@@ -93,6 +98,7 @@ class PythonParser(BaseParser):
         node,
         file_role: Optional[str] = None,
         scheduler_jobs: Optional[Set[str]] = None,
+        source: Optional[str] = None,
     ) -> Dict[str, str]:
         kind = (
             "class" if isinstance(node, ast.ClassDef)
@@ -106,6 +112,24 @@ class PythonParser(BaseParser):
                 out["params"] = "(" + ast.unparse(node.args) + ")"
             except Exception:
                 out["params"] = "(...)"
+
+        # Stash decorator + body text for custom_roles regexes. These
+        # are private fields (`_`-prefixed) — agent_map.py strips them
+        # before writing JSON to disk.
+        try:
+            decorators = getattr(node, "decorator_list", []) or []
+            dec_text = "\n".join(ast.unparse(d) for d in decorators)
+            if dec_text:
+                out["_decorators_text"] = dec_text
+        except Exception:
+            pass
+        if source is not None:
+            try:
+                seg = ast.get_source_segment(source, node)
+                if seg:
+                    out["_body"] = seg
+            except Exception:
+                pass
 
         doc = ast.get_docstring(node) or ""
         for line in doc.splitlines():

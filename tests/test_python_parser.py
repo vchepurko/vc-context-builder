@@ -40,11 +40,13 @@ async def fetch_data_async():
     def test_extract_ast(self):
         result = self.parser.extract(self.test_file)
 
-        # Verify Exports (Classes and functions)
-        self.assertIn('DatabaseConnector', result['exports'])
-        self.assertIn('global_helper_function', result['exports'])
-        self.assertIn('fetch_data_async', result['exports'])
-        self.assertNotIn('FakeClass', result['exports'], "AST parser should ignore comments!")
+        # Verify Exports (Classes and functions) — exports are dicts
+        # with at least a `name` key, so we project to names first.
+        names = [e['name'] for e in result['exports']]
+        self.assertIn('DatabaseConnector', names)
+        self.assertIn('global_helper_function', names)
+        self.assertIn('fetch_data_async', names)
+        self.assertNotIn('FakeClass', names, "AST parser should ignore comments!")
 
         # Verify Dependencies (Imports)
         self.assertIn('os', result['dependencies'])

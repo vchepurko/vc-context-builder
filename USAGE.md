@@ -146,7 +146,60 @@ verified the server itself works, so the bug is in the host's wiring.
 
 ---
 
-## Recipe 7 — Add a parser for a new language
+## Recipe 7 — Add a custom role for an Express project
+
+Suppose you're using vc-context-builder on a Node/Express backend.
+The built-in JS/TS detector tags `app.get(...)`-registered handlers
+with `express-route` already, but you also want to flag every
+authentication middleware as `auth-middleware` and every Mongoose
+model as `model`.
+
+Drop a `.vc-context/roles.json` at the project root:
+
+```json
+{
+  "roles": [
+    {
+      "id": "auth-middleware",
+      "match_path": "**/middlewares/**/*.{js,ts}",
+      "match_function_name": "^(authenticate|requireAuth|isLoggedIn)",
+      "priority": 5
+    },
+    {
+      "id": "model",
+      "match_path": "**/models/**/*.{js,ts}",
+      "match_call": "mongoose\\.model|new\\s+Schema",
+      "priority": 5
+    },
+    {
+      "id": "graphql-resolver",
+      "match_path": "**/resolvers/**/*.{js,ts}",
+      "match_function_name": "Resolver$",
+      "priority": 7
+    }
+  ]
+}
+```
+
+Then `vc-context build && vc-context role auth-middleware` lists every
+auth function in the project. No code changes to the submodule
+required — the JSON is read on every build.
+
+Notes:
+
+- Glob supports `**` (any number of segments) and `{a,b}` brace
+  alternation.
+- Regex matchers are ordinary Python `re` patterns. Test with
+  `python3 -c "import re; print(re.search(r'pat', 'sample'))"` first
+  if a rule isn't firing.
+- Built-in roles have priority 0; bump custom roles above that to
+  override (default 5 already does).
+- Missing config = no custom roles, no error. Adding a config is
+  always opt-in.
+
+---
+
+## Recipe 8 — Add a parser for a new language (Go example)
 
 Say you want Go. Drop one file:
 
@@ -192,7 +245,7 @@ on the next run, and `vc-context find <GoSymbol>` works.
 
 ---
 
-## Recipe 8 — Use it in a generic LLM (no MCP, no shell)
+## Recipe 9 — Use it in a generic LLM (no MCP, no shell)
 
 For an agent that can only read files, the JSON tier still helps:
 

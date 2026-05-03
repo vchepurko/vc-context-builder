@@ -14,6 +14,11 @@ if _HERE not in sys.path:
 from parsers import get_parser, get_supported_extensions, get_supported_filenames
 from parsers.python_parser import PythonParser
 from symbols import extract_scheduler_jobs_from_codebase
+from custom_roles import (
+    apply_custom_roles,
+    load_custom_roles,
+    should_override_builtin,
+)
 
 # Feature artifacts — built after the symbol index in `run()`.
 from test_linking import build_test_index, write_test_index, TESTS_FILENAME
@@ -57,6 +62,16 @@ class ContextBuilder:
         if self.scheduler_jobs:
             logging.info(
                 "Detected %d scheduler-job callable(s).", len(self.scheduler_jobs)
+            )
+
+        # Project-declared custom roles via .vc-context/roles.json. Empty
+        # list when the file is absent — opt-in, no error path.
+        self.custom_roles = load_custom_roles(self.root_dir)
+        if self.custom_roles:
+            logging.info(
+                "Loaded %d custom role(s) from %s.",
+                len(self.custom_roles),
+                os.path.join(".vc-context", "roles.json"),
             )
 
     def _discover_own_packages(self) -> set:
@@ -127,6 +142,22 @@ class ContextBuilder:
             # Filter dependency noise (stdlib + third-party).
             data["dependencies"] = self._filter_deps(data.get("dependencies", []))
 
+            # Apply project-declared custom roles. Has to run AFTER the
+            # parser (so the export already has its built-in role for
+            # priority comparisons) and BEFORE we strip helper fields
+            # like `_body` that custom_roles regexes need.
+            self._apply_custom_roles_to_exports(data, file_path)
+
+            # Strip parser-private helper fields (_body, _anchor,
+            # _register_call) — they're only needed in-memory by
+            # custom_roles, never serialised to disk.
+            for exp in data.get("exports", []) or []:
+                if not isinstance(exp, dict):
+                    continue
+                for hidden in ("_body", "_anchor", "_register_call",
+                               "_decorators_text"):
+                    exp.pop(hidden, None)
+
             # Skip files that have no public exports AND no own-project deps.
             # That kills empty __init__.py files + glue files an agent doesn't
             # need to know about.
@@ -151,6 +182,57 @@ class ContextBuilder:
                 json.dump(module_data, f, indent=2, ensure_ascii=False)
         except IOError as e:
             logging.error(f"Failed to write {map_file_path}: {e}")
+
+    def _apply_custom_roles_to_exports(self, data: Dict, file_path: str) -> None:
+        """Walk every export in ``data`` and apply user-declared rules.
+
+        ``data`` is mutated in-place: each export may gain (or have its
+        existing) ``role`` overwritten according to priority. Built-in
+        roles are kept when no custom rule beats their priority of 0.
+
+        ``file_path`` is the absolute / relative path the parser worked
+        on. Custom rules' ``match_path`` glob is evaluated against the
+        project-relative form.
+        """
+        if not self.custom_roles:
+            return
+
+        exports = data.get("exports") or []
+        if not exports:
+            return
+
+        # Read the source ONCE per file — custom_role regexes need it
+        # for the body-level matchers when the parser didn't stash a
+        # private `_body` field.
+        try:
+            with open(file_path, "r", encoding="utf-8") as fh:
+                source_text = fh.read()
+        except OSError:
+            source_text = ""
+
+        for exp in exports:
+            if not isinstance(exp, dict):
+                continue
+            existing_role = exp.get("role")
+            new_role = apply_custom_roles(
+                exp,
+                file_path,
+                source_text,
+                self.custom_roles,
+                project_root=self.root_dir,
+            )
+            if not new_role:
+                continue
+            # Look up the priority of the matched rule.
+            new_priority = self._priority_for(new_role)
+            if should_override_builtin(new_role, new_priority, existing_role):
+                exp["role"] = new_role
+
+    def _priority_for(self, role_id: str) -> int:
+        for rule in self.custom_roles:
+            if rule.id == role_id:
+                return rule.priority
+        return 0
 
     def run(self) -> None:
         """Main entry point to start the scanning process."""
@@ -449,6 +531,7 @@ class ContextBuilder:
             "   defeats the point: tens of thousands of tokens of dependency\n"
             "   data when you needed two functions.\n\n"
             "## Role tags (extensible — see .ai-context/symbols.py)\n"
+            "Built-in (Python):\n"
             "- `route` — FastAPI HTTP route (`@router.get/post/...`).\n"
             "- `aiogram-handler` — `@router.message(...)` / `@router.callback_query(...)`.\n"
             "- `webhook` — payment/event webhook (best-effort name + signature heuristic).\n"
@@ -457,6 +540,14 @@ class ContextBuilder:
             "- `repository` — every export from `database/repositories/*.py`.\n"
             "- `service` — every export from `services/*.py`.\n"
             "- `api-client` — every export from `bot/api_client/*.py`.\n\n"
+            "Built-in (JS/TS):\n"
+            "- `react-component` — capitalised function in `.jsx` / `.tsx` returning JSX.\n"
+            "- `react-hook` — `useFoo` function calling any of `useState`/`useEffect`/...\n"
+            "- `express-route` — handler registered via `app.<verb>(...)` / `router.<verb>(...)`.\n"
+            "- `vue-composable` — function under `composables/` whose name starts with `use`.\n\n"
+            "Custom (project-declared via `.vc-context/roles.json`):\n"
+            "- The full live vocabulary lives in `agent_root.json.roles` —\n"
+            "  read those keys, not this list, when in doubt.\n\n"
             "## Action-tier queries (need to *do* something, not just look up)\n"
             "- \"Did I break a project rule?\" →\n"
             "  MCP `lint_violations` or CLI `vc-context lint`. Reads\n"

@@ -27,6 +27,23 @@ In all three cases the cardinal rule still applies: read narrowly.
   `vc-context route-callers /api/foo` (CLI). Backed by
   `agent_routes.json`.
 
+## Custom roles
+
+A project can declare its own role vocabulary in
+`.vc-context/roles.json` at the parent project root. Schema, matchers,
+and a worked Express example live in `README.md` and `USAGE.md`.
+
+The submodule ships built-ins for Python (`route`, `webhook`,
+`migration`, `scheduler-job`, `repository`, `service`, `api-client`)
+and JS/TS (`react-component`, `react-hook`, `express-route`,
+`vue-composable`); a `roles.json` adds new ones via glob path + regex
+matchers. Custom roles default to priority 5, overriding built-ins;
+built-ins themselves have priority 0.
+
+When unsure which roles a project supports, read
+`agent_root.json.roles` — those keys are the live vocabulary for
+THIS repo, including any project-declared additions.
+
 ## System Architecture
 This repository utilizes `vc-context-builder` to maintain a real-time, hierarchical Retrieval-Augmented Generation (RAG) context map.
 

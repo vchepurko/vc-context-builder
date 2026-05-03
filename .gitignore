@@ -1,4 +1,7 @@
 _module_map.json
 agent_root.json
+agent_symbols.json
+agent_tests.json
+agent_routes.json
 __pycache__/
 .idea/
