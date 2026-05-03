@@ -3,33 +3,43 @@ from typing import Dict, List
 from parsers.base_parser import BaseParser
 
 class DevOpsParser(BaseParser):
-    """
-    Parses infrastructure and CI/CD files to provide environment context to the AI.
-    """
+    """Extracts context from infrastructure and CI/CD files."""
+
     extensions = ['.yml', '.yaml']
-    filenames = ['Dockerfile', 'Makefile', 'docker-compose.yml']
+    filenames = ['Dockerfile', 'docker-compose.yml', 'Makefile']
 
     def extract(self, file_path: str) -> Dict[str, List[str]]:
         content = self._read_file(file_path)
-        result = {"exports": [], "dependencies": []}
 
-        # Handle Dockerfile
+        exports = []
+        dependencies = []
+
+        # 1. Dockerfile
         if 'Dockerfile' in file_path:
-            result["dependencies"] = re.findall(r'^FROM\s+([^\s]+)', content, re.M)
-            result["exports"] = re.findall(r'^EXPOSE\s+(\d+)', content, re.M)
+            # Capture EXPOSE ports, CMD or ENTRYPOINT configurations
+            exports.extend(re.findall(r'^(?:EXPOSE|CMD|ENTRYPOINT)\s+(.*)', content, re.M))
+            # Capture base images used
+            dependencies.extend(re.findall(r'^FROM\s+([a-zA-Z0-9_/\.:-]+)', content, re.M))
 
-        # Handle Docker Compose & GitHub Actions (YAML)
+        # 2. Makefile
+        elif file_path.endswith('Makefile'):
+            # Find make targets (e.g., "build:", "test:")
+            exports.extend(re.findall(r'^([a-zA-Z0-9_-]+):', content, re.M))
+
+        # 3. YAML (Docker Compose or GitHub Actions)
         elif file_path.endswith(('.yml', '.yaml')):
-            # Find Docker images being used
-            result["dependencies"] = re.findall(r'image:\s*([^\s]+)', content)
-            # Find defined services or jobs
-            services = re.findall(r'^  ([a-zA-Z0-9_-]+):$', content, re.M)
-            jobs = re.findall(r'jobs:\s*\n\s+([a-zA-Z0-9_-]+):', content)
-            result["exports"] = list(set(services + jobs))
+            # Heuristic for Docker Compose services (keys under 'services:')
+            if 'services:' in content:
+                # Assumes standard 2-space indentation for services
+                exports.extend(re.findall(r'^  ([a-zA-Z0-9_-]+):', content, re.M))
 
-        # Handle Makefile
-        elif 'Makefile' in file_path:
-            # Find make targets
-            result["exports"] = re.findall(r'^([a-zA-Z0-9_-]+):', content, re.M)
+            # Look for Docker images
+            dependencies.extend(re.findall(r'image:\s*([a-zA-Z0-9_/\.:-]+)', content))
 
-        return result
+            # Look for GitHub Actions 'uses:'
+            dependencies.extend(re.findall(r'uses:\s*([a-zA-Z0-9_/\.:@-]+)', content))
+
+        return {
+            "exports": list(set(exports)),
+            "dependencies": list(set(dependencies))
+        }
