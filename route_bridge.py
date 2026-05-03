@@ -316,7 +316,23 @@ def match_calls_to_routes(
 def build_route_index(project_root: str) -> Dict[str, Dict[str, Any]]:
     routes = collect_python_routes(project_root)
     js_calls = collect_js_calls(project_root)
-    return match_calls_to_routes(routes, js_calls)
+    table = match_calls_to_routes(routes, js_calls)
+
+    # Augment with Python call sites that go through a project-internal
+    # HTTP wrapper (e.g. bot.api_client.get_client). Configured via
+    # ``.vc-context/conventions.json`` → ``http_clients``. Empty config
+    # = no augmentation, no error.
+    from http_callers import (  # type: ignore[import-not-found]
+        attach_python_callers,
+        collect_python_calls,
+        load_http_clients,
+    )
+    specs = load_http_clients(project_root)
+    if specs:
+        py_calls = collect_python_calls(project_root, specs)
+        if py_calls:
+            attach_python_callers(table, py_calls)
+    return table
 
 
 def write_route_index(project_root: str, index: Dict[str, Any]) -> str:
@@ -357,10 +373,26 @@ def find_route_for_path(index: Dict[str, Dict[str, Any]], path: str) -> Optional
 
 
 def callers_for_route(index: Dict[str, Dict[str, Any]], path: str) -> List[Dict[str, Any]]:
+    """Flat list of every call-site that hits ``path`` — JS *and* Python.
+
+    Each record carries a ``lang`` field (``"js"`` / ``"python"``) so
+    callers can group/filter without consulting two structures. Older
+    consumers reading ``entry.callers_js`` directly are unaffected —
+    this helper just merges both buckets at query time.
+    """
     entry = find_route_for_path(index, path)
     if entry is None:
         return []
-    return list(entry.get("callers_js") or [])
+    out: List[Dict[str, Any]] = []
+    for c in entry.get("callers_js") or ():
+        rec = dict(c)
+        rec["lang"] = "js"
+        out.append(rec)
+    for c in entry.get("callers_python") or ():
+        rec = dict(c)
+        rec["lang"] = "python"
+        out.append(rec)
+    return out
 
 
 def route_for_js_file(index: Dict[str, Dict[str, Any]], file_path: str) -> List[Dict[str, Any]]:
