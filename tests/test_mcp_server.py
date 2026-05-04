@@ -72,6 +72,9 @@ class McpServerTests(FixtureMixin, unittest.TestCase):
             "trace_fsm_flow",
             # Feature G — coverage view by role.
             "coverage_for_role",
+            # Feature H — test categorisation (unit / integration).
+            "classify_tests",
+            "tests_by_category",
         })
 
     def test_tools_call_find_symbol(self) -> None:

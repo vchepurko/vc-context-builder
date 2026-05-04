@@ -51,6 +51,7 @@ class QueryEngine:
     ROUTES_FILENAME = "agent_routes.json"
     CALLBACKS_FILENAME = "agent_callbacks.json"
     FSM_FLOW_FILENAME = "agent_fsm_flows.json"
+    TEST_CATEGORIES_FILENAME = "agent_test_categories.json"
     MAP_FILENAME = "_module_map.json"
     IGNORE_DIRS = {
         ".git", "node_modules", "vendor", "__pycache__",
@@ -71,6 +72,7 @@ class QueryEngine:
         self._routes: Optional[Dict[str, Dict[str, Any]]] = None
         self._callbacks: Optional[Dict[str, List[Dict[str, Any]]]] = None
         self._fsm_flows: Optional[Dict[str, Dict[str, Any]]] = None
+        self._test_categories: Optional[Dict[str, Dict[str, Any]]] = None
 
     # ------------------------------------------------------------------
     # Lazy loaders
@@ -143,6 +145,17 @@ class QueryEngine:
             except (OSError, json.JSONDecodeError):
                 self._fsm_flows = {}
         return self._fsm_flows
+
+    def _load_test_categories(self) -> Dict[str, Dict[str, Any]]:
+        """Return ``agent_test_categories.json`` (or ``{}`` if missing)."""
+        if self._test_categories is None:
+            path = os.path.join(self.project_root, self.TEST_CATEGORIES_FILENAME)
+            try:
+                with open(path, "r", encoding="utf-8") as fh:
+                    self._test_categories = json.load(fh)
+            except (OSError, json.JSONDecodeError):
+                self._test_categories = {}
+        return self._test_categories
 
     def _iter_module_maps(self) -> Iterable[Tuple[str, Dict[str, Any]]]:
         """Yield ``(relative_directory, parsed_map_json)`` for each
@@ -612,6 +625,30 @@ class QueryEngine:
         """
         from fsm_flow import trace_fsm_flow as _trace  # type: ignore[import-not-found]
         return _trace(self._load_fsm_flows(), state)
+
+    # ------------------------------------------------------------------
+    # Feature H — test categorisation (unit / integration / unknown)
+    # ------------------------------------------------------------------
+
+    def classify_tests(self) -> Dict[str, Any]:
+        """Return ``{summary, files}`` for the whole test suite.
+
+        ``summary`` is ``{category → count}``; ``files`` is the raw
+        ``{rel_path → {category, signals}}`` map. Empty containers when
+        the artifact is missing.
+        """
+        from test_classifier import category_summary  # type: ignore[import-not-found]
+        index = self._load_test_categories()
+        return {
+            "summary": category_summary(index),
+            "files": index,
+        }
+
+    def tests_by_category(self, category: str) -> List[str]:
+        """File paths for ``category`` (``"unit"`` / ``"integration"`` /
+        ``"unknown"``). Sorted, deduped, empty list on miss."""
+        from test_classifier import lookup_tests_by_category as _by  # type: ignore[import-not-found]
+        return _by(self._load_test_categories(), category)
 
     # ------------------------------------------------------------------
     # Internal: reverse-dependency index for who_calls

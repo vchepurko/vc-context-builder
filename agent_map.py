@@ -33,6 +33,11 @@ from fsm_flow import (
     collect_fsm_flow,
     write_fsm_flow,
 )
+from test_classifier import (
+    TEST_CATEGORIES_FILENAME,
+    collect_test_categories,
+    write_test_categories,
+)
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
@@ -59,6 +64,7 @@ class ContextBuilder:
         self.routes_filename = ROUTES_FILENAME
         self.callbacks_filename = CALLBACKS_FILENAME
         self.fsm_flow_filename = FSM_FLOW_FILENAME
+        self.test_categories_filename = TEST_CATEGORIES_FILENAME
         self.readme_filename = 'AGENT_README.md'
         self.processed_modules: List[str] = []
 
@@ -261,6 +267,7 @@ class ContextBuilder:
         self._build_route_index()
         self._build_callback_index()
         self._build_fsm_flow_index()
+        self._build_test_categories_index()
         self._generate_agent_sop()
         logging.info("Context build complete. Agent SOP is ready.")
 
@@ -374,6 +381,7 @@ class ContextBuilder:
                 self.routes_filename,
                 self.callbacks_filename,
                 self.fsm_flow_filename,
+                self.test_categories_filename,
             ],
         }
         if roles:
@@ -521,6 +529,26 @@ class ContextBuilder:
             )
         except OSError as e:
             logging.error(f"Failed to write FSM flow index: {e}")
+
+    # ------------------------------------------------------------------
+    # Feature H — test categorisation (unit / integration / unknown)
+    # ------------------------------------------------------------------
+
+    def _build_test_categories_index(self) -> None:
+        try:
+            index = collect_test_categories(self.root_dir)
+            write_test_categories(self.root_dir, index)
+            # Inline summary so the build log shows the unit/integration
+            # split without requiring a follow-up CLI call.
+            from test_classifier import category_summary  # type: ignore[import-not-found]
+            summary = category_summary(index)
+            summary_text = ", ".join(f"{k}={v}" for k, v in sorted(summary.items()))
+            logging.info(
+                "Wrote test categories: %s (%d files; %s).",
+                self.test_categories_filename, len(index), summary_text or "empty",
+            )
+        except OSError as e:
+            logging.error(f"Failed to write test categories: {e}")
 
     def _generate_agent_sop(self) -> None:
         """Generates Standard Operating Procedure for AI Agents."""

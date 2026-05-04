@@ -220,6 +220,30 @@ def _tool_specs() -> List[Dict[str, Any]]:
                 },
             },
         },
+        {
+            "name": "classify_tests",
+            "description": (
+                "Categorise every test_*.py file as 'unit', "
+                "'integration' (touches HTTP/DB/queue boundary OR "
+                "carries pytest.mark.integration), or 'unknown'. "
+                "Returns {summary: {category: count}, files: "
+                "{path: {category, signals}}}. Use to find slow tests "
+                "you can defer behind a marker."
+            ),
+            "inputSchema": {"type": "object", "properties": {}},
+        },
+        {
+            "name": "tests_by_category",
+            "description": (
+                "Return the list of test file paths for a given "
+                "category ('unit' / 'integration' / 'unknown')."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {"category": {"type": "string"}},
+                "required": ["category"],
+            },
+        },
     ]
 
 
@@ -246,6 +270,8 @@ class _Dispatcher:
             "find_callback":     self._find_callback,
             "trace_fsm_flow":    self._trace_fsm_flow,
             "coverage_for_role": self._coverage_for_role,
+            "classify_tests":    self._classify_tests,
+            "tests_by_category": self._tests_by_category,
         }
 
     def call(self, name: str, args: Dict[str, Any]) -> Any:
@@ -296,6 +322,12 @@ class _Dispatcher:
         role = args.get("role")
         role_arg = str(role).strip() if isinstance(role, str) and role.strip() else None
         return self.engine.coverage_for_role(role_arg)
+
+    def _classify_tests(self, args: Dict[str, Any]) -> Any:
+        return self.engine.classify_tests()
+
+    def _tests_by_category(self, args: Dict[str, Any]) -> Any:
+        return self.engine.tests_by_category(str(args.get("category", "")))
 
 
 # ----------------------------------------------------------------------
