@@ -197,6 +197,29 @@ def _tool_specs() -> List[Dict[str, Any]]:
                 "required": ["state"],
             },
         },
+        {
+            "name": "coverage_for_role",
+            "description": (
+                "Test-coverage view by role. Without 'role' — returns "
+                "overall + per-role counts and percentages. With 'role' "
+                "(any built-in or custom role, including legacy "
+                "umbrellas like 'aiogram-handler') — returns "
+                "{total, with_test, coverage_pct, missing, covered} "
+                "where 'missing' lists symbols WITHOUT a linked test."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "role": {
+                        "type": "string",
+                        "description": (
+                            "Optional role name. Omit for whole-project "
+                            "summary."
+                        ),
+                    },
+                },
+            },
+        },
     ]
 
 
@@ -222,6 +245,7 @@ class _Dispatcher:
             "route_for_js_call": self._route_for_js_call,
             "find_callback":     self._find_callback,
             "trace_fsm_flow":    self._trace_fsm_flow,
+            "coverage_for_role": self._coverage_for_role,
         }
 
     def call(self, name: str, args: Dict[str, Any]) -> Any:
@@ -265,6 +289,13 @@ class _Dispatcher:
 
     def _trace_fsm_flow(self, args: Dict[str, Any]) -> Any:
         return self.engine.trace_fsm_flow(str(args.get("state", "")))
+
+    def _coverage_for_role(self, args: Dict[str, Any]) -> Any:
+        # Empty/missing 'role' → whole-project summary; non-empty
+        # string → role-scoped detail with missing/covered lists.
+        role = args.get("role")
+        role_arg = str(role).strip() if isinstance(role, str) and role.strip() else None
+        return self.engine.coverage_for_role(role_arg)
 
 
 # ----------------------------------------------------------------------

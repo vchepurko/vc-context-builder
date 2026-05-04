@@ -17,6 +17,13 @@ import os
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 
+def _pct(numerator: int, denominator: int) -> float:
+    """Coverage percentage rounded to one decimal — 0.0 when denom=0."""
+    if denominator <= 0:
+        return 0.0
+    return round(100.0 * numerator / denominator, 1)
+
+
 class QueryEngine:
     """Lazy-loading reader over the three artifact tiers.
 
@@ -462,7 +469,95 @@ class QueryEngine:
         ordered["overall"] = overall
         return ordered
 
-    def _symbols_get(self, name: str) -> Optional[Dict[str, Any]]:
+    # ------------------------------------------------------------------
+    # Feature G — coverage by role (one-tool surface for QA gaps)
+    # ------------------------------------------------------------------
+
+    def coverage_for_role(self, role: Optional[str] = None) -> Dict[str, Any]:
+        """Test-coverage view, scoped or whole-project.
+
+        ``role=None`` →
+
+            {
+              "roles":  {"<role>": {"total": ..., "with_test": ...,
+                                    "coverage_pct": ...}, ...},
+              "overall": {"total": ..., "with_test": ...,
+                          "coverage_pct": ...}
+            }
+
+        ``role="<name>"`` (also accepts legacy umbrellas like
+        ``"aiogram-handler"``) →
+
+            {
+              "role": "<name>",
+              "total": ..., "with_test": ..., "coverage_pct": ...,
+              "missing":  [{"name", "file"}, ...],   # symbols WITHOUT a test
+              "covered":  [{"name", "file", "test_file", "test_function"}, ...]
+            }
+
+        Returns ``{"role": role, "total": 0, ...}`` (empty buckets) for
+        unknown roles instead of raising — callers can present "no
+        symbols found" without special-casing.
+        """
+        symbols = self._load_symbols()
+        tests = self._load_tests()
+
+        def _test_entry(name: str) -> Optional[Dict[str, Any]]:
+            entry = tests.get(name)
+            if isinstance(entry, dict) and entry.get("test_file"):
+                return entry
+            return None
+
+        if role is None:
+            stats = self.coverage_stats()
+            roles_out: Dict[str, Dict[str, Any]] = {}
+            overall_bucket: Dict[str, Any] = {}
+            for k, v in stats.items():
+                payload = {
+                    "total": v["total"],
+                    "with_test": v["with_test"],
+                    "coverage_pct": _pct(v["with_test"], v["total"]),
+                }
+                if k == "overall":
+                    overall_bucket = payload
+                else:
+                    roles_out[k] = payload
+            return {"roles": roles_out, "overall": overall_bucket}
+
+        # Build the symbol pool — supports legacy umbrellas (e.g.
+        # ``aiogram-handler``) by reusing find_by_role's expansion.
+        pool = set(self.find_by_role(role))
+
+        missing: List[Dict[str, Any]] = []
+        covered: List[Dict[str, Any]] = []
+        for name in pool:
+            entry = symbols.get(name)
+            file = entry.get("file") if isinstance(entry, dict) else None
+            test = _test_entry(name)
+            if test is None:
+                missing.append({"name": name, "file": file})
+            else:
+                covered.append({
+                    "name": name,
+                    "file": file,
+                    "test_file": test.get("test_file"),
+                    "test_function": test.get("test_function"),
+                })
+        # Stable ordering — alpha by name.
+        missing.sort(key=lambda r: r["name"])
+        covered.sort(key=lambda r: r["name"])
+        total = len(pool)
+        with_test = len(covered)
+        return {
+            "role": role,
+            "total": total,
+            "with_test": with_test,
+            "coverage_pct": _pct(with_test, total),
+            "missing": missing,
+            "covered": covered,
+        }
+
+    def _symbols_get(self, name: str) -> Optional[Dict[str, Any]]:  # noqa: D401
         symbols = self._load_symbols()
         entry = symbols.get(name)
         return dict(entry) if isinstance(entry, dict) else None

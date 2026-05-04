@@ -70,6 +70,8 @@ class McpServerTests(FixtureMixin, unittest.TestCase):
             "find_callback",
             # Feature F — aiogram FSM flow graph.
             "trace_fsm_flow",
+            # Feature G — coverage view by role.
+            "coverage_for_role",
         })
 
     def test_tools_call_find_symbol(self) -> None:
