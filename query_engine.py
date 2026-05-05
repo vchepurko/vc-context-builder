@@ -760,6 +760,42 @@ class QueryEngine:
         return _get(self._load_locale_keys(), key)
 
     # ------------------------------------------------------------------
+    # Notification audit log (Feature N)
+    # ------------------------------------------------------------------
+
+    def notify_log_search(
+        self,
+        *,
+        kind: Optional[str] = None,
+        recipient: Optional[int] = None,
+        channel: Optional[str] = None,
+        outcome: Optional[str] = None,
+        since: Optional[str] = None,
+        limit: int = 200,
+    ) -> List[Dict[str, Any]]:
+        """Filtered list of audit records from the rotating JSONL log
+        emitted by the parent project's ``services/notify/log.py``.
+
+        Filters AND-combine. Empty filters return up to ``limit``
+        most-recent records. Projects without a ``logs/notify.jsonl``
+        return ``[]``.
+        """
+        from notify_log_reader import search as _search  # type: ignore[import-not-found]
+        return _search(
+            self.project_root, kind=kind, recipient=recipient,
+            channel=channel, outcome=outcome, since=since, limit=limit,
+        )
+
+    def notify_log_stats(
+        self, *, since: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Aggregate counters: total deliveries, plus
+        ``by_kind`` / ``by_channel`` outcome breakdowns. Optional
+        ``since`` cuts off records older than the relative window."""
+        from notify_log_reader import stats as _stats  # type: ignore[import-not-found]
+        return _stats(self.project_root, since=since)
+
+    # ------------------------------------------------------------------
     # Internal: reverse-dependency index for who_calls
     # ------------------------------------------------------------------
 

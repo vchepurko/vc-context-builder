@@ -378,6 +378,59 @@ def _tool_specs() -> List[Dict[str, Any]]:
                 "required": ["key"],
             },
         },
+        {
+            "name": "notify_log_search",
+            "description": (
+                "Search the rotating notification audit log emitted "
+                "by the project's services/notify pipeline. Returns "
+                "matching records as a list of {ts, kind, "
+                "recipient_uid, channel, outcome, keys}. AND-combines "
+                "filters; empty filters return up to `limit` most-"
+                "recent records. Projects without a logs/notify.jsonl "
+                "return []. Use this instead of grep'ing log files "
+                "for 'did kind X reach user Y?' questions."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "kind": {"type": "string"},
+                    "recipient": {"type": "integer"},
+                    "channel": {"type": "string", "enum": ["telegram", "email"]},
+                    "outcome": {
+                        "type": "string",
+                        "enum": ["sent", "failed", "skipped"],
+                    },
+                    "since": {
+                        "type": "string",
+                        "description": "Relative window like '7d' / '24h' or an "
+                                       "ISO date / datetime. None = no cutoff.",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "description": "Cap response size (default 200) so MCP "
+                                       "client doesn't pull megabytes into context.",
+                    },
+                },
+            },
+        },
+        {
+            "name": "notify_log_stats",
+            "description": (
+                "Aggregate counters over the notification audit log: "
+                "{total, by_kind: {kind: {sent, failed, skipped}}, "
+                "by_channel: {channel: {sent, failed, skipped}}}. "
+                "Optional 'since' (e.g. '7d') trims older records. "
+                "Use for 'how is delivery health this week?' "
+                "without scanning each record."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "since": {"type": "string"},
+                },
+            },
+        },
     ]
 
 
@@ -414,6 +467,8 @@ class _Dispatcher:
             "list_locale_keys":  self._list_locale_keys,
             "find_locale_key":   self._find_locale_key,
             "get_locale_key":    self._get_locale_key,
+            "notify_log_search": self._notify_log_search,
+            "notify_log_stats":  self._notify_log_stats,
         }
 
     def call(self, name: str, args: Dict[str, Any]) -> Any:
@@ -510,6 +565,30 @@ class _Dispatcher:
 
     def _get_locale_key(self, args: Dict[str, Any]) -> Any:
         return self.engine.get_locale_key(str(args.get("key", "")).strip())
+
+    def _notify_log_search(self, args: Dict[str, Any]) -> Any:
+        kw: Dict[str, Any] = {}
+        for name in ("kind", "channel", "outcome", "since"):
+            v = args.get(name)
+            if isinstance(v, str) and v.strip():
+                kw[name] = v.strip()
+        if "recipient" in args:
+            try:
+                kw["recipient"] = int(args["recipient"])
+            except (TypeError, ValueError):
+                pass
+        if "limit" in args:
+            try:
+                kw["limit"] = max(1, int(args["limit"]))
+            except (TypeError, ValueError):
+                pass
+        return self.engine.notify_log_search(**kw)
+
+    def _notify_log_stats(self, args: Dict[str, Any]) -> Any:
+        since = args.get("since")
+        if isinstance(since, str) and since.strip():
+            return self.engine.notify_log_stats(since=since.strip())
+        return self.engine.notify_log_stats()
 
 
 # ----------------------------------------------------------------------
