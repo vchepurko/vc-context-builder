@@ -81,6 +81,8 @@ class McpServerTests(FixtureMixin, unittest.TestCase):
             # Feature J — whitelisted check runner.
             "list_checks",
             "run_check",
+            # Feature L — class inspector.
+            "inspect_class",
         })
 
     def test_tools_call_find_symbol(self) -> None:

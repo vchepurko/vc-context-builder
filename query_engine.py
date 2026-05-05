@@ -704,6 +704,23 @@ class QueryEngine:
         return _run(self.project_root, name, timeout_sec=timeout_sec)
 
     # ------------------------------------------------------------------
+    # Feature L — class inspector (fields / methods / bases)
+    # ------------------------------------------------------------------
+
+    def inspect_class(self, name: str) -> Optional[Dict[str, Any]]:
+        """Resolve a class by name and return its structured summary
+        (file, line, doc, bases, fields, methods). ``None`` for unknown
+        names or non-class symbols. Replaces grep-ing for class
+        definitions when you need the field shape (SQLAlchemy models,
+        pydantic schemas, dataclasses, plain classes).
+        """
+        from class_inspector import inspect_class as _inspect  # type: ignore[import-not-found]
+        symbols = self._load_symbols() if os.path.isfile(
+            os.path.join(self.project_root, self.SYMBOLS_FILENAME)
+        ) else {}
+        return _inspect(self.project_root, name, symbols=symbols)
+
+    # ------------------------------------------------------------------
     # Internal: reverse-dependency index for who_calls
     # ------------------------------------------------------------------
 

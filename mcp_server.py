@@ -308,6 +308,22 @@ def _tool_specs() -> List[Dict[str, Any]]:
                 "required": ["name"],
             },
         },
+        {
+            "name": "inspect_class",
+            "description": (
+                "Return a structured summary of a Python class — "
+                "{file, line, doc, bases, fields, methods}. Looks up "
+                "the symbol in agent_symbols.json, then AST-walks the "
+                "file. Works for SQLAlchemy models, pydantic schemas, "
+                "dataclasses, plain classes. Use instead of `grep` for "
+                "'what columns does Admin have?'."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {"name": {"type": "string"}},
+                "required": ["name"],
+            },
+        },
     ]
 
 
@@ -340,6 +356,7 @@ class _Dispatcher:
             "logline_to_symbol": self._logline_to_symbol,
             "list_checks":       self._list_checks,
             "run_check":         self._run_check,
+            "inspect_class":     self._inspect_class,
         }
 
     def call(self, name: str, args: Dict[str, Any]) -> Any:
@@ -422,6 +439,9 @@ class _Dispatcher:
             else None
         )
         return self.engine.run_check(name, timeout_sec=timeout_sec)
+
+    def _inspect_class(self, args: Dict[str, Any]) -> Any:
+        return self.engine.inspect_class(str(args.get("name", "")).strip())
 
 
 # ----------------------------------------------------------------------
