@@ -823,6 +823,27 @@ class QueryEngine:
             summary=summary, limit=limit,
         )
 
+    def ruff_format(
+        self,
+        *,
+        path_prefix: Optional[str] = None,
+        summary: bool = False,
+        limit: int = 50,
+    ) -> Dict[str, Any]:
+        """Run ``ruff format --check`` and return the list of files
+        that would be reformatted: ``{total, files?}``.
+
+        ``summary=True`` returns just ``{total: N}`` — minimum-token
+        signal for "is the codebase formatted?". Use the default to
+        get the file paths so a follow-up ``ruff format`` knows what
+        will move.
+        """
+        from ruff_format_inspector import collect as _collect  # type: ignore[import-not-found]
+        return _collect(
+            self.project_root,
+            path_prefix=path_prefix, summary=summary, limit=limit,
+        )
+
     # ------------------------------------------------------------------
     # Internal: reverse-dependency index for who_calls
     # ------------------------------------------------------------------

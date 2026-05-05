@@ -467,6 +467,39 @@ def _tool_specs() -> List[Dict[str, Any]]:
                 },
             },
         },
+        {
+            "name": "ruff_format",
+            "description": (
+                "Run `ruff format --check` and return {total, files?} "
+                "— the list of files that would be reformatted, "
+                "project-relative. Use summary=true for the cheapest "
+                "possible 'is the codebase formatted?' check (~12 "
+                "bytes when clean). path_prefix scopes to a subtree; "
+                "limit caps the file list (default 50). Symmetric "
+                "with ruff_violations: violations is for the linter, "
+                "this is for the formatter."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "path_prefix": {
+                        "type": "string",
+                        "description": "Project-relative startswith filter "
+                                       "(e.g. 'services/notify').",
+                    },
+                    "summary": {
+                        "type": "boolean",
+                        "description": "When true, drop the file list and "
+                                       "return just {total}.",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": "Cap the file list. 0 = no cap.",
+                    },
+                },
+            },
+        },
     ]
 
 
@@ -506,6 +539,7 @@ class _Dispatcher:
             "notify_log_search": self._notify_log_search,
             "notify_log_stats":  self._notify_log_stats,
             "ruff_violations":   self._ruff_violations,
+            "ruff_format":       self._ruff_format,
         }
 
     def call(self, name: str, args: Dict[str, Any]) -> Any:
@@ -641,6 +675,20 @@ class _Dispatcher:
             except (TypeError, ValueError):
                 pass
         return self.engine.ruff_violations(**kw)
+
+    def _ruff_format(self, args: Dict[str, Any]) -> Any:
+        kw: Dict[str, Any] = {}
+        v = args.get("path_prefix")
+        if isinstance(v, str) and v.strip():
+            kw["path_prefix"] = v.strip()
+        if "summary" in args:
+            kw["summary"] = bool(args["summary"])
+        if "limit" in args:
+            try:
+                kw["limit"] = max(0, int(args["limit"]))
+            except (TypeError, ValueError):
+                pass
+        return self.engine.ruff_format(**kw)
 
 
 # ----------------------------------------------------------------------
