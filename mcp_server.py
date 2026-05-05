@@ -431,6 +431,42 @@ def _tool_specs() -> List[Dict[str, Any]]:
                 },
             },
         },
+        {
+            "name": "ruff_violations",
+            "description": (
+                "Run `ruff check` in JSON mode and return a structured "
+                "breakdown {total, by_code: {code: n}, by_file: {file: n}, "
+                "violations?: [{file, line, end_line, code, message}]}. "
+                "Use summary=true first to see the shape of failures "
+                "without dumping the whole list, then drill in with "
+                "code= / path_prefix=. limit caps the violations list "
+                "(default 50) so MCP doesn't pull megabytes into context."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "code": {
+                        "type": "string",
+                        "description": "Filter to one rule code (e.g. 'UP006').",
+                    },
+                    "path_prefix": {
+                        "type": "string",
+                        "description": "Project-relative startswith filter "
+                                       "(e.g. 'services/notify').",
+                    },
+                    "summary": {
+                        "type": "boolean",
+                        "description": "When true, drop the per-violation list "
+                                       "and return counts only.",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": "Cap the violations list. 0 = no cap.",
+                    },
+                },
+            },
+        },
     ]
 
 
@@ -469,6 +505,7 @@ class _Dispatcher:
             "get_locale_key":    self._get_locale_key,
             "notify_log_search": self._notify_log_search,
             "notify_log_stats":  self._notify_log_stats,
+            "ruff_violations":   self._ruff_violations,
         }
 
     def call(self, name: str, args: Dict[str, Any]) -> Any:
@@ -589,6 +626,21 @@ class _Dispatcher:
         if isinstance(since, str) and since.strip():
             return self.engine.notify_log_stats(since=since.strip())
         return self.engine.notify_log_stats()
+
+    def _ruff_violations(self, args: Dict[str, Any]) -> Any:
+        kw: Dict[str, Any] = {}
+        for name in ("code", "path_prefix"):
+            v = args.get(name)
+            if isinstance(v, str) and v.strip():
+                kw[name] = v.strip()
+        if "summary" in args:
+            kw["summary"] = bool(args["summary"])
+        if "limit" in args:
+            try:
+                kw["limit"] = max(0, int(args["limit"]))
+            except (TypeError, ValueError):
+                pass
+        return self.engine.ruff_violations(**kw)
 
 
 # ----------------------------------------------------------------------

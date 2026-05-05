@@ -90,6 +90,8 @@ class McpServerTests(FixtureMixin, unittest.TestCase):
             # Feature N — notification audit log reader.
             "notify_log_search",
             "notify_log_stats",
+            # Feature O — ruff violations inspector.
+            "ruff_violations",
         })
 
     def test_tools_call_find_symbol(self) -> None:
