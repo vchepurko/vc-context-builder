@@ -796,6 +796,34 @@ class QueryEngine:
         return _stats(self.project_root, since=since)
 
     # ------------------------------------------------------------------
+    # Ruff violations inspector (Feature O)
+    # ------------------------------------------------------------------
+
+    def ruff_violations(
+        self,
+        *,
+        code: Optional[str] = None,
+        path_prefix: Optional[str] = None,
+        summary: bool = False,
+        limit: int = 50,
+    ) -> Dict[str, Any]:
+        """Run ``ruff check`` in JSON mode and return the structured
+        breakdown ``{total, by_code, by_file, violations?}``.
+
+        Use ``summary=True`` first to triage the shape of failures
+        (which rule codes dominate, which files concentrate them),
+        then drill in with ``code=...`` / ``path_prefix=...`` for the
+        per-violation list. ``limit`` caps the violations list to
+        keep MCP responses bounded.
+        """
+        from ruff_inspector import collect as _collect  # type: ignore[import-not-found]
+        return _collect(
+            self.project_root,
+            code=code, path_prefix=path_prefix,
+            summary=summary, limit=limit,
+        )
+
+    # ------------------------------------------------------------------
     # Internal: reverse-dependency index for who_calls
     # ------------------------------------------------------------------
 
