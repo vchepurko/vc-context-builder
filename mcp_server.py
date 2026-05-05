@@ -324,6 +324,60 @@ def _tool_specs() -> List[Dict[str, Any]]:
                 "required": ["name"],
             },
         },
+        {
+            "name": "list_locale_keys",
+            "description": (
+                "Return all i18n keys (sorted), optionally filtered to "
+                "one namespace (e.g. 'admin', 'common'). Reads "
+                "agent_locale_keys.json, populated for projects with a "
+                "locales/<lang>/<ns>.json layout. Empty list when no "
+                "locale index is present."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "namespace": {
+                        "type": "string",
+                        "description": "Optional: namespace filter (the "
+                        "JSON filename without .json).",
+                    },
+                },
+            },
+        },
+        {
+            "name": "find_locale_key",
+            "description": (
+                "Substring (case-insensitive) match across i18n keys. "
+                "Use for 'every key starting with staff_' "
+                "(pattern='staff_') or 'all email-related keys' "
+                "(pattern='email'). Replaces grep across "
+                "locales/*/*.json files."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "pattern": {"type": "string"},
+                },
+                "required": ["pattern"],
+            },
+        },
+        {
+            "name": "get_locale_key",
+            "description": (
+                "Full entry for one i18n key — {namespace, languages, "
+                "values: {lang: text}, missing: [langs that own the "
+                "namespace file but don't carry this key]}. The "
+                "'missing' list is the parity audit hook: empty = "
+                "fully translated, non-empty = ship-blocking gap."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "key": {"type": "string"},
+                },
+                "required": ["key"],
+            },
+        },
     ]
 
 
@@ -357,6 +411,9 @@ class _Dispatcher:
             "list_checks":       self._list_checks,
             "run_check":         self._run_check,
             "inspect_class":     self._inspect_class,
+            "list_locale_keys":  self._list_locale_keys,
+            "find_locale_key":   self._find_locale_key,
+            "get_locale_key":    self._get_locale_key,
         }
 
     def call(self, name: str, args: Dict[str, Any]) -> Any:
@@ -442,6 +499,17 @@ class _Dispatcher:
 
     def _inspect_class(self, args: Dict[str, Any]) -> Any:
         return self.engine.inspect_class(str(args.get("name", "")).strip())
+
+    def _list_locale_keys(self, args: Dict[str, Any]) -> Any:
+        ns = args.get("namespace")
+        ns_str = str(ns).strip() if isinstance(ns, str) and ns.strip() else None
+        return self.engine.list_locale_keys(namespace=ns_str)
+
+    def _find_locale_key(self, args: Dict[str, Any]) -> Any:
+        return self.engine.find_locale_key(str(args.get("pattern", "")))
+
+    def _get_locale_key(self, args: Dict[str, Any]) -> Any:
+        return self.engine.get_locale_key(str(args.get("key", "")).strip())
 
 
 # ----------------------------------------------------------------------
