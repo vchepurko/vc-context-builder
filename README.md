@@ -87,59 +87,50 @@ Missing config = built-in roles only, no error. Opt-in by design.
 
 ---
 
-## Installation
+## Quickstart
 
 ```bash
 cd your-project-root
 git submodule add https://github.com/vchepurko/vc-context-builder.git .ai-context
-git -C .ai-context checkout main
 ./.ai-context/install.sh
 ```
 
-`install.sh` is **pre-commit-aware**:
+**That's it.** The installer:
 
-- If the parent project already uses [pre-commit](https://pre-commit.com),
-  it appends `vc-context-builder` as a `local` hook and runs
-  `pre-commit install`. **Existing hooks (ruff, pytest, …) keep working.**
-- Otherwise it writes a standalone `.git/hooks/pre-commit`,
-  preserving any prior one as `pre-commit.legacy.<timestamp>`.
-- It does **not** add `.ai-context/` to `.gitignore` — that breaks
-  submodule tracking.
+1. Builds the agent_*.json artifacts (one-shot).
+2. Installs a native `git pre-push` hook that rebuilds them before every push.
+3. Hides those artifacts from your `git status` (local mode by default — no team-wide change).
+4. Writes a project-rooted **`.mcp.json`** so Claude Code auto-wires
+   `vc-context` MCP without per-developer config.
+5. Drops curated slash commands (`/find-similar`, `/audit-handler`,
+   `/refactor-callsites`) into `.claude/commands/`.
 
-After install, every `git commit` regenerates the artifacts in the
-background and stages them automatically.
+Reload your editor — done. No `pip install`, no global config, no
+`~/.claude/mcp.json` edits. Submodule pull updates everything in place.
 
-### Project mode vs local mode
+### Want artifacts committed (team-wide)?
 
-Two ways to consume the artifacts. Pick whichever fits the team:
-
-| Mode | Marker | Hook stages artifacts? | Whose call |
-|---|---|---|---|
-| **project** *(default)* | none | yes — next commit picks them up | whole team agrees |
-| **local** | `.git/vc-context-local` | **no** — rebuilt only | one developer opts in |
-
-Local mode lets a single developer enjoy the CLI / MCP integration
-without polluting the team's git history with the JSON files. Toggle
-per-clone (never propagates):
+Project mode stages and commits the artifacts so every clone shares them:
 
 ```bash
-./.ai-context/install.sh --local-only   # this clone only
-./.ai-context/install.sh --no-local     # back to project mode
+./.ai-context/install.sh --shared
 ```
 
-`--local-only` also adds the artifact paths to `.git/info/exclude`
-so untracked files don't clutter `git status`. If the artifacts
-were already committed in the parent repo, `install.sh` prints a
-hint with the `git rm --cached …` invocation needed to fully
-untrack them — non-destructive, you opt in.
+Toggle back any time with the default flagless invocation. The mode
+marker lives under `.git/`, so it never crosses clones, branches, or
+worktrees.
 
-The marker lives under `.git/`, so it never crosses clones, branches,
-or worktrees. You can also flip it manually:
+### Other flags (rarely needed)
 
-```bash
-touch  "$(git rev-parse --git-dir)/vc-context-local"   # enable
-rm -f  "$(git rev-parse --git-dir)/vc-context-local"   # disable
-```
+| Flag | Purpose |
+|---|---|
+| `--no-mcp` | Skip writing `.mcp.json` (you manage MCP elsewhere). |
+| `--no-commands` | Skip copying slash commands. |
+| `--force-commands` | Overwrite existing slash command files. |
+| `--pre-commit` | Use the pre-commit framework instead of native pre-push (legacy; may race with autofix hooks). |
+| `--shared` | Stage artifacts on push (team mode). |
+
+`--help` prints the full reference.
 
 ---
 

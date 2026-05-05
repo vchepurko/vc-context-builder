@@ -1,5 +1,11 @@
 # Wiring `vc-context` into your MCP host
 
+> **Skip this if you ran `./.ai-context/install.sh`** — the installer
+> already wrote a project-rooted `.mcp.json`, which Claude Code reads
+> automatically. The instructions below are for hosts that don't read
+> `.mcp.json` (Cursor, Codex CLI, Continue.dev, generic stdio hosts) or
+> for the global-config setup style.
+
 The submodule ships an stdio JSON-RPC server (`mcp_server.py`) and a
 shell wrapper (`bin/vc-context-mcp`). Point your MCP-aware client at
 that wrapper and it will expose six tools:

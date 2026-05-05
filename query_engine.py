@@ -823,6 +823,57 @@ class QueryEngine:
             summary=summary, limit=limit,
         )
 
+    def ruff_format(
+        self,
+        *,
+        path_prefix: Optional[str] = None,
+        summary: bool = False,
+        limit: int = 50,
+    ) -> Dict[str, Any]:
+        """Run ``ruff format --check`` and return the list of files
+        that would be reformatted: ``{total, files?}``.
+
+        ``summary=True`` returns just ``{total: N}`` — minimum-token
+        signal for "is the codebase formatted?". Use the default to
+        get the file paths so a follow-up ``ruff format`` knows what
+        will move.
+        """
+        from ruff_format_inspector import collect as _collect  # type: ignore[import-not-found]
+        return _collect(
+            self.project_root,
+            path_prefix=path_prefix, summary=summary, limit=limit,
+        )
+
+    # ------------------------------------------------------------------
+    # Mypy violations inspector
+    # ------------------------------------------------------------------
+
+    def mypy_violations(
+        self,
+        *,
+        code: Optional[str] = None,
+        path_prefix: Optional[str] = None,
+        severity: Optional[str] = None,
+        summary: bool = False,
+        limit: int = 50,
+    ) -> Dict[str, Any]:
+        """Run ``mypy --output=json`` and return the structured
+        breakdown ``{total, by_code, by_file, violations?}``.
+
+        Use ``summary=True`` first to triage which error codes /
+        files dominate, then drill in with ``code=...`` /
+        ``path_prefix=...`` / ``severity=...`` for the per-violation
+        list. ``limit`` caps the violations list to keep MCP
+        responses bounded. Auto-skips on non-Python projects or
+        projects without mypy config.
+        """
+        from mypy_inspector import collect as _collect  # type: ignore[import-not-found]
+        return _collect(
+            self.project_root,
+            code=code, path_prefix=path_prefix, severity=severity,
+            summary=summary, limit=limit,
+        )
+
     # ------------------------------------------------------------------
     # Internal: reverse-dependency index for who_calls
     # ------------------------------------------------------------------

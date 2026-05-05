@@ -34,6 +34,52 @@ from typing import Any, Dict, List, Optional
 
 DEFAULT_COMMAND = ["uv", "run", "ruff", "check", "--output-format=json", "."]
 
+# Files whose presence at the project root indicates a Python project.
+# Used by ``should_skip_ruff`` so frontend-only repos (no Python) get a
+# clean ``{skipped: true}`` instead of a noisy ``uv run ruff`` failure.
+_PYTHON_MARKER_FILES = ("pyproject.toml", "setup.py", "setup.cfg", "Pipfile", "requirements.txt")
+
+
+def should_skip_ruff(project_root: str) -> tuple[bool, str]:
+    """Return ``(skip, reason)`` — whether to bypass ruff for this
+    project. Skips when:
+
+    1. ``.vc-context/conventions.json`` has ``"ruff": {"enabled": false}``
+       (explicit team opt-out, e.g. a polyglot repo where ruff lives
+       only in CI and shouldn't bleed into MCP responses).
+    2. Auto-detect found no Python project markers at the root and no
+       ``*.py`` file at depth 1. Frontend-only projects should not run
+       ruff.
+
+    An explicit ``"ruff": {"enabled": true}`` in conventions.json
+    forces the tool on even when detection would have skipped — useful
+    for projects where the Python code lives deeper than depth 1.
+    """
+    conv_path = os.path.join(project_root, ".vc-context", "conventions.json")
+    if os.path.isfile(conv_path):
+        try:
+            with open(conv_path, "r", encoding="utf-8") as fh:
+                conv = json.load(fh)
+            ruff_cfg = conv.get("ruff") if isinstance(conv, dict) else None
+            if isinstance(ruff_cfg, dict):
+                enabled = ruff_cfg.get("enabled")
+                if enabled is False:
+                    return True, "disabled in .vc-context/conventions.json"
+                if enabled is True:
+                    return False, ""
+        except (OSError, json.JSONDecodeError):
+            pass
+    for marker in _PYTHON_MARKER_FILES:
+        if os.path.isfile(os.path.join(project_root, marker)):
+            return False, ""
+    try:
+        for entry in os.listdir(project_root):
+            if entry.endswith(".py"):
+                return False, ""
+    except OSError:
+        return True, "project root not readable"
+    return True, "no Python project (no pyproject.toml / setup.py / *.py at root)"
+
 
 def _load_command(project_root: str) -> List[str]:
     """``conventions.json["ruff"]["command"]`` overrides the default
@@ -115,7 +161,14 @@ def collect(
     ``code`` matches the violation's rule code exactly (e.g.
     ``"UP006"``). ``path_prefix`` is a project-relative startswith
     match (``"services/notify"`` matches every file in that tree).
+
+    Returns ``{total: 0, skipped: true, reason: "..."}`` instead when
+    the project isn't Python (auto-detected) or has explicitly opted
+    out via ``conventions.json["ruff"]["enabled"] = false``.
     """
+    skip, reason = should_skip_ruff(project_root)
+    if skip:
+        return {"total": 0, "by_code": {}, "by_file": {}, "skipped": True, "reason": reason}
     raw = run_ruff(project_root, command=command)
     entries = [_to_entry(v, project_root) for v in raw]
 
