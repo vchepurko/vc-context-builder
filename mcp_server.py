@@ -505,6 +505,54 @@ def _tool_specs() -> List[Dict[str, Any]]:
                 },
             },
         },
+        {
+            "name": "mypy_violations",
+            "description": (
+                "Run `mypy --output=json` and return a structured "
+                "breakdown {total, by_code: {code: n}, by_file: "
+                "{file: n}, violations?: [{file, line, end_line, "
+                "code, severity, message}]}. Use summary=true first "
+                "to see which error codes / files dominate without "
+                "dumping the full list, then drill in with code= / "
+                "path_prefix= / severity=. limit caps the violations "
+                "list (default 50) so MCP doesn't pull megabytes "
+                "into context. Auto-skips on non-Python projects or "
+                "projects without mypy config ([tool.mypy] in "
+                "pyproject.toml or mypy.ini) — returns {total: 0, "
+                "skipped: true, reason}. Override via "
+                "conventions.json['mypy']['enabled'] = true/false."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "code": {
+                        "type": "string",
+                        "description": "Filter to one error code "
+                                       "(e.g. 'union-attr', 'assignment').",
+                    },
+                    "path_prefix": {
+                        "type": "string",
+                        "description": "Project-relative startswith filter "
+                                       "(e.g. 'bot/handlers').",
+                    },
+                    "severity": {
+                        "type": "string",
+                        "description": "Filter to severity: 'error', "
+                                       "'note', or 'warning'.",
+                    },
+                    "summary": {
+                        "type": "boolean",
+                        "description": "When true, drop the per-violation "
+                                       "list and return counts only.",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": "Cap the violations list. 0 = no cap.",
+                    },
+                },
+            },
+        },
     ]
 
 
@@ -545,6 +593,7 @@ class _Dispatcher:
             "notify_log_stats":  self._notify_log_stats,
             "ruff_violations":   self._ruff_violations,
             "ruff_format":       self._ruff_format,
+            "mypy_violations":   self._mypy_violations,
         }
 
     def call(self, name: str, args: Dict[str, Any]) -> Any:
@@ -694,6 +743,21 @@ class _Dispatcher:
             except (TypeError, ValueError):
                 pass
         return self.engine.ruff_format(**kw)
+
+    def _mypy_violations(self, args: Dict[str, Any]) -> Any:
+        kw: Dict[str, Any] = {}
+        for name in ("code", "path_prefix", "severity"):
+            v = args.get(name)
+            if isinstance(v, str) and v.strip():
+                kw[name] = v.strip()
+        if "summary" in args:
+            kw["summary"] = bool(args["summary"])
+        if "limit" in args:
+            try:
+                kw["limit"] = max(0, int(args["limit"]))
+            except (TypeError, ValueError):
+                pass
+        return self.engine.mypy_violations(**kw)
 
 
 # ----------------------------------------------------------------------
