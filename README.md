@@ -248,8 +248,21 @@ Drop a `.vc-context/conventions.json` in the **parent project root**
 }
 ```
 
-Rule kinds: `forbid_import` (package name) / `forbid_call` (bare
-function name). `match_path` is an `fnmatch` glob with `**` support.
+Rule kinds:
+
+- `forbid_import: "<pkg>"` — fail if a Python file imports `<pkg>`
+  (either `import <pkg>...` or `from <pkg>... import ...`).
+- `forbid_call: "<name>"` — fail if a Python file calls `<name>(...)`
+  at the leaf level (bare names only, not `obj.<name>(...)`).
+- `forbid_decorator_regex: "<regex>"` — fail when a function/class
+  declaration carries any decorator whose textual form (the literal
+  `@<expr>`) matches the given regex. Catches framework-specific
+  antipatterns without baking them into the parser. Example for
+  aiogram: `^@router\.message\(F\.text\)$` flags every
+  `@router.message(F.text)` (match-any-text swallower) while leaving
+  `@router.message(F.text == "X")` and state-bound forms alone.
+
+`match_path` is an `fnmatch` glob with `**` support.
 `severity`: `error` flips `vc-context lint` exit code; `warn` / `info`
 do not. Missing config = no rules = no error — opt-in by design.
 
