@@ -52,6 +52,7 @@ class QueryEngine:
     CALLBACKS_FILENAME = "agent_callbacks.json"
     FSM_FLOW_FILENAME = "agent_fsm_flows.json"
     TEST_CATEGORIES_FILENAME = "agent_test_categories.json"
+    LOCALES_FILENAME = "agent_locale_keys.json"
     MAP_FILENAME = "_module_map.json"
     IGNORE_DIRS = {
         ".git", "node_modules", "vendor", "__pycache__",
@@ -73,6 +74,7 @@ class QueryEngine:
         self._callbacks: Optional[Dict[str, List[Dict[str, Any]]]] = None
         self._fsm_flows: Optional[Dict[str, Dict[str, Any]]] = None
         self._test_categories: Optional[Dict[str, Dict[str, Any]]] = None
+        self._locale_keys: Optional[Dict[str, Dict[str, Any]]] = None
 
     # ------------------------------------------------------------------
     # Lazy loaders
@@ -156,6 +158,17 @@ class QueryEngine:
             except (OSError, json.JSONDecodeError):
                 self._test_categories = {}
         return self._test_categories
+
+    def _load_locale_keys(self) -> Dict[str, Dict[str, Any]]:
+        """Return ``agent_locale_keys.json`` (or ``{}`` if missing)."""
+        if self._locale_keys is None:
+            path = os.path.join(self.project_root, self.LOCALES_FILENAME)
+            try:
+                with open(path, "r", encoding="utf-8") as fh:
+                    self._locale_keys = json.load(fh)
+            except (OSError, json.JSONDecodeError):
+                self._locale_keys = {}
+        return self._locale_keys
 
     def _iter_module_maps(self) -> Iterable[Tuple[str, Dict[str, Any]]]:
         """Yield ``(relative_directory, parsed_map_json)`` for each
@@ -702,6 +715,49 @@ class QueryEngine:
         """
         from checks import run_check as _run  # type: ignore[import-not-found]
         return _run(self.project_root, name, timeout_sec=timeout_sec)
+
+    # ------------------------------------------------------------------
+    # Feature L — class inspector (fields / methods / bases)
+    # ------------------------------------------------------------------
+
+    def inspect_class(self, name: str) -> Optional[Dict[str, Any]]:
+        """Resolve a class by name and return its structured summary
+        (file, line, doc, bases, fields, methods). ``None`` for unknown
+        names or non-class symbols. Replaces grep-ing for class
+        definitions when you need the field shape (SQLAlchemy models,
+        pydantic schemas, dataclasses, plain classes).
+        """
+        from class_inspector import inspect_class as _inspect  # type: ignore[import-not-found]
+        symbols = self._load_symbols() if os.path.isfile(
+            os.path.join(self.project_root, self.SYMBOLS_FILENAME)
+        ) else {}
+        return _inspect(self.project_root, name, symbols=symbols)
+
+    # ------------------------------------------------------------------
+    # Locale keys (Feature I)
+    # ------------------------------------------------------------------
+
+    def list_locale_keys(self, namespace: Optional[str] = None) -> List[str]:
+        """All translation keys (sorted), optionally filtered to one
+        namespace. Empty list when the locale index is missing —
+        graceful degradation for projects without a ``locales/`` tree.
+        """
+        from locale_index import list_keys as _list  # type: ignore[import-not-found]
+        return _list(self._load_locale_keys(), namespace=namespace)
+
+    def find_locale_key(self, pattern: str) -> List[str]:
+        """Substring (case-insensitive) match across keys. For "every
+        key starting with ``staff_``" pass ``"staff_"``."""
+        from locale_index import find_keys as _find  # type: ignore[import-not-found]
+        return _find(self._load_locale_keys(), pattern)
+
+    def get_locale_key(self, key: str) -> Optional[Dict[str, Any]]:
+        """Full entry for a key — namespace, languages it lives in,
+        per-language values, and the ``missing`` list (languages whose
+        namespace file exists but doesn't carry this key — handy for
+        parity audits)."""
+        from locale_index import get_key as _get  # type: ignore[import-not-found]
+        return _get(self._load_locale_keys(), key)
 
     # ------------------------------------------------------------------
     # Internal: reverse-dependency index for who_calls

@@ -91,6 +91,166 @@ class FindTestForSymbolTests(unittest.TestCase):
         )
         self.assertIsNotNone(result)
 
+    def test_widened_glob_matches_basename_prefix(self) -> None:
+        """``test_<basename>*.py`` (prefix) must match — not just the
+        exact ``test_<basename>.py``. Real-world example:
+        ``test_admin_staff_handler.py`` for ``admin_staff.py``."""
+        _write(os.path.join(self.root, "tests", "test_admin_staff_handler.py"),
+               "def test_my_func():\n    pass\n")
+        result = test_linking.find_test_for_symbol(
+            self.root, "my_func", "bot/handlers/admin_staff.py",
+        )
+        self.assertIsNotNone(result)
+        self.assertEqual(result["test_file"], "tests/test_admin_staff_handler.py")
+
+    def test_widened_glob_does_not_match_unrelated_prefix(self) -> None:
+        """``test_foo_bar.py`` is NOT a candidate for ``foo.py`` — the
+        basename here is ``foo``, but the test file is for ``foo_bar``.
+        The separator-tightening rule blocks this false positive."""
+        _write(os.path.join(self.root, "tests", "test_foobar.py"),
+               "def test_my_func(): pass\n")
+        result = test_linking.find_test_for_symbol(
+            self.root, "my_func", "x/foo.py",
+        )
+        self.assertIsNone(result)
+
+
+class ReferenceBasedLinkingTests(unittest.TestCase):
+    """Phase 1 improvement: link by what each ``def test_*`` body
+    actually references (imports + patch()), not just by filename
+    convention. Covers handler tests where the file is named after
+    the feature (``test_admin_staff_handler.py``) but the symbols
+    inside live elsewhere."""
+
+    def setUp(self) -> None:
+        self.root = tempfile.mkdtemp(prefix="vc-tests-")
+        self.addCleanup(shutil.rmtree, self.root, True)
+
+    def test_links_via_direct_import_call(self) -> None:
+        _write(os.path.join(self.root, "tests", "test_handlers.py"), (
+            "from bot.handlers.admin_staff import adm_staff_edit_email\n"
+            "\n"
+            "def test_edit_email_callback():\n"
+            "    adm_staff_edit_email()\n"
+        ))
+        idx = test_linking.build_reference_index(self.root)
+        self.assertIn("adm_staff_edit_email", idx)
+        result = test_linking.find_test_for_symbol(
+            self.root, "adm_staff_edit_email",
+            "bot/handlers/admin_staff.py",
+            reference_index=idx,
+        )
+        self.assertIsNotNone(result)
+        self.assertEqual(result["test_function"], "test_edit_email_callback")
+
+    def test_links_via_patch_dotted_string(self) -> None:
+        """aiogram-style tests use ``patch("module.path.symbol", mock)``
+        — the linker must pull the last segment off and treat it as a
+        reference, even when the symbol isn't imported in the test."""
+        _write(os.path.join(self.root, "tests", "test_x.py"), (
+            "from unittest.mock import patch, AsyncMock\n"
+            "\n"
+            "def test_something():\n"
+            "    with patch('services.notify.notify', AsyncMock()):\n"
+            "        pass\n"
+        ))
+        idx = test_linking.build_reference_index(self.root)
+        self.assertIn("notify", idx)
+        result = test_linking.find_test_for_symbol(
+            self.root, "notify", "services/notify/service.py",
+            reference_index=idx,
+        )
+        self.assertIsNotNone(result)
+        self.assertEqual(result["test_function"], "test_something")
+
+    def test_co_location_bonus_picks_handler_test_when_two_files_reference(self) -> None:
+        """Two test files reference the same symbol; the one
+        co-located with the source file (test_<basename>*.py) wins
+        over a generic test (test_smoke.py) regardless of name length."""
+        _write(os.path.join(self.root, "tests", "test_admin_staff_handler.py"), (
+            "from bot.handlers.admin_staff import adm_staff_edit_email\n"
+            "\n"
+            "def test_long_specific_handler_test():\n"
+            "    adm_staff_edit_email()\n"
+        ))
+        _write(os.path.join(self.root, "tests", "test_smoke.py"), (
+            "from bot.handlers.admin_staff import adm_staff_edit_email\n"
+            "\n"
+            "def test_smoke():\n"
+            "    adm_staff_edit_email()\n"
+        ))
+        idx = test_linking.build_reference_index(self.root)
+        result = test_linking.find_test_for_symbol(
+            self.root, "adm_staff_edit_email",
+            "bot/handlers/admin_staff.py",
+            reference_index=idx,
+        )
+        self.assertIsNotNone(result)
+        # Co-location wins despite the longer name.
+        self.assertEqual(
+            result["test_file"], "tests/test_admin_staff_handler.py",
+        )
+
+    def test_attribute_access_counts_as_reference(self) -> None:
+        """``module.symbol.something`` references ``module`` (binding
+        of `import module`) — the linker must catch that, since many
+        tests use ``mod.func()`` style after a top-level
+        ``import services.admin_service as mod``."""
+        _write(os.path.join(self.root, "tests", "test_y.py"), (
+            "import services.admin_service\n"
+            "\n"
+            "def test_role_lookup():\n"
+            "    services.admin_service.get_role()\n"
+        ))
+        idx = test_linking.build_reference_index(self.root)
+        # `import services.admin_service` binds top name "services".
+        self.assertIn("services", idx)
+
+    def test_class_method_test_supported(self) -> None:
+        """pytest classes — ``class TestX: def test_y`` — must be
+        picked up too."""
+        _write(os.path.join(self.root, "tests", "test_z.py"), (
+            "from pkg.foo import bar\n"
+            "\n"
+            "class TestBar:\n"
+            "    def test_calls_bar(self):\n"
+            "        bar()\n"
+        ))
+        idx = test_linking.build_reference_index(self.root)
+        self.assertIn("bar", idx)
+        hits = idx["bar"]
+        self.assertEqual(hits[0]["test_function"], "test_calls_bar")
+
+    def test_unrelated_file_not_indexed_as_reference(self) -> None:
+        """Files outside ``tests/`` don't get scanned — keeps the
+        index focused on actual tests."""
+        _write(os.path.join(self.root, "src", "consumer.py"), (
+            "from pkg.foo import bar\n"
+            "\n"
+            "def test_lookalike():\n"
+            "    bar()\n"
+        ))
+        idx = test_linking.build_reference_index(self.root)
+        self.assertNotIn("bar", idx)
+
+    def test_build_test_index_uses_reference_path(self) -> None:
+        """End-to-end: build_test_index must find the symbol via the
+        reference index even when the test file's name doesn't follow
+        the co-location convention at all."""
+        _write(os.path.join(self.root, "tests", "test_completely_unrelated_name.py"), (
+            "from pkg.foo import bar\n"
+            "\n"
+            "def test_bar_behavior():\n"
+            "    bar()\n"
+        ))
+        symbols = {"bar": {"file": "pkg/foo.py"}}
+        index = test_linking.build_test_index(self.root, symbols)
+        self.assertIsNotNone(index["bar"])
+        self.assertEqual(
+            index["bar"]["test_file"],
+            "tests/test_completely_unrelated_name.py",
+        )
+
 
 class BuildTestIndexTests(unittest.TestCase):
     def setUp(self) -> None:

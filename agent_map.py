@@ -38,6 +38,11 @@ from test_classifier import (
     collect_test_categories,
     write_test_categories,
 )
+from locale_index import (
+    LOCALES_FILENAME,
+    build_locale_index,
+    write_locale_index,
+)
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
@@ -65,6 +70,7 @@ class ContextBuilder:
         self.callbacks_filename = CALLBACKS_FILENAME
         self.fsm_flow_filename = FSM_FLOW_FILENAME
         self.test_categories_filename = TEST_CATEGORIES_FILENAME
+        self.locales_filename = LOCALES_FILENAME
         self.readme_filename = 'AGENT_README.md'
         self.processed_modules: List[str] = []
 
@@ -268,6 +274,7 @@ class ContextBuilder:
         self._build_callback_index()
         self._build_fsm_flow_index()
         self._build_test_categories_index()
+        self._build_locale_index()
         self._generate_agent_sop()
         logging.info("Context build complete. Agent SOP is ready.")
 
@@ -549,6 +556,43 @@ class ContextBuilder:
             )
         except OSError as e:
             logging.error(f"Failed to write test categories: {e}")
+
+    # ------------------------------------------------------------------
+    # Feature I — locale-key index (i18n strings as queryable data)
+    # ------------------------------------------------------------------
+
+    def _build_locale_index(self) -> None:
+        try:
+            # Allow conventions.json to override the locales path.
+            locales_dir = "locales"
+            conv_path = os.path.join(self.root_dir, ".vc-context", "conventions.json")
+            if os.path.exists(conv_path):
+                try:
+                    with open(conv_path, "r", encoding="utf-8") as fh:
+                        conv = json.load(fh)
+                    override = (
+                        conv.get("locales", {}).get("path")
+                        if isinstance(conv, dict) else None
+                    )
+                    if isinstance(override, str) and override:
+                        locales_dir = override
+                except (OSError, json.JSONDecodeError):
+                    pass
+            index = build_locale_index(self.root_dir, locales_dir=locales_dir)
+            if not index:
+                # No locales — keep silent. Most projects don't have them
+                # and emitting an empty file would just clutter the tree.
+                return
+            write_locale_index(self.root_dir, index)
+            # Surface parity gaps in the build log so missing translations
+            # don't ship unnoticed.
+            missing_total = sum(len(v.get("missing", [])) for v in index.values())
+            logging.info(
+                "Wrote locale index: %s (%d keys; %d missing translations).",
+                self.locales_filename, len(index), missing_total,
+            )
+        except OSError as e:
+            logging.error(f"Failed to write locale index: {e}")
 
     def _generate_agent_sop(self) -> None:
         """Generates Standard Operating Procedure for AI Agents."""

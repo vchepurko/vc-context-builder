@@ -81,6 +81,12 @@ class McpServerTests(FixtureMixin, unittest.TestCase):
             # Feature J — whitelisted check runner.
             "list_checks",
             "run_check",
+            # Feature L — class inspector.
+            "inspect_class",
+            # Feature M — locale-key index (i18n strings as data).
+            "list_locale_keys",
+            "find_locale_key",
+            "get_locale_key",
         })
 
     def test_tools_call_find_symbol(self) -> None:
