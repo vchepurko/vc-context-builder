@@ -30,13 +30,14 @@ import ast
 import fnmatch
 import json
 import os
+import re
 from typing import Any, Dict, Iterable, List, Optional
 
 
 CONFIG_RELATIVE_PATH = os.path.join(".vc-context", "conventions.json")
 
 VALID_SEVERITIES = ("error", "warn", "info")
-VALID_RULE_KEYS = ("forbid_import", "forbid_call")
+VALID_RULE_KEYS = ("forbid_import", "forbid_call", "forbid_decorator_regex")
 
 # Project subtrees we never walk.
 IGNORE_DIRS = {
@@ -82,6 +83,21 @@ def load_rules(project_root: str) -> List[Dict[str, Any]]:
             continue
         if not isinstance(rule_id, str) or not rule_id:
             continue
+        # Pre-compile the decorator regex once, surface the literal
+        # source for diagnostic messages. Bad regex → silently drop
+        # the rule (keeps the linter degrade-gracefully contract).
+        forbid_decorator_regex_raw = r.get("forbid_decorator_regex")
+        forbid_decorator_pattern = None
+        if isinstance(forbid_decorator_regex_raw, str) and forbid_decorator_regex_raw:
+            try:
+                forbid_decorator_pattern = re.compile(forbid_decorator_regex_raw)
+            except re.error:
+                forbid_decorator_pattern = None
+                # No raw — drop this rule entirely if we couldn't compile
+                # AND the rule has no other rule keys.
+                if not any(r.get(k) for k in ("forbid_import", "forbid_call")):
+                    continue
+
         cleaned.append({
             "id": rule_id,
             "description": r.get("description") or "",
@@ -89,6 +105,8 @@ def load_rules(project_root: str) -> List[Dict[str, Any]]:
             "severity": severity,
             "forbid_import": r.get("forbid_import"),
             "forbid_call": r.get("forbid_call"),
+            "forbid_decorator_regex": forbid_decorator_regex_raw,
+            "_decorator_pattern": forbid_decorator_pattern,
         })
     return cleaned
 
@@ -186,8 +204,26 @@ def _scan_file(file_path: str, source: str, applicable: List[Dict[str, Any]],
 
     forbid_imports = [r for r in applicable if r.get("forbid_import")]
     forbid_calls = [r for r in applicable if r.get("forbid_call")]
+    forbid_decorators = [r for r in applicable if r.get("_decorator_pattern")]
 
     out: List[Dict[str, Any]] = []
+
+    if forbid_decorators:
+        for node in ast.walk(tree):
+            if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                continue
+            for dec in getattr(node, "decorator_list", []) or ():
+                try:
+                    dec_text = "@" + ast.unparse(dec)
+                except Exception:
+                    continue
+                for rule in forbid_decorators:
+                    pat = rule["_decorator_pattern"]
+                    if pat.search(dec_text):
+                        out.append(_record(
+                            rule, rel_path, getattr(dec, "lineno", node.lineno),
+                            f"forbidden decorator pattern: {dec_text}",
+                        ))
 
     if forbid_imports:
         for node in ast.walk(tree):

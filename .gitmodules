@@ -1,0 +1,3 @@
+[submodule ".ai-context"]
+	path = .ai-context
+	url = git@github-vchepurko:vchepurko/vc-context-builder.git

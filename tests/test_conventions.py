@@ -178,6 +178,48 @@ class LintProjectTests(_FixtureBase):
         files_lines = [(v["file"], v["line"]) for v in violations]
         self.assertEqual(files_lines, [("a.py", 1), ("b.py", 1), ("b.py", 2)])
 
+    def test_forbid_decorator_regex_matches(self) -> None:
+        _write(os.path.join(self.root, "h.py"), (
+            "from aiogram import F, Router\n"
+            "router = Router()\n\n"
+            "@router.message(F.text)\n"
+            "async def bare_text(msg): ...\n\n"
+            "@router.message(F.text == 'menu')\n"
+            "async def specific_text(msg): ...\n\n"
+            "@router.message(SomeState.x, F.text)\n"
+            "async def state_bound(msg): ...\n"
+        ))
+        self._config({
+            "rules": [{
+                "id": "no-bare-text-filter",
+                "match_path": "**/*.py",
+                # Forbid the EXACT bare-F.text decorator. State-bound
+                # `@router.message(SomeState.x, F.text)` and value
+                # comparisons must NOT trigger.
+                "forbid_decorator_regex": r"^@router\.message\(F\.text\)$",
+                "severity": "error",
+            }]
+        })
+        violations = conventions.lint_project(self.root)
+        # Only `bare_text` should fire — line 4.
+        self.assertEqual(len(violations), 1)
+        self.assertEqual(violations[0]["line"], 4)
+        self.assertEqual(violations[0]["severity"], "error")
+        self.assertIn("bare-text-filter", violations[0]["rule_id"])
+
+    def test_forbid_decorator_regex_invalid_pattern_drops_rule(self) -> None:
+        _write(os.path.join(self.root, "h.py"), "@route\ndef f(): ...\n")
+        self._config({
+            "rules": [{
+                "id": "bad-regex",
+                "match_path": "**/*.py",
+                "forbid_decorator_regex": "[unclosed",  # ← invalid
+                "severity": "error",
+            }]
+        })
+        # Bad regex → rule silently dropped → no violations.
+        self.assertEqual(conventions.lint_project(self.root), [])
+
 
 class QueryEngineLintTests(_FixtureBase):
     def test_engine_lint_violations_smokes(self) -> None:

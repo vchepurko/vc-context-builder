@@ -248,12 +248,74 @@ Drop a `.vc-context/conventions.json` in the **parent project root**
 }
 ```
 
-Rule kinds: `forbid_import` (package name) / `forbid_call` (bare
-function name). `match_path` is an `fnmatch` glob with `**` support.
+Rule kinds:
+
+- `forbid_import: "<pkg>"` — fail if a Python file imports `<pkg>`
+  (either `import <pkg>...` or `from <pkg>... import ...`).
+- `forbid_call: "<name>"` — fail if a Python file calls `<name>(...)`
+  at the leaf level (bare names only, not `obj.<name>(...)`).
+- `forbid_decorator_regex: "<regex>"` — fail when a function/class
+  declaration carries any decorator whose textual form (the literal
+  `@<expr>`) matches the given regex. Catches framework-specific
+  antipatterns without baking them into the parser. Example for
+  aiogram: `^@router\.message\(F\.text\)$` flags every
+  `@router.message(F.text)` (match-any-text swallower) while leaving
+  `@router.message(F.text == "X")` and state-bound forms alone.
+
+`match_path` is an `fnmatch` glob with `**` support.
 `severity`: `error` flips `vc-context lint` exit code; `warn` / `info`
 do not. Missing config = no rules = no error — opt-in by design.
 
 More worked examples in [`USAGE.md`](USAGE.md).
+
+### HTTP-clients config (Feature E)
+
+A second optional block in the same `conventions.json` teaches the
+route bridge about your project's internal HTTP wrapper, so call sites
+that funnel through `get_client().post("/api/foo", …)` are linked
+back to the FastAPI route alongside JS/TS callers:
+
+```json
+{
+  "http_clients": [
+    {
+      "factory": "bot.api_client.get_client",
+      "methods": ["post", "get", "patch", "delete"],
+      "first_arg_is_path": true
+    }
+  ]
+}
+```
+
+Each entry adds Python call-sites to the matching route's
+`callers_python: [{file, line, raw, function}, …]` list inside
+`agent_routes.json`. Empty config = JS-only (legacy behaviour).
+
+### Whitelisted check runner (Feature J)
+
+A third optional block exposes safe-to-run commands to the MCP
+`run_check` tool — handy when an agent needs to run tests / lint /
+typecheck without arbitrary shell:
+
+```json
+{
+  "checks": {
+    "test":             ["uv", "run", "pytest", "-q"],
+    "test-unit":        ["uv", "run", "pytest", "-q", "-m", "not integration"],
+    "test-integration": ["uv", "run", "pytest", "-q", "-m", "integration"],
+    "lint":             ["uv", "run", "ruff", "check"],
+    "typecheck":        ["uv", "run", "mypy", "."]
+  }
+}
+```
+
+Each value is an **argv list** (no shell, no string-splitting). The
+runner executes with `subprocess.run(args, cwd=project_root,
+timeout=300)` and returns `{returncode, duration_ms, stdout_tail,
+stderr_tail, summary}` — last 50 lines of each stream, plus a pytest-
+style summary line when one is recognisable. Unknown name → `-2`,
+timeout → `-1`, spawn failure → `-3`. No `checks` block → `list_checks`
+returns `[]`.
 
 ---
 

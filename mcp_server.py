@@ -197,6 +197,117 @@ def _tool_specs() -> List[Dict[str, Any]]:
                 "required": ["state"],
             },
         },
+        {
+            "name": "coverage_for_role",
+            "description": (
+                "Test-coverage view by role. Without 'role' — returns "
+                "overall + per-role counts and percentages. With 'role' "
+                "(any built-in or custom role, including legacy "
+                "umbrellas like 'aiogram-handler') — returns "
+                "{total, with_test, coverage_pct, missing, covered} "
+                "where 'missing' lists symbols WITHOUT a linked test."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "role": {
+                        "type": "string",
+                        "description": (
+                            "Optional role name. Omit for whole-project "
+                            "summary."
+                        ),
+                    },
+                },
+            },
+        },
+        {
+            "name": "classify_tests",
+            "description": (
+                "Categorise every test_*.py file as 'unit', "
+                "'integration' (touches HTTP/DB/queue boundary OR "
+                "carries pytest.mark.integration), or 'unknown'. "
+                "Returns {summary: {category: count}, files: "
+                "{path: {category, signals}}}. Use to find slow tests "
+                "you can defer behind a marker."
+            ),
+            "inputSchema": {"type": "object", "properties": {}},
+        },
+        {
+            "name": "tests_by_category",
+            "description": (
+                "Return the list of test file paths for a given "
+                "category ('unit' / 'integration' / 'unknown')."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {"category": {"type": "string"}},
+                "required": ["category"],
+            },
+        },
+        {
+            "name": "find_call_sites",
+            "description": (
+                "Reverse call-site lookup. Return every Call(...) site "
+                "in the project whose target matches a given callable. "
+                "Accepts a plain name ('foo') or dotted path ('x.y'). "
+                "Optional match_path is an fnmatch-style glob "
+                "('services/**', 'bot/handlers/*.py'). Use to find who "
+                "calls state.clear / session.commit / cache.delete / etc."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "callable": {"type": "string"},
+                    "match_path": {"type": "string"},
+                },
+                "required": ["callable"],
+            },
+        },
+        {
+            "name": "logline_to_symbol",
+            "description": (
+                "Parse a Python logging line ('YYYY-MM-DD HH:MM:SS "
+                "[LEVEL] dotted.logger: message') into "
+                "{level, logger, file, message, symbol?, symbol_file?, "
+                "role?}. Maps the dotted logger name to the project "
+                "file via __name__-convention; if the message starts "
+                "with a known symbol, folds in its file/role too."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {"line": {"type": "string"}},
+                "required": ["line"],
+            },
+        },
+        {
+            "name": "list_checks",
+            "description": (
+                "Return the names of whitelisted commands declared "
+                "under .vc-context/conventions.json → 'checks'. Use "
+                "before run_check to discover what's safe to invoke "
+                "(e.g. 'test-unit', 'lint', 'typecheck')."
+            ),
+            "inputSchema": {"type": "object", "properties": {}},
+        },
+        {
+            "name": "run_check",
+            "description": (
+                "Execute a whitelisted check declared in "
+                ".vc-context/conventions.json. Returns "
+                "{returncode, duration_ms, stdout_tail, stderr_tail, "
+                "summary, error?}. Unknown name → returncode -2; "
+                "timeout → -1; spawn failure → -3. Use to run tests / "
+                "lint / typecheck without exposing arbitrary shell."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "timeout_sec": {"type": "integer", "minimum": 1},
+                },
+                "required": ["name"],
+            },
+        },
     ]
 
 
@@ -222,6 +333,13 @@ class _Dispatcher:
             "route_for_js_call": self._route_for_js_call,
             "find_callback":     self._find_callback,
             "trace_fsm_flow":    self._trace_fsm_flow,
+            "coverage_for_role": self._coverage_for_role,
+            "classify_tests":    self._classify_tests,
+            "tests_by_category": self._tests_by_category,
+            "find_call_sites":   self._find_call_sites,
+            "logline_to_symbol": self._logline_to_symbol,
+            "list_checks":       self._list_checks,
+            "run_check":         self._run_check,
         }
 
     def call(self, name: str, args: Dict[str, Any]) -> Any:
@@ -265,6 +383,45 @@ class _Dispatcher:
 
     def _trace_fsm_flow(self, args: Dict[str, Any]) -> Any:
         return self.engine.trace_fsm_flow(str(args.get("state", "")))
+
+    def _coverage_for_role(self, args: Dict[str, Any]) -> Any:
+        # Empty/missing 'role' → whole-project summary; non-empty
+        # string → role-scoped detail with missing/covered lists.
+        role = args.get("role")
+        role_arg = str(role).strip() if isinstance(role, str) and role.strip() else None
+        return self.engine.coverage_for_role(role_arg)
+
+    def _classify_tests(self, args: Dict[str, Any]) -> Any:
+        return self.engine.classify_tests()
+
+    def _tests_by_category(self, args: Dict[str, Any]) -> Any:
+        return self.engine.tests_by_category(str(args.get("category", "")))
+
+    def _find_call_sites(self, args: Dict[str, Any]) -> Any:
+        callable_name = str(args.get("callable", "")).strip()
+        match_path_raw = args.get("match_path")
+        match_path = (
+            str(match_path_raw).strip()
+            if isinstance(match_path_raw, str) and match_path_raw.strip()
+            else None
+        )
+        return self.engine.find_call_sites(callable_name, match_path)
+
+    def _logline_to_symbol(self, args: Dict[str, Any]) -> Any:
+        return self.engine.logline_to_symbol(str(args.get("line", "")))
+
+    def _list_checks(self, args: Dict[str, Any]) -> Any:
+        return self.engine.list_checks()
+
+    def _run_check(self, args: Dict[str, Any]) -> Any:
+        name = str(args.get("name", "")).strip()
+        timeout_raw = args.get("timeout_sec")
+        timeout_sec = (
+            int(timeout_raw)
+            if isinstance(timeout_raw, (int, float)) and timeout_raw > 0
+            else None
+        )
+        return self.engine.run_check(name, timeout_sec=timeout_sec)
 
 
 # ----------------------------------------------------------------------

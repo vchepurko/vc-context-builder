@@ -18,17 +18,26 @@
 #                  per-developer; not project-wide.
 #   --no-local     Disable personal mode — go back to project-wide
 #                  staging. Removes the marker + cleans up exclude.
+#   --native       Install a NATIVE git pre-push hook (under
+#                  ./.githooks, enabled via `git config
+#                  core.hooksPath`). Skips the pre-commit framework
+#                  integration. Recommended for new projects: avoids
+#                  the "Stashed changes conflicted with hook
+#                  auto-fixes" race that happens when vc-context
+#                  rewrites files inside pre-commit's stash window.
 #   -h, --help     Show this help.
 set -e
 
 LOCAL_ONLY=false
 NO_LOCAL=false
+NATIVE_HOOK=false
 for arg in "$@"; do
     case "$arg" in
         --local-only) LOCAL_ONLY=true ;;
         --no-local)   NO_LOCAL=true ;;
+        --native)     NATIVE_HOOK=true ;;
         -h|--help)
-            sed -n '2,21p' "$0" | sed 's/^# \{0,1\}//'
+            sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'
             exit 0
             ;;
         *)
@@ -62,7 +71,14 @@ python3 "$RELATIVE_DIR/agent_map.py"
 HOOK_ENTRY="$RELATIVE_DIR/bin/vc-context-build-hook"
 PRECOMMIT_CONFIG=".pre-commit-config.yaml"
 
-if [ -f "$PRECOMMIT_CONFIG" ]; then
+if $NATIVE_HOOK; then
+    echo "📌 --native: installing as a native git pre-push hook (skipping pre-commit framework)."
+    mkdir -p .githooks
+    cp "$BUILDER_DIR/templates/pre-push.sh" .githooks/pre-push
+    chmod +x .githooks/pre-push
+    git config core.hooksPath .githooks
+    echo "🔧 Hook copied to .githooks/pre-push and core.hooksPath set."
+elif [ -f "$PRECOMMIT_CONFIG" ]; then
     echo "📌 Detected $PRECOMMIT_CONFIG — integrating as a pre-commit framework hook."
 
     if grep -q "vc-context-builder" "$PRECOMMIT_CONFIG"; then

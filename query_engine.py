@@ -17,6 +17,13 @@ import os
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 
+def _pct(numerator: int, denominator: int) -> float:
+    """Coverage percentage rounded to one decimal — 0.0 when denom=0."""
+    if denominator <= 0:
+        return 0.0
+    return round(100.0 * numerator / denominator, 1)
+
+
 class QueryEngine:
     """Lazy-loading reader over the three artifact tiers.
 
@@ -44,6 +51,7 @@ class QueryEngine:
     ROUTES_FILENAME = "agent_routes.json"
     CALLBACKS_FILENAME = "agent_callbacks.json"
     FSM_FLOW_FILENAME = "agent_fsm_flows.json"
+    TEST_CATEGORIES_FILENAME = "agent_test_categories.json"
     MAP_FILENAME = "_module_map.json"
     IGNORE_DIRS = {
         ".git", "node_modules", "vendor", "__pycache__",
@@ -64,6 +72,7 @@ class QueryEngine:
         self._routes: Optional[Dict[str, Dict[str, Any]]] = None
         self._callbacks: Optional[Dict[str, List[Dict[str, Any]]]] = None
         self._fsm_flows: Optional[Dict[str, Dict[str, Any]]] = None
+        self._test_categories: Optional[Dict[str, Dict[str, Any]]] = None
 
     # ------------------------------------------------------------------
     # Lazy loaders
@@ -136,6 +145,17 @@ class QueryEngine:
             except (OSError, json.JSONDecodeError):
                 self._fsm_flows = {}
         return self._fsm_flows
+
+    def _load_test_categories(self) -> Dict[str, Dict[str, Any]]:
+        """Return ``agent_test_categories.json`` (or ``{}`` if missing)."""
+        if self._test_categories is None:
+            path = os.path.join(self.project_root, self.TEST_CATEGORIES_FILENAME)
+            try:
+                with open(path, "r", encoding="utf-8") as fh:
+                    self._test_categories = json.load(fh)
+            except (OSError, json.JSONDecodeError):
+                self._test_categories = {}
+        return self._test_categories
 
     def _iter_module_maps(self) -> Iterable[Tuple[str, Dict[str, Any]]]:
         """Yield ``(relative_directory, parsed_map_json)`` for each
@@ -462,7 +482,95 @@ class QueryEngine:
         ordered["overall"] = overall
         return ordered
 
-    def _symbols_get(self, name: str) -> Optional[Dict[str, Any]]:
+    # ------------------------------------------------------------------
+    # Feature G — coverage by role (one-tool surface for QA gaps)
+    # ------------------------------------------------------------------
+
+    def coverage_for_role(self, role: Optional[str] = None) -> Dict[str, Any]:
+        """Test-coverage view, scoped or whole-project.
+
+        ``role=None`` →
+
+            {
+              "roles":  {"<role>": {"total": ..., "with_test": ...,
+                                    "coverage_pct": ...}, ...},
+              "overall": {"total": ..., "with_test": ...,
+                          "coverage_pct": ...}
+            }
+
+        ``role="<name>"`` (also accepts legacy umbrellas like
+        ``"aiogram-handler"``) →
+
+            {
+              "role": "<name>",
+              "total": ..., "with_test": ..., "coverage_pct": ...,
+              "missing":  [{"name", "file"}, ...],   # symbols WITHOUT a test
+              "covered":  [{"name", "file", "test_file", "test_function"}, ...]
+            }
+
+        Returns ``{"role": role, "total": 0, ...}`` (empty buckets) for
+        unknown roles instead of raising — callers can present "no
+        symbols found" without special-casing.
+        """
+        symbols = self._load_symbols()
+        tests = self._load_tests()
+
+        def _test_entry(name: str) -> Optional[Dict[str, Any]]:
+            entry = tests.get(name)
+            if isinstance(entry, dict) and entry.get("test_file"):
+                return entry
+            return None
+
+        if role is None:
+            stats = self.coverage_stats()
+            roles_out: Dict[str, Dict[str, Any]] = {}
+            overall_bucket: Dict[str, Any] = {}
+            for k, v in stats.items():
+                payload = {
+                    "total": v["total"],
+                    "with_test": v["with_test"],
+                    "coverage_pct": _pct(v["with_test"], v["total"]),
+                }
+                if k == "overall":
+                    overall_bucket = payload
+                else:
+                    roles_out[k] = payload
+            return {"roles": roles_out, "overall": overall_bucket}
+
+        # Build the symbol pool — supports legacy umbrellas (e.g.
+        # ``aiogram-handler``) by reusing find_by_role's expansion.
+        pool = set(self.find_by_role(role))
+
+        missing: List[Dict[str, Any]] = []
+        covered: List[Dict[str, Any]] = []
+        for name in pool:
+            entry = symbols.get(name)
+            file = entry.get("file") if isinstance(entry, dict) else None
+            test = _test_entry(name)
+            if test is None:
+                missing.append({"name": name, "file": file})
+            else:
+                covered.append({
+                    "name": name,
+                    "file": file,
+                    "test_file": test.get("test_file"),
+                    "test_function": test.get("test_function"),
+                })
+        # Stable ordering — alpha by name.
+        missing.sort(key=lambda r: r["name"])
+        covered.sort(key=lambda r: r["name"])
+        total = len(pool)
+        with_test = len(covered)
+        return {
+            "role": role,
+            "total": total,
+            "with_test": with_test,
+            "coverage_pct": _pct(with_test, total),
+            "missing": missing,
+            "covered": covered,
+        }
+
+    def _symbols_get(self, name: str) -> Optional[Dict[str, Any]]:  # noqa: D401
         symbols = self._load_symbols()
         entry = symbols.get(name)
         return dict(entry) if isinstance(entry, dict) else None
@@ -517,6 +625,83 @@ class QueryEngine:
         """
         from fsm_flow import trace_fsm_flow as _trace  # type: ignore[import-not-found]
         return _trace(self._load_fsm_flows(), state)
+
+    # ------------------------------------------------------------------
+    # Feature H — test categorisation (unit / integration / unknown)
+    # ------------------------------------------------------------------
+
+    def classify_tests(self) -> Dict[str, Any]:
+        """Return ``{summary, files}`` for the whole test suite.
+
+        ``summary`` is ``{category → count}``; ``files`` is the raw
+        ``{rel_path → {category, signals}}`` map. Empty containers when
+        the artifact is missing.
+        """
+        from test_classifier import category_summary  # type: ignore[import-not-found]
+        index = self._load_test_categories()
+        return {
+            "summary": category_summary(index),
+            "files": index,
+        }
+
+    def tests_by_category(self, category: str) -> List[str]:
+        """File paths for ``category`` (``"unit"`` / ``"integration"`` /
+        ``"unknown"``). Sorted, deduped, empty list on miss."""
+        from test_classifier import lookup_tests_by_category as _by  # type: ignore[import-not-found]
+        return _by(self._load_test_categories(), category)
+
+    # ------------------------------------------------------------------
+    # Feature I — generic call-site lookup + log-line resolver
+    # ------------------------------------------------------------------
+
+    def find_call_sites(
+        self,
+        callable_name: str,
+        match_path: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Live AST scan: every ``Call(...)`` site whose target matches
+        ``callable_name`` (plain ``"foo"`` or dotted ``"x.y"``).
+
+        Optional ``match_path`` is an fnmatch glob to restrict the
+        scan (``"services/**"`` etc.). On-demand — no cached artifact.
+        """
+        from call_sites import find_call_sites as _find  # type: ignore[import-not-found]
+        return _find(self.project_root, callable_name, match_path)
+
+    def logline_to_symbol(self, line: str) -> Dict[str, Any]:
+        """Parse a Python ``logging`` line and resolve to a
+        ``{level, logger, file, message, symbol?, symbol_file?, role?}``
+        record. ``matched=False`` when the line shape isn't recognised.
+        """
+        from logline_parser import logline_to_symbol as _resolve  # type: ignore[import-not-found]
+        # Pass loaded symbols (or empty dict if missing) so the parser
+        # can fold in symbol info when the message leads with a known
+        # identifier. The loader caches.
+        symbols = self._load_symbols() if os.path.isfile(
+            os.path.join(self.project_root, self.SYMBOLS_FILENAME)
+        ) else {}
+        return _resolve(self.project_root, line, symbols=symbols)
+
+    # ------------------------------------------------------------------
+    # Feature J — whitelisted check runner (tests / lint / typecheck)
+    # ------------------------------------------------------------------
+
+    def list_checks(self) -> List[str]:
+        """Available check names declared in
+        ``.vc-context/conventions.json`` → ``checks``. Empty when
+        the block is missing.
+        """
+        from checks import list_checks as _list  # type: ignore[import-not-found]
+        return _list(self.project_root)
+
+    def run_check(self, name: str, timeout_sec: Optional[int] = None) -> Dict[str, Any]:
+        """Execute a whitelisted check by name. Returns
+        ``{name, command, returncode, duration_ms, stdout_tail,
+        stderr_tail, summary, error?}``. Refuses unknown names with
+        returncode -2.
+        """
+        from checks import run_check as _run  # type: ignore[import-not-found]
+        return _run(self.project_root, name, timeout_sec=timeout_sec)
 
     # ------------------------------------------------------------------
     # Internal: reverse-dependency index for who_calls

@@ -70,6 +70,17 @@ class McpServerTests(FixtureMixin, unittest.TestCase):
             "find_callback",
             # Feature F — aiogram FSM flow graph.
             "trace_fsm_flow",
+            # Feature G — coverage view by role.
+            "coverage_for_role",
+            # Feature H — test categorisation (unit / integration).
+            "classify_tests",
+            "tests_by_category",
+            # Feature I — generic call-site lookup + log-line resolver.
+            "find_call_sites",
+            "logline_to_symbol",
+            # Feature J — whitelisted check runner.
+            "list_checks",
+            "run_check",
         })
 
     def test_tools_call_find_symbol(self) -> None:
