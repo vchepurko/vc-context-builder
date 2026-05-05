@@ -244,6 +244,41 @@ def _tool_specs() -> List[Dict[str, Any]]:
                 "required": ["category"],
             },
         },
+        {
+            "name": "find_call_sites",
+            "description": (
+                "Reverse call-site lookup. Return every Call(...) site "
+                "in the project whose target matches a given callable. "
+                "Accepts a plain name ('foo') or dotted path ('x.y'). "
+                "Optional match_path is an fnmatch-style glob "
+                "('services/**', 'bot/handlers/*.py'). Use to find who "
+                "calls state.clear / session.commit / cache.delete / etc."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "callable": {"type": "string"},
+                    "match_path": {"type": "string"},
+                },
+                "required": ["callable"],
+            },
+        },
+        {
+            "name": "logline_to_symbol",
+            "description": (
+                "Parse a Python logging line ('YYYY-MM-DD HH:MM:SS "
+                "[LEVEL] dotted.logger: message') into "
+                "{level, logger, file, message, symbol?, symbol_file?, "
+                "role?}. Maps the dotted logger name to the project "
+                "file via __name__-convention; if the message starts "
+                "with a known symbol, folds in its file/role too."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {"line": {"type": "string"}},
+                "required": ["line"],
+            },
+        },
     ]
 
 
@@ -272,6 +307,8 @@ class _Dispatcher:
             "coverage_for_role": self._coverage_for_role,
             "classify_tests":    self._classify_tests,
             "tests_by_category": self._tests_by_category,
+            "find_call_sites":   self._find_call_sites,
+            "logline_to_symbol": self._logline_to_symbol,
         }
 
     def call(self, name: str, args: Dict[str, Any]) -> Any:
@@ -328,6 +365,19 @@ class _Dispatcher:
 
     def _tests_by_category(self, args: Dict[str, Any]) -> Any:
         return self.engine.tests_by_category(str(args.get("category", "")))
+
+    def _find_call_sites(self, args: Dict[str, Any]) -> Any:
+        callable_name = str(args.get("callable", "")).strip()
+        match_path_raw = args.get("match_path")
+        match_path = (
+            str(match_path_raw).strip()
+            if isinstance(match_path_raw, str) and match_path_raw.strip()
+            else None
+        )
+        return self.engine.find_call_sites(callable_name, match_path)
+
+    def _logline_to_symbol(self, args: Dict[str, Any]) -> Any:
+        return self.engine.logline_to_symbol(str(args.get("line", "")))
 
 
 # ----------------------------------------------------------------------

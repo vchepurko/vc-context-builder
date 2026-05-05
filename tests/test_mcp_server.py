@@ -75,6 +75,9 @@ class McpServerTests(FixtureMixin, unittest.TestCase):
             # Feature H — test categorisation (unit / integration).
             "classify_tests",
             "tests_by_category",
+            # Feature I — generic call-site lookup + log-line resolver.
+            "find_call_sites",
+            "logline_to_symbol",
         })
 
     def test_tools_call_find_symbol(self) -> None:

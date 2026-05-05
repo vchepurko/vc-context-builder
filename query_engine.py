@@ -651,6 +651,38 @@ class QueryEngine:
         return _by(self._load_test_categories(), category)
 
     # ------------------------------------------------------------------
+    # Feature I — generic call-site lookup + log-line resolver
+    # ------------------------------------------------------------------
+
+    def find_call_sites(
+        self,
+        callable_name: str,
+        match_path: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Live AST scan: every ``Call(...)`` site whose target matches
+        ``callable_name`` (plain ``"foo"`` or dotted ``"x.y"``).
+
+        Optional ``match_path`` is an fnmatch glob to restrict the
+        scan (``"services/**"`` etc.). On-demand — no cached artifact.
+        """
+        from call_sites import find_call_sites as _find  # type: ignore[import-not-found]
+        return _find(self.project_root, callable_name, match_path)
+
+    def logline_to_symbol(self, line: str) -> Dict[str, Any]:
+        """Parse a Python ``logging`` line and resolve to a
+        ``{level, logger, file, message, symbol?, symbol_file?, role?}``
+        record. ``matched=False`` when the line shape isn't recognised.
+        """
+        from logline_parser import logline_to_symbol as _resolve  # type: ignore[import-not-found]
+        # Pass loaded symbols (or empty dict if missing) so the parser
+        # can fold in symbol info when the message leads with a known
+        # identifier. The loader caches.
+        symbols = self._load_symbols() if os.path.isfile(
+            os.path.join(self.project_root, self.SYMBOLS_FILENAME)
+        ) else {}
+        return _resolve(self.project_root, line, symbols=symbols)
+
+    # ------------------------------------------------------------------
     # Internal: reverse-dependency index for who_calls
     # ------------------------------------------------------------------
 
