@@ -87,6 +87,9 @@ class McpServerTests(FixtureMixin, unittest.TestCase):
             "list_locale_keys",
             "find_locale_key",
             "get_locale_key",
+            # Feature N — notification audit log reader.
+            "notify_log_search",
+            "notify_log_stats",
         })
 
     def test_tools_call_find_symbol(self) -> None:
