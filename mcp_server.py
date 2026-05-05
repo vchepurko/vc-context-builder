@@ -279,6 +279,35 @@ def _tool_specs() -> List[Dict[str, Any]]:
                 "required": ["line"],
             },
         },
+        {
+            "name": "list_checks",
+            "description": (
+                "Return the names of whitelisted commands declared "
+                "under .vc-context/conventions.json → 'checks'. Use "
+                "before run_check to discover what's safe to invoke "
+                "(e.g. 'test-unit', 'lint', 'typecheck')."
+            ),
+            "inputSchema": {"type": "object", "properties": {}},
+        },
+        {
+            "name": "run_check",
+            "description": (
+                "Execute a whitelisted check declared in "
+                ".vc-context/conventions.json. Returns "
+                "{returncode, duration_ms, stdout_tail, stderr_tail, "
+                "summary, error?}. Unknown name → returncode -2; "
+                "timeout → -1; spawn failure → -3. Use to run tests / "
+                "lint / typecheck without exposing arbitrary shell."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "timeout_sec": {"type": "integer", "minimum": 1},
+                },
+                "required": ["name"],
+            },
+        },
     ]
 
 
@@ -309,6 +338,8 @@ class _Dispatcher:
             "tests_by_category": self._tests_by_category,
             "find_call_sites":   self._find_call_sites,
             "logline_to_symbol": self._logline_to_symbol,
+            "list_checks":       self._list_checks,
+            "run_check":         self._run_check,
         }
 
     def call(self, name: str, args: Dict[str, Any]) -> Any:
@@ -378,6 +409,19 @@ class _Dispatcher:
 
     def _logline_to_symbol(self, args: Dict[str, Any]) -> Any:
         return self.engine.logline_to_symbol(str(args.get("line", "")))
+
+    def _list_checks(self, args: Dict[str, Any]) -> Any:
+        return self.engine.list_checks()
+
+    def _run_check(self, args: Dict[str, Any]) -> Any:
+        name = str(args.get("name", "")).strip()
+        timeout_raw = args.get("timeout_sec")
+        timeout_sec = (
+            int(timeout_raw)
+            if isinstance(timeout_raw, (int, float)) and timeout_raw > 0
+            else None
+        )
+        return self.engine.run_check(name, timeout_sec=timeout_sec)
 
 
 # ----------------------------------------------------------------------

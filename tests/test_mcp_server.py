@@ -78,6 +78,9 @@ class McpServerTests(FixtureMixin, unittest.TestCase):
             # Feature I — generic call-site lookup + log-line resolver.
             "find_call_sites",
             "logline_to_symbol",
+            # Feature J — whitelisted check runner.
+            "list_checks",
+            "run_check",
         })
 
     def test_tools_call_find_symbol(self) -> None:

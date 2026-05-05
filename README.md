@@ -255,6 +255,55 @@ do not. Missing config = no rules = no error — opt-in by design.
 
 More worked examples in [`USAGE.md`](USAGE.md).
 
+### HTTP-clients config (Feature E)
+
+A second optional block in the same `conventions.json` teaches the
+route bridge about your project's internal HTTP wrapper, so call sites
+that funnel through `get_client().post("/api/foo", …)` are linked
+back to the FastAPI route alongside JS/TS callers:
+
+```json
+{
+  "http_clients": [
+    {
+      "factory": "bot.api_client.get_client",
+      "methods": ["post", "get", "patch", "delete"],
+      "first_arg_is_path": true
+    }
+  ]
+}
+```
+
+Each entry adds Python call-sites to the matching route's
+`callers_python: [{file, line, raw, function}, …]` list inside
+`agent_routes.json`. Empty config = JS-only (legacy behaviour).
+
+### Whitelisted check runner (Feature J)
+
+A third optional block exposes safe-to-run commands to the MCP
+`run_check` tool — handy when an agent needs to run tests / lint /
+typecheck without arbitrary shell:
+
+```json
+{
+  "checks": {
+    "test":             ["uv", "run", "pytest", "-q"],
+    "test-unit":        ["uv", "run", "pytest", "-q", "-m", "not integration"],
+    "test-integration": ["uv", "run", "pytest", "-q", "-m", "integration"],
+    "lint":             ["uv", "run", "ruff", "check"],
+    "typecheck":        ["uv", "run", "mypy", "."]
+  }
+}
+```
+
+Each value is an **argv list** (no shell, no string-splitting). The
+runner executes with `subprocess.run(args, cwd=project_root,
+timeout=300)` and returns `{returncode, duration_ms, stdout_tail,
+stderr_tail, summary}` — last 50 lines of each stream, plus a pytest-
+style summary line when one is recognisable. Unknown name → `-2`,
+timeout → `-1`, spawn failure → `-3`. No `checks` block → `list_checks`
+returns `[]`.
+
 ---
 
 ## Extending the parsers

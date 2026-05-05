@@ -683,6 +683,27 @@ class QueryEngine:
         return _resolve(self.project_root, line, symbols=symbols)
 
     # ------------------------------------------------------------------
+    # Feature J — whitelisted check runner (tests / lint / typecheck)
+    # ------------------------------------------------------------------
+
+    def list_checks(self) -> List[str]:
+        """Available check names declared in
+        ``.vc-context/conventions.json`` → ``checks``. Empty when
+        the block is missing.
+        """
+        from checks import list_checks as _list  # type: ignore[import-not-found]
+        return _list(self.project_root)
+
+    def run_check(self, name: str, timeout_sec: Optional[int] = None) -> Dict[str, Any]:
+        """Execute a whitelisted check by name. Returns
+        ``{name, command, returncode, duration_ms, stdout_tail,
+        stderr_tail, summary, error?}``. Refuses unknown names with
+        returncode -2.
+        """
+        from checks import run_check as _run  # type: ignore[import-not-found]
+        return _run(self.project_root, name, timeout_sec=timeout_sec)
+
+    # ------------------------------------------------------------------
     # Internal: reverse-dependency index for who_calls
     # ------------------------------------------------------------------
 
