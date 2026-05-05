@@ -102,7 +102,15 @@ def collect(
     ``path_prefix`` is a project-relative startswith filter
     (``"services/notify"`` matches every file in that tree).
     ``summary=True`` drops the file list — minimum-token signal.
+
+    Returns ``{total: 0, skipped: true, reason: "..."}`` instead when
+    the project isn't Python (auto-detected) or has explicitly opted
+    out via ``conventions.json["ruff"]["enabled"] = false``.
     """
+    from ruff_inspector import should_skip_ruff  # type: ignore[import-not-found]
+    skip, reason = should_skip_ruff(project_root)
+    if skip:
+        return {"total": 0, "skipped": True, "reason": reason}
     files = run_ruff_format(project_root, command=command)
     if path_prefix:
         files = [f for f in files if f.startswith(path_prefix)]

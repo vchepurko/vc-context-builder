@@ -440,7 +440,11 @@ def _tool_specs() -> List[Dict[str, Any]]:
                 "Use summary=true first to see the shape of failures "
                 "without dumping the whole list, then drill in with "
                 "code= / path_prefix=. limit caps the violations list "
-                "(default 50) so MCP doesn't pull megabytes into context."
+                "(default 50) so MCP doesn't pull megabytes into context. "
+                "Auto-skips on non-Python projects (no pyproject.toml / "
+                "setup.py / *.py at root) — returns {total: 0, skipped: "
+                "true, reason}. Override via "
+                "conventions.json['ruff']['enabled'] = true/false."
             ),
             "inputSchema": {
                 "type": "object",
@@ -477,7 +481,8 @@ def _tool_specs() -> List[Dict[str, Any]]:
                 "bytes when clean). path_prefix scopes to a subtree; "
                 "limit caps the file list (default 50). Symmetric "
                 "with ruff_violations: violations is for the linter, "
-                "this is for the formatter."
+                "this is for the formatter. Auto-skips on non-Python "
+                "projects (returns {total: 0, skipped: true, reason})."
             ),
             "inputSchema": {
                 "type": "object",
