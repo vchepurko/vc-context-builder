@@ -48,6 +48,7 @@ from locale_index import (
     build_locale_index,
     write_locale_index,
 )
+import parse_cache
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 
@@ -96,6 +97,18 @@ class ContextBuilder:
         self.locales_filename = LOCALES_FILENAME
         self.readme_filename = 'AGENT_README.md'
         self.processed_modules: List[str] = []
+
+        # File-level parse cache (Feature S — incremental builds).
+        # Loaded once at start; ``put`` populates it as we parse;
+        # ``save`` persists at the end of ``run()``.  When the cache
+        # epoch changes (conventions.json / roles.json edited) the
+        # loader returns an empty entries dict, forcing a full rebuild.
+        self.parse_cache = parse_cache.load(self.root_dir)
+        # Track which files were touched this run so we can prune
+        # entries for deleted files at save time.
+        self._touched_files: Set[str] = set()
+        self._cache_hits = 0
+        self._cache_misses = 0
 
         # Top-level project dirs that look like packages — used to prune
         # stdlib + third-party noise from dependency lists.
@@ -217,42 +230,69 @@ class ContextBuilder:
 
         for f in files:
             file_path = os.path.join(dir_path, f)
+            rel_path = os.path.relpath(file_path, self.root_dir).replace(os.sep, "/")
+            self._touched_files.add(rel_path)
             parser = get_parser(f)
             if parser is None:
                 data = {"exports": [], "dependencies": []}
-            elif isinstance(parser, PythonParser):
-                # Pass the cross-file scheduler-job set so the parser can
-                # tag matching callables with role: scheduler-job.
-                data = parser.extract(file_path, scheduler_jobs=self.scheduler_jobs)
             else:
-                # TS / JS parser supports an optional `project_root`
-                # kwarg for the AST upgrade path; passing it
-                # unconditionally is safe (other parsers ignore it via
-                # their own signature, and TsJsParser only actually
-                # invokes Node when conventions.json opts in).
-                try:
-                    data = parser.extract(file_path, project_root=self.root_dir)
-                except TypeError:
-                    data = parser.extract(file_path)
+                # Per-file cache lookup — skip parsing when (mtime, size)
+                # match the previous build's record. Custom roles run
+                # AFTER this point, so per-file overrides applied via
+                # roles.json invalidate the whole cache via epoch (the
+                # roles.json mtime contributes to the epoch).
+                cached = parse_cache.get(self.parse_cache, rel_path, file_path)
+                if cached is not None:
+                    self._cache_hits += 1
+                    # The parser layer used to stash `_body` /
+                    # `_register_call` etc. on each export so
+                    # custom_roles can inspect them.  Cached entries
+                    # have those fields stripped (we only persist what
+                    # ends up on disk), which is fine — the cache hit
+                    # path implies the file's role assignment is also
+                    # cached, so custom_roles doesn't need to re-run
+                    # against it. Build fidelity is preserved because
+                    # any conventions/roles edit bumps the cache epoch.
+                    data = cached
+                else:
+                    self._cache_misses += 1
+                    if isinstance(parser, PythonParser):
+                        data = parser.extract(file_path, scheduler_jobs=self.scheduler_jobs)
+                    else:
+                        # TS / JS parser supports an optional `project_root`
+                        # kwarg for the AST upgrade path; passing it
+                        # unconditionally is safe (other parsers ignore it
+                        # via their own signature).
+                        try:
+                            data = parser.extract(file_path, project_root=self.root_dir)
+                        except TypeError:
+                            data = parser.extract(file_path)
 
             # Filter dependency noise (stdlib + third-party).
             data["dependencies"] = self._filter_deps(data.get("dependencies", []))
 
-            # Apply project-declared custom roles. Has to run AFTER the
-            # parser (so the export already has its built-in role for
-            # priority comparisons) and BEFORE we strip helper fields
-            # like `_body` that custom_roles regexes need.
-            self._apply_custom_roles_to_exports(data, file_path)
+            if cached is None:
+                # Apply project-declared custom roles. Has to run AFTER the
+                # parser (so the export already has its built-in role for
+                # priority comparisons) and BEFORE we strip helper fields
+                # like `_body` that custom_roles regexes need.
+                self._apply_custom_roles_to_exports(data, file_path)
 
-            # Strip parser-private helper fields (_body, _anchor,
-            # _register_call) — they're only needed in-memory by
-            # custom_roles, never serialised to disk.
-            for exp in data.get("exports", []) or []:
-                if not isinstance(exp, dict):
-                    continue
-                for hidden in ("_body", "_anchor", "_register_call",
-                               "_decorators_text"):
-                    exp.pop(hidden, None)
+                # Strip parser-private helper fields (_body, _anchor,
+                # _register_call) — they're only needed in-memory by
+                # custom_roles, never serialised to disk.
+                for exp in data.get("exports", []) or []:
+                    if not isinstance(exp, dict):
+                        continue
+                    for hidden in ("_body", "_anchor", "_register_call",
+                                   "_decorators_text"):
+                        exp.pop(hidden, None)
+
+                # Cache the finalised payload — same shape that ends up
+                # in _module_map.json on disk. Custom roles + private
+                # field strip have already run, so the cache hit branch
+                # can skip both.
+                parse_cache.put(self.parse_cache, rel_path, file_path, data)
 
             # Skip files that have no public exports AND no own-project deps.
             # That kills empty __init__.py files + glue files an agent doesn't
@@ -349,7 +389,31 @@ class ContextBuilder:
         self._build_test_categories_index()
         self._build_locale_index()
         self._generate_agent_sop()
+        self._save_parse_cache()
         logging.info("Context build complete. Agent SOP is ready.")
+
+    def _save_parse_cache(self) -> None:
+        """Persist the file-level parse cache and report hit ratio.
+
+        Pruning happens here too — entries for files that weren't
+        touched this run are dropped, keeping the cache file from
+        growing unbounded as the project evolves.
+        """
+        if self._touched_files:
+            parse_cache.prune(self.parse_cache, self._touched_files)
+        try:
+            parse_cache.save(self.root_dir, self.parse_cache)
+        except OSError as exc:
+            logging.warning("Failed to write parse cache: %s", exc)
+            return
+        total = self._cache_hits + self._cache_misses
+        if total:
+            pct = round(100.0 * self._cache_hits / total, 1)
+            logging.info(
+                "Parse cache: %d/%d hits (%.1f%%), %d miss%s.",
+                self._cache_hits, total, pct, self._cache_misses,
+                "" if self._cache_misses == 1 else "es",
+            )
 
     def _needs_update(self, dir_path: str, files: List[str]) -> bool:
         map_file_path = os.path.join(dir_path, self.map_filename)
