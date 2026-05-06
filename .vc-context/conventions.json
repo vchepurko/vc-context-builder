@@ -1,0 +1,17 @@
+{
+  "_doc": "Submodule self-context: read by the MCP server when it's pointed at .ai-context/ as its --root (see README 'Indexing the submodule against itself'). Lets contributors run vc-context-builder's own tests / lint / format / snapshot checks via mcp__vc-context-self__run_check instead of shelling out — keeps the agent loop tight when working on the submodule.",
+  "checks": {
+    "test": [
+      "python3", "-m", "unittest", "discover", "tests"
+    ],
+    "lint": [
+      "uv", "run", "ruff", "check", "."
+    ],
+    "format-check": [
+      "uv", "run", "ruff", "format", "--check", "."
+    ],
+    "snapshots-check": [
+      "python3", "tests/regen_snapshots.py", "--check"
+    ]
+  }
+}
