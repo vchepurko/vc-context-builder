@@ -161,7 +161,15 @@ class ContextBuilder:
                 # tag matching callables with role: scheduler-job.
                 data = parser.extract(file_path, scheduler_jobs=self.scheduler_jobs)
             else:
-                data = parser.extract(file_path)
+                # TS / JS parser supports an optional `project_root`
+                # kwarg for the AST upgrade path; passing it
+                # unconditionally is safe (other parsers ignore it via
+                # their own signature, and TsJsParser only actually
+                # invokes Node when conventions.json opts in).
+                try:
+                    data = parser.extract(file_path, project_root=self.root_dir)
+                except TypeError:
+                    data = parser.extract(file_path)
 
             # Filter dependency noise (stdlib + third-party).
             data["dependencies"] = self._filter_deps(data.get("dependencies", []))

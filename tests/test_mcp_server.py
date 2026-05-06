@@ -2,6 +2,16 @@
 
 We spawn ``mcp_server.py`` as a subprocess, feed line-delimited
 JSON-RPC frames, and parse the responses.
+
+The tool registry is verified two ways:
+
+1. **Parity test** — ``_tool_specs()`` (the JSON-Schema list returned
+   over the wire) and ``_Dispatcher._handlers`` (what actually runs)
+   must agree on the set of tool names. Without this, you can ship a
+   spec for a tool whose handler is missing (or vice versa).
+2. **Snapshot test** — names are pinned to ``tests/fixtures/tools_list
+   .json``. Adding a tool without updating the fixture fails CI; the
+   message points at ``python3 tests/regen_snapshots.py``.
 """
 
 from __future__ import annotations
@@ -12,12 +22,16 @@ import subprocess
 import sys
 import unittest
 
-from test_query_engine import FixtureMixin  # type: ignore[import-not-found]
+if __package__ is None or __package__ == "":
+    from test_query_engine import FixtureMixin  # type: ignore[import-not-found]
+else:
+    from .test_query_engine import FixtureMixin  # type: ignore[import-not-found]
 
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _SUBMODULE = os.path.dirname(_HERE)
 _SERVER = os.path.join(_SUBMODULE, "mcp_server.py")
+_FIXTURE = os.path.join(_HERE, "fixtures", "tools_list.json")
 
 
 def _drive(root: str, requests: list) -> list:
@@ -51,57 +65,46 @@ class McpServerTests(FixtureMixin, unittest.TestCase):
         self.assertEqual(result["serverInfo"]["name"], "vc-context")
         self.assertIn("tools", result["capabilities"])
 
-    def test_tools_list_exposes_all_tools(self) -> None:
+    def test_tools_list_matches_snapshot(self) -> None:
+        """The set of tool names returned over the wire must match the
+        committed snapshot fixture. Adding/removing a tool without
+        updating the snapshot fails here on purpose — run
+        ``python3 tests/regen_snapshots.py`` to sync after a
+        deliberate change."""
         responses = _drive(self.root, [
             {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
             {"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}},
         ])
         self.assertEqual(len(responses), 2)
-        tools = responses[1]["result"]["tools"]
-        names = {t["name"] for t in tools}
-        self.assertEqual(names, {
-            # Original six.
-            "find_symbol", "find_by_role", "who_calls",
-            "summarise_module", "list_roles", "list_modules",
-            # Feature A / B / C additions.
-            "lint_violations", "find_test",
-            "route_callers", "route_for_js_call",
-            # Feature D — aiogram callback_data resolver.
-            "find_callback",
-            # Feature F — aiogram FSM flow graph.
-            "trace_fsm_flow",
-            # Feature G — coverage view by role.
-            "coverage_for_role",
-            # Feature H — test categorisation (unit / integration).
-            "classify_tests",
-            "tests_by_category",
-            # Feature I — generic call-site lookup + log-line resolver.
-            "find_call_sites",
-            "logline_to_symbol",
-            # Feature J — whitelisted check runner.
-            "list_checks",
-            "run_check",
-            # Feature L — class inspector.
-            "inspect_class",
-            # Feature M — locale-key index (i18n strings as data).
-            "list_locale_keys",
-            "find_locale_key",
-            "get_locale_key",
-            # Feature N — notification audit log reader.
-            "notify_log_search",
-            "notify_log_stats",
-            # Feature O — ruff violations inspector + formatter check.
-            "ruff_violations",
-            "ruff_format",
-            # Feature O′ — mypy violations inspector.
-            "mypy_violations",
-            # Feature P — Angular helpers (template scan + audits).
-            "find_in_templates",
-            "ng_audit_component",
-            "ng_uses_selector",
-            "ng_overview",
-            "ng_inject_graph",
-        })
+        names = sorted(t["name"] for t in responses[1]["result"]["tools"])
+        with open(_FIXTURE, "r", encoding="utf-8") as fh:
+            expected = json.load(fh)
+        self.assertEqual(names, expected, (
+            "tools/list drifted from snapshot.  "
+            "If the change is intentional, regenerate via:\n"
+            "    python3 tests/regen_snapshots.py"
+        ))
+
+    def test_tools_list_spec_dispatcher_parity(self) -> None:
+        """Every tool in ``_tool_specs()`` must have a handler in
+        ``_Dispatcher._handlers`` and vice versa. Drift here ships a
+        broken server — either a documented tool that errors with
+        ``Unknown tool`` or a hidden handler invisible to clients."""
+        sys.path.insert(0, _SUBMODULE)
+        try:
+            from mcp_server import _Dispatcher, _tool_specs  # type: ignore[import-not-found]
+            from query_engine import QueryEngine  # type: ignore[import-not-found]
+        finally:
+            if _SUBMODULE in sys.path:
+                sys.path.remove(_SUBMODULE)
+        spec_names = {t["name"] for t in _tool_specs()}
+        dispatcher_names = set(_Dispatcher(QueryEngine(self.root))._handlers.keys())
+        self.assertEqual(
+            spec_names, dispatcher_names,
+            "Spec and dispatcher disagree.  "
+            f"Only in spec: {sorted(spec_names - dispatcher_names)}.  "
+            f"Only in dispatcher: {sorted(dispatcher_names - spec_names)}.",
+        )
 
     def test_tools_call_find_symbol(self) -> None:
         responses = _drive(self.root, [

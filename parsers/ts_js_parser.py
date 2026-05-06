@@ -37,6 +37,7 @@ import re
 from typing import Any, Dict, List, Optional, Tuple
 
 from parsers.base_parser import BaseParser
+from parsers import _ts_ast
 
 
 # ----------------------------------------------------------------------
@@ -178,7 +179,12 @@ class TsJsParser(BaseParser):
 
     extensions = ['.js', '.ts', '.jsx', '.tsx', '.mjs', '.cjs']
 
-    def extract(self, file_path: str) -> Dict[str, Any]:
+    def extract(
+        self,
+        file_path: str,
+        *,
+        project_root: Optional[str] = None,
+    ) -> Dict[str, Any]:
         content = self._read_file(file_path)
         if not content:
             return {"exports": [], "dependencies": []}
@@ -216,6 +222,20 @@ class TsJsParser(BaseParser):
             role = _detect_role(exp, ext, norm_path, register_sites, scrubbed)
             if role:
                 exp["role"] = role
+
+        # Optional TypeScript AST upgrade — replace regex-derived
+        # Angular metadata with values pulled from the real compiler
+        # AST when the project opts in via conventions.json. No-op
+        # when project_root isn't passed (older callers / unit tests
+        # constructing the parser directly) or when the project hasn't
+        # enabled the feature.  Falls back silently if Node /
+        # typescript aren't installed.
+        if (
+            project_root
+            and ext == ".ts"
+            and any(e.get("role", "").startswith("ng-") for e in exports)
+        ):
+            _maybe_upgrade_with_ast(exports, file_path, project_root)
 
         # Imports → top-level package names only (no relative imports,
         # no DOM globals, no /wp-json URLs — those were noise bumping
@@ -645,3 +665,53 @@ def _line_start(text: str, offset: int) -> int:
     while i > 0 and text[i - 1] != "\n":
         i -= 1
     return i
+
+
+# ----------------------------------------------------------------------
+# Optional AST upgrade (Feature Q)
+# ----------------------------------------------------------------------
+
+def _maybe_upgrade_with_ast(
+    exports: List[Dict[str, Any]], file_path: str, project_root: str,
+) -> None:
+    """Replace regex-based Angular metadata with AST-derived values
+    when the project opts into ``typescript_ast`` and Node + the
+    ``typescript`` package are reachable.
+
+    The AST extractor knows how to follow ``providedIn: SomeConst``,
+    decorator factory wrappers, and other shapes the regex misses.
+    On any failure (Node missing, typescript missing, parse error)
+    this is a no-op and the regex-derived fields stay.
+    """
+    if not _ts_ast.is_enabled(project_root):
+        return
+    records = _ts_ast.parse(file_path, project_root)
+    if not records:
+        return
+    by_name = {r.get("name"): r for r in records if isinstance(r, dict) and r.get("name")}
+    for exp in exports:
+        rec = by_name.get(exp.get("name"))
+        if rec is None:
+            continue
+        # Role override is intentional — the AST is authoritative when
+        # available.  This catches @Injectable() inside a NgModule's
+        # providers array etc., which the regex sometimes misses.
+        role = rec.get("role")
+        if role:
+            exp["role"] = role
+        if rec.get("selector") is not None:
+            exp["ng_selector"] = rec["selector"]
+        if rec.get("templateUrl") is not None:
+            exp["ng_template_url"] = rec["templateUrl"]
+        if rec.get("styleUrls"):
+            exp["ng_style_urls"] = rec["styleUrls"]
+        if rec.get("standalone") is not None:
+            exp["ng_standalone"] = rec["standalone"]
+        if rec.get("providedIn") is not None:
+            exp["ng_provided_in"] = rec["providedIn"]
+        if rec.get("pipeName") is not None:
+            exp["ng_pipe_name"] = rec["pipeName"]
+        if rec.get("inputs"):
+            exp["inputs"] = rec["inputs"]
+        if rec.get("outputs"):
+            exp["outputs"] = rec["outputs"]
