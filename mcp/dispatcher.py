@@ -66,6 +66,9 @@ class Dispatcher:
             "ng_uses_selector":     self._ng_uses_selector,
             "ng_overview":          self._ng_overview,
             "ng_inject_graph":      self._ng_inject_graph,
+            "ng_list_routes":       self._ng_list_routes,
+            "ng_route_for_path":    self._ng_route_for_path,
+            "ng_routes_for_component": self._ng_routes_for_component,
         }
 
     def call(self, name: str, args: Dict[str, Any]) -> Any:
@@ -257,4 +260,14 @@ class Dispatcher:
     def _ng_inject_graph(self, args: Dict[str, Any]) -> Any:
         service = str(args.get("service", "")).strip()
         return self.engine.ng_inject_graph(service) if service else []
+
+    def _ng_list_routes(self, args: Dict[str, Any]) -> Any:
+        return self.engine.ng_list_routes()
+
+    def _ng_route_for_path(self, args: Dict[str, Any]) -> Any:
+        return self.engine.ng_route_for_path(str(args.get("path", "")))
+
+    def _ng_routes_for_component(self, args: Dict[str, Any]) -> Any:
+        name = str(args.get("name", "")).strip()
+        return self.engine.ng_routes_for_component(name) if name else []
 
