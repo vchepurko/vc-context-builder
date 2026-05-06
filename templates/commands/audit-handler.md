@@ -35,3 +35,14 @@ Constraints:
 - Each section ≤ 15 lines; if longer, collapse with a `(+N more)` marker.
 - Use markdown links for every file reference: `[file.py:42](path/file.py#L42)`.
 - Never copy the full handler body unless the user asks.
+
+## Token cost
+
+| Path | Approx tokens |
+|---|---|
+| This command (8–10 MCP calls) | ~1.0–1.5K |
+| Manual: Read handler + router file + locale files + spec + grep callers | ~12–20K |
+| Savings | ~90–95% |
+
+End the report with `_Used N MCP calls (~M tokens) — saved ~XK vs
+reading handler + router + locales + spec._`

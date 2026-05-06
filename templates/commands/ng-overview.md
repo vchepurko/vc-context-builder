@@ -55,3 +55,14 @@ Constraints:
   `find_by_role("ng-component")` call away if the user asks.
 - If `providers_root` is huge (>20), show top 10 alphabetically and
   total count.
+
+## Token cost
+
+| Path | Approx tokens |
+|---|---|
+| This command (1 MCP call) | ~100 |
+| Manual: walk file tree + identify role of each Angular file by inspection | ~50K+ on a 500-component project |
+| Savings | ~99% |
+
+End with `_Used 1 MCP call (~100 tokens) — saved ~50K vs walking the
+project tree._`

@@ -61,3 +61,15 @@ Constraints:
 - Don't paste full HTML/TS bodies — link with `file:line`.
 - When `selector` is missing, still emit "Used in templates: skipped
   (no static selector — likely a base class or NgModule entry)".
+
+## Token cost
+
+| Path | Approx tokens |
+|---|---|
+| This command (5 MCP calls) | ~600 |
+| Manual: Read .ts + .spec.ts + grep `<sel>` across templates + grep `import { Class }` | ~6–10K |
+| Savings | ~90–95% |
+
+Print a one-liner summary at the bottom of the response so the user
+can see the win, e.g. `_Used 5 MCP calls (~600 tokens) — saved ~9K vs
+reading sources directly._`

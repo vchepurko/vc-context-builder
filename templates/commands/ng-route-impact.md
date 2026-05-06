@@ -52,3 +52,14 @@ Constraints:
   with the original path that triggered them, so the user knows the
   hit isn't exact.
 - Never paste route-array source — link with `file:line` only.
+
+## Token cost
+
+| Path | Approx tokens |
+|---|---|
+| This command (2–4 MCP calls) | ~300–600 |
+| Manual: Read every *-routing.module.ts + grep guards + Read components | ~10–20K |
+| Savings | ~93–97% |
+
+End with `_Used N MCP calls (~M tokens) — saved ~XK vs reading routing
+modules + chasing guards._`
