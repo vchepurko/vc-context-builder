@@ -8,5 +8,6 @@ agent_callbacks.json
 agent_fsm_flows.json
 agent_locale_keys.json
 agent_test_categories.json
+.vc-context/_parse_cache.json
 __pycache__/
 .idea/
