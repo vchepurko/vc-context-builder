@@ -553,6 +553,30 @@ def _tool_specs() -> List[Dict[str, Any]]:
                 },
             },
         },
+        {
+            "name": "find_in_templates",
+            "description": (
+                "Search Angular HTML templates for a pattern (CSS class, "
+                "binding expression, event handler, selector tag, etc.). "
+                "Returns [{file, line, text}] matches, capped at 100. "
+                "Case-insensitive. Use match_path to scope to a folder, "
+                "e.g. 'src/app/modules/collection-player-v2/**'."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "pattern": {
+                        "type": "string",
+                        "description": "Substring to search for in .html files.",
+                    },
+                    "match_path": {
+                        "type": "string",
+                        "description": "Optional fnmatch glob to filter files by relative path.",
+                    },
+                },
+                "required": ["pattern"],
+            },
+        },
     ]
 
 
@@ -593,7 +617,8 @@ class _Dispatcher:
             "notify_log_stats":  self._notify_log_stats,
             "ruff_violations":   self._ruff_violations,
             "ruff_format":       self._ruff_format,
-            "mypy_violations":   self._mypy_violations,
+            "mypy_violations":      self._mypy_violations,
+            "find_in_templates":    self._find_in_templates,
         }
 
     def call(self, name: str, args: Dict[str, Any]) -> Any:
@@ -758,6 +783,14 @@ class _Dispatcher:
             except (TypeError, ValueError):
                 pass
         return self.engine.mypy_violations(**kw)
+
+    def _find_in_templates(self, args: Dict[str, Any]) -> Any:
+        pattern = str(args.get("pattern", "")).strip()
+        match_path = args.get("match_path")
+        kw: Dict[str, Any] = {}
+        if isinstance(match_path, str) and match_path.strip():
+            kw["match_path"] = match_path.strip()
+        return self.engine.find_in_templates(pattern, **kw)
 
 
 # ----------------------------------------------------------------------

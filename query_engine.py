@@ -918,3 +918,63 @@ class QueryEngine:
             bucket.sort(key=lambda r: r["file"])
         self._reverse_deps = index
         return index
+
+    # ------------------------------------------------------------------
+    # Template search
+    # ------------------------------------------------------------------
+
+    def find_in_templates(
+        self,
+        pattern: str,
+        match_path: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Search Angular HTML templates for *pattern* (case-insensitive).
+
+        Walks every ``.html`` file under ``project_root``, skipping
+        ``IGNORE_DIRS``.  Returns a list of
+        ``{file, line, text}`` dicts, one per matching line, capped at
+        100 results so the context window stays manageable.
+
+        Parameters
+        ----------
+        pattern:
+            Substring to look for (CSS class, Angular binding expression,
+            selector tag, event handler, etc.).  Matched case-insensitively.
+        match_path:
+            Optional ``fnmatch``-style glob applied to the relative file path,
+            e.g. ``"collection-player-v2/**"``.  Only files whose relative
+            path matches are searched.
+        """
+        import fnmatch
+
+        needle = pattern.lower()
+        results: List[Dict[str, Any]] = []
+
+        for dirpath, dirnames, filenames in os.walk(self.project_root):
+            # Prune ignored dirs in-place so os.walk skips them entirely.
+            dirnames[:] = [
+                d for d in dirnames if d not in self.IGNORE_DIRS
+            ]
+            for fname in filenames:
+                if not fname.endswith(".html"):
+                    continue
+                abs_path = os.path.join(dirpath, fname)
+                rel_path = os.path.relpath(abs_path, self.project_root).replace("\\", "/")
+                if match_path and not fnmatch.fnmatch(rel_path, match_path):
+                    continue
+                try:
+                    with open(abs_path, "r", encoding="utf-8", errors="replace") as fh:
+                        for lineno, line in enumerate(fh, 1):
+                            if needle in line.lower():
+                                results.append({
+                                    "file": rel_path,
+                                    "line": lineno,
+                                    "text": line.rstrip(),
+                                })
+                                if len(results) >= 100:
+                                    return results
+                except OSError:
+                    continue
+
+        results.sort(key=lambda r: (r["file"], r["line"]))
+        return results
