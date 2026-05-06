@@ -255,6 +255,12 @@ parent project and `mcp__vc-context-self__*` for the submodule itself.
 Skip this entirely if you only consume vc-context as a library; the
 self-index is purely a contributor convenience.
 
+The submodule ships its own `.vc-context/conventions.json` with a
+`checks` whitelist, so `mcp__vc-context-self__run_check("test")` /
+`run_check("lint")` / `run_check("format-check")` /
+`run_check("snapshots-check")` work out of the box — no need to
+shell out to bash for the submodule's own quality gates.
+
 ### Optional: TypeScript AST upgrade for Angular metadata
 
 The default TS/JS parser uses regex to extract Angular decorator
