@@ -629,5 +629,44 @@ def tool_specs() -> List[Dict[str, Any]]:
                 "required": ["service"],
             },
         },
+        {
+            "name": "ng_list_routes",
+            "description": (
+                "Every Angular route extracted from "
+                "RouterModule.forRoot/forChild/provideRouter blocks. "
+                "Each record: {path, component, file, line, lazy, "
+                "redirect_to, guards}. Empty on non-Angular projects."
+            ),
+            "inputSchema": {"type": "object", "properties": {}},
+        },
+        {
+            "name": "ng_route_for_path",
+            "description": (
+                "Resolve an Angular URL path (e.g. 'users/:id' or "
+                "'/admin') to its route record(s). Exact match first, "
+                "falls back to substring so 'users' finds both "
+                "'users/:id' and 'admin/users'. Strips a leading "
+                "slash so either form works."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {"path": {"type": "string"}},
+                "required": ["path"],
+            },
+        },
+        {
+            "name": "ng_routes_for_component",
+            "description": (
+                "Reverse lookup — every Angular route whose "
+                "`component` field equals the given class name. "
+                "Useful for 'where is HomeComponent mounted?' before "
+                "renaming or moving the file."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {"name": {"type": "string"}},
+                "required": ["name"],
+            },
+        },
     ]
 

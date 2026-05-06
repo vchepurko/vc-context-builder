@@ -57,12 +57,29 @@ class ContextBuilder:
     Generates module-level and root-level maps to optimize token usage.
     """
 
+    # Default vendored / build / submodule directories that should never
+    # show up in the index. Override via ``.vc-context/conventions.json``::
+    #
+    #     {"ignore_dirs": [".git", "node_modules", "my-vendored-tree"]}
+    #
+    # Replaces the default set entirely (use the keyword "+" prefix on any
+    # entry to ADD instead of replace, e.g. {"ignore_dirs": ["+coverage"]}).
+    DEFAULT_IGNORE_DIRS = frozenset({
+        '.git', 'node_modules', 'vendor', '__pycache__',
+        'dist', 'dist_webpack', 'build', '.venv', 'venv',
+        '.idea', '.vscode',
+        # Self-skip: when this script runs from a parent project, the
+        # submodule itself ('.ai-context') and its config ('.vc-context')
+        # mustn't be re-indexed under the parent — they're a separate
+        # project. When the script runs INSIDE the submodule (self-index),
+        # those directories don't exist at the cwd, so the rule is a
+        # silent no-op.
+        '.ai-context', '.vc-context',
+    })
+
     def __init__(self, root_dir: str = '.'):
         self.root_dir = root_dir
-        self.ignore_dirs = {
-            '.git', 'node_modules', 'vendor', '__pycache__',
-            'dist', 'dist_webpack', 'build', '.venv', 'venv', '.idea', '.vscode'
-        }
+        self.ignore_dirs = self._resolve_ignore_dirs(root_dir)
         # The core dynamically queries parsers for supported formats
         self.allowed_exts = get_supported_extensions()
         self.allowed_filenames = get_supported_filenames()
@@ -103,6 +120,47 @@ class ContextBuilder:
                 len(self.custom_roles),
                 os.path.join(".vc-context", "roles.json"),
             )
+
+    @classmethod
+    def _resolve_ignore_dirs(cls, root_dir: str) -> set:
+        """Default ignore_dirs, optionally extended / replaced by the
+        project's ``.vc-context/conventions.json["ignore_dirs"]``.
+
+        Semantics:
+        - List value REPLACES the default set entirely.
+        - Entries starting with ``+`` ADD to the default; entries starting
+          with ``-`` REMOVE from the default. Pure replace = no prefix.
+        """
+        defaults = set(cls.DEFAULT_IGNORE_DIRS)
+        conv_path = os.path.join(root_dir, ".vc-context", "conventions.json")
+        if not os.path.isfile(conv_path):
+            return defaults
+        try:
+            with open(conv_path, "r", encoding="utf-8") as fh:
+                conv = json.load(fh)
+        except (OSError, json.JSONDecodeError):
+            return defaults
+        override = conv.get("ignore_dirs") if isinstance(conv, dict) else None
+        if not isinstance(override, list):
+            return defaults
+        # Mixed mode: any entry without a ``+``/``-`` prefix triggers a
+        # full replace (with the additive entries layered on top).
+        adds: set = set()
+        removes: set = set()
+        replaces: set = set()
+        for raw in override:
+            if not isinstance(raw, str) or not raw:
+                continue
+            if raw.startswith("+"):
+                adds.add(raw[1:])
+            elif raw.startswith("-"):
+                removes.add(raw[1:])
+            else:
+                replaces.add(raw)
+        if replaces:
+            return (replaces | adds) - removes
+        # Pure additive / subtractive override.
+        return (defaults | adds) - removes
 
     def _discover_own_packages(self) -> set:
         """Top-level dir names (e.g. 'bot', 'services') treated as the
