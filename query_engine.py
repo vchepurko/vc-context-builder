@@ -978,3 +978,145 @@ class QueryEngine:
 
         results.sort(key=lambda r: (r["file"], r["line"]))
         return results
+
+    # ------------------------------------------------------------------
+    # Angular helpers (Feature P)
+    # ------------------------------------------------------------------
+
+    def ng_audit_component(self, name: str) -> Optional[Dict[str, Any]]:
+        """Composite audit for one Angular @Component class.
+
+        Returns a flattened record built from agent_symbols.json plus
+        agent_tests.json — selector / templateUrl / standalone / inputs
+        / outputs / styleUrls / nearest test. Returns ``None`` when the
+        symbol is unknown or not an ng-component.
+        """
+        sym = self.find_symbol(name)
+        if sym is None or sym.get("role") != "ng-component":
+            return None
+        test = self.find_test(name)
+        return {
+            "name": name,
+            "file": sym.get("file"),
+            "role": "ng-component",
+            "selector": sym.get("ng_selector"),
+            "template_url": sym.get("ng_template_url"),
+            "style_urls": sym.get("ng_style_urls", []),
+            "standalone": sym.get("ng_standalone"),
+            "inputs": sym.get("inputs", []),
+            "outputs": sym.get("outputs", []),
+            "doc": sym.get("doc"),
+            "test": test,
+        }
+
+    def ng_uses_selector(
+        self,
+        selector: str,
+        match_path: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Find HTML templates referencing *selector* as either an
+        element (``<selector``) or attribute directive (``[selector]``).
+
+        Two passes through ``find_in_templates`` deduplicated by
+        ``(file, line)``. Capped at 100 results.
+        """
+        if not selector:
+            return []
+        seen: set = set()
+        out: List[Dict[str, Any]] = []
+        for needle in (f"<{selector}", f"[{selector}]"):
+            for hit in self.find_in_templates(needle, match_path=match_path):
+                key = (hit["file"], hit["line"])
+                if key in seen:
+                    continue
+                seen.add(key)
+                out.append(hit)
+                if len(out) >= 100:
+                    return out
+        return out
+
+    def ng_overview(self) -> Dict[str, Any]:
+        """Zero-arg snapshot of the Angular surface area.
+
+        Returns role counts plus a list of services with
+        ``providedIn: 'root'`` and a count of standalone components.
+        Cheap — single pass over agent_symbols.json.
+        """
+        symbols = self._load_symbols()
+        roles = (
+            "ng-component",
+            "ng-service",
+            "ng-module",
+            "ng-pipe",
+            "ng-directive",
+            "ng-guard",
+        )
+        counts: Dict[str, int] = {role: 0 for role in roles}
+        standalone = 0
+        providers_root: List[str] = []
+        for name, rec in symbols.items():
+            role = rec.get("role")
+            if role in counts:
+                counts[role] += 1
+            if role == "ng-component" and rec.get("ng_standalone") is True:
+                standalone += 1
+            if role == "ng-service" and rec.get("ng_provided_in") == "root":
+                providers_root.append(name)
+        providers_root.sort()
+        return {
+            "counts": counts,
+            "standalone_components": standalone,
+            "providers_root": providers_root,
+        }
+
+    def ng_inject_graph(self, service: str) -> List[Dict[str, Any]]:
+        """Heuristic call sites for an Angular service injection.
+
+        Two patterns are scanned across each module map's source
+        files (regex on the unscrubbed body so the search is fast):
+
+        * ``constructor(... : ServiceName)`` — classic DI.
+        * ``inject(ServiceName)`` — Angular 14+ functional inject.
+
+        Result is a list of ``{file, line, kind}`` (kind ∈
+        ``constructor`` / ``inject``). Substring scan only — confirm
+        by reading the source. Returns ``[]`` for unknown service.
+        """
+        if not service:
+            return []
+        import re as _re
+
+        ctor_re = _re.compile(
+            r":\s*" + _re.escape(service) + r"\b"
+        )
+        inject_re = _re.compile(
+            r"\binject\s*\(\s*" + _re.escape(service) + r"\s*[,\)]"
+        )
+
+        out: List[Dict[str, Any]] = []
+        for folder, mmap in self._iter_module_maps():
+            for filename in mmap.get("files", {}):
+                if not filename.endswith((".ts", ".tsx")):
+                    continue
+                rel = os.path.join(folder, filename).replace("\\", "/")
+                abs_path = os.path.join(self.project_root, rel)
+                try:
+                    with open(abs_path, "r", encoding="utf-8", errors="replace") as fh:
+                        for lineno, raw in enumerate(fh, 1):
+                            if ctor_re.search(raw):
+                                out.append({
+                                    "file": rel,
+                                    "line": lineno,
+                                    "kind": "constructor",
+                                })
+                            elif inject_re.search(raw):
+                                out.append({
+                                    "file": rel,
+                                    "line": lineno,
+                                    "kind": "inject",
+                                })
+                except OSError:
+                    continue
+                if len(out) >= 200:
+                    return out
+        return out

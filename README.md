@@ -132,6 +132,21 @@ worktrees.
 
 `--help` prints the full reference.
 
+### Pulling new commands after a submodule bump
+
+`install.sh` is a one-shot. When a `git submodule update --remote
+.ai-context` brings in new slash commands (e.g. the `ng-*` set), you
+need to pull them into `.claude/commands/`:
+
+```bash
+bash .ai-context/sync-commands.sh           # add new ones, leave locals alone
+bash .ai-context/sync-commands.sh --force   # also overwrite local edits
+```
+
+Default behaviour matches `install.sh` — only missing files are
+copied; existing commands are skipped to protect customisations. Use
+`--force` to reset everything to upstream.
+
 ---
 
 ## Quick taste — three ways to ask the same question

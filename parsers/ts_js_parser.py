@@ -139,6 +139,26 @@ _RE_NG_OUTPUT = re.compile(
     r'@Output\s*(?:\([^)]*\))?\s+(\w+)',
 )
 
+# Angular @Component / @Injectable decorator metadata (cheap regex on
+# decorator-arg block — doesn't try to parse a full TS object literal,
+# just pulls the common string fields). Misses dynamic / computed
+# values; that's a known limit, callers fall back to grep.
+_RE_NG_SELECTOR = re.compile(
+    r"selector\s*:\s*['\"`]([^'\"`]+)['\"`]"
+)
+_RE_NG_TEMPLATE_URL = re.compile(
+    r"templateUrl\s*:\s*['\"`]([^'\"`]+)['\"`]"
+)
+_RE_NG_STYLE_URL = re.compile(
+    r"styleUrls?\s*:\s*\[\s*['\"`]([^'\"`]+)['\"`]"
+)
+_RE_NG_PROVIDED_IN = re.compile(
+    r"providedIn\s*:\s*['\"`]?([A-Za-z_$][A-Za-z0-9_$]*)['\"`]?"
+)
+_RE_NG_STANDALONE = re.compile(
+    r"standalone\s*:\s*(true|false)"
+)
+
 # JSX / React.createElement detection inside a function body.
 _RE_JSX_RETURN = re.compile(r'<[A-Za-z][A-Za-z0-9]*')
 _RE_REACT_CE = re.compile(r'React\.createElement\s*\(')
@@ -338,7 +358,13 @@ def _detect_role(
     if kind == "class" and ext == ".ts":
         class_pos = full_text.find(f"class {name}")
         if class_pos != -1:
-            preceding = full_text[max(0, class_pos - 400) : class_pos]
+            # Widen the window — Angular components routinely declare
+            # 100+ lines of @Component({...}) metadata (selector,
+            # templateUrl, styleUrls, providers, imports for standalone
+            # mode, etc.). 2 KB covers the common case without
+            # noticeable cost; if the decorator is bigger, the parser
+            # gracefully returns no metadata for that field.
+            preceding = full_text[max(0, class_pos - 2000) : class_pos]
             m = re.search(r"@(Component|Injectable|NgModule|Pipe|Directive)\s*[\(\{]", preceding)
             if m:
                 _NG_ROLE = {
@@ -349,6 +375,10 @@ def _detect_role(
                     "Directive": "ng-directive",
                 }
                 role = _NG_ROLE.get(m.group(1))
+                # Pull decorator-arg metadata after the matched `@X(`
+                # opener. We bound the slice to the decorator block via
+                # `class_pos` so we don't bleed into the class body.
+                deco_args = preceding[m.end() :]
                 if role == "ng-component":
                     inputs = _RE_NG_INPUT.findall(body)
                     outputs = _RE_NG_OUTPUT.findall(body)
@@ -356,6 +386,30 @@ def _detect_role(
                         exp["inputs"] = inputs
                     if outputs:
                         exp["outputs"] = outputs
+                    sel = _RE_NG_SELECTOR.search(deco_args)
+                    if sel:
+                        exp["ng_selector"] = sel.group(1)
+                    tpl = _RE_NG_TEMPLATE_URL.search(deco_args)
+                    if tpl:
+                        exp["ng_template_url"] = tpl.group(1)
+                    styles = _RE_NG_STYLE_URL.findall(deco_args)
+                    if styles:
+                        exp["ng_style_urls"] = styles
+                    standalone = _RE_NG_STANDALONE.search(deco_args)
+                    if standalone:
+                        exp["ng_standalone"] = standalone.group(1) == "true"
+                elif role == "ng-service":
+                    provided = _RE_NG_PROVIDED_IN.search(deco_args)
+                    if provided:
+                        exp["ng_provided_in"] = provided.group(1)
+                elif role == "ng-directive":
+                    sel = _RE_NG_SELECTOR.search(deco_args)
+                    if sel:
+                        exp["ng_selector"] = sel.group(1)
+                elif role == "ng-pipe":
+                    pname = re.search(r"name\s*:\s*['\"`]([^'\"`]+)['\"`]", deco_args)
+                    if pname:
+                        exp["ng_pipe_name"] = pname.group(1)
                 return role
 
     # 6. Angular functional guard — *.guard.ts, function/arrow returning
