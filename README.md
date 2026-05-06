@@ -39,12 +39,30 @@ Auto-detected built-in roles:
 | Language | Roles |
 |---|---|
 | Python | `route`, `aiogram-handler`, `webhook`, `migration`, `scheduler-job`, `repository`, `service`, `api-client` |
-| JS / TS | `react-component`, `react-hook`, `express-route`, `vue-composable` |
+| JS / TS | `react-component`, `react-hook`, `express-route`, `vue-composable`, `ng-component`, `ng-service`, `ng-module`, `ng-pipe`, `ng-directive`, `ng-guard` |
 
 Detection mixes AST/regex pattern matching with file-path heuristics.
 
 Filtered out (intentional): stdlib + third-party imports, private
 helpers, empty `__init__.py` files, glue modules with nothing to expose.
+
+### Test linking
+
+`agent_tests.json` pairs each indexed symbol with its nearest test
+file + function so `find_test(X)` is one tool call away. Two parallel
+walkers feed the index:
+
+* **Python** — `tests/**/test_*.py` AST-walked. Reference resolution
+  follows imports + `patch("a.b.X")` strings. Co-location fallback by
+  `test_<basename>*.py` glob.
+* **TypeScript / JavaScript** — `**/*.spec.{ts,tsx,js,jsx,mjs,cjs}`
+  scanned via regex (no JS AST in stdlib). Imports + `describe(...)`
+  / `it(...)` / `test(...)` blocks become the test surface. Co-location
+  by `<basename>.spec.ts` next to `<basename>.ts` (Angular convention).
+  `node_modules`, `dist`, `coverage`, `.angular`, `.next` etc. are
+  skipped.
+
+Symbols without a test get `null` so the API stays uniform.
 
 ### Custom roles
 

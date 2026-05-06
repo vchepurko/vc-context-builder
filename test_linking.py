@@ -15,6 +15,13 @@ Two independent strategies, evaluated in order:
    exact match — covers ``test_foo_handler.py`` for ``foo.py``) and
    substring-match symbol against test_* names.
 
+For TypeScript / JavaScript projects (Angular, Vue, etc.), a parallel
+path indexes ``**/*.spec.{ts,tsx,js,jsx,mjs,cjs}`` files via regex —
+no AST, since stdlib has no JS parser. Imports + ``describe(...)`` /
+``it(...)`` blocks become the "test_function" surface, mirroring the
+Python contract. Co-location for TS spec files is by basename:
+``cart.service.ts`` ↔ ``cart.service.spec.ts``.
+
 Output is dumped to ``agent_tests.json`` so the CLI / MCP layer can
 read it with O(1) lookup.
 
@@ -26,11 +33,24 @@ from __future__ import annotations
 import ast
 import json
 import os
+import re
 from typing import Any, Dict, List, Optional, Tuple
 
 
 TESTS_FILENAME = "agent_tests.json"
 DEFAULT_TESTS_DIR = "tests"
+
+# Walk-skip set for the TS spec scanner. Mirrors the agent_map
+# defaults so we don't scan vendored test suites or build outputs.
+_SPEC_IGNORE_DIRS = frozenset({
+    ".git", "node_modules", "vendor", "__pycache__",
+    "dist", "dist_webpack", "build", ".venv", "venv",
+    ".idea", ".vscode", ".ai-context", ".vc-context",
+    "coverage", ".angular", ".cache", ".next", ".nuxt",
+})
+
+_SPEC_EXTENSIONS = (".spec.ts", ".spec.tsx", ".spec.js",
+                    ".spec.jsx", ".spec.mjs", ".spec.cjs")
 
 
 def _basename(file_path: str) -> str:
@@ -240,6 +260,207 @@ def _walk_test_files(project_root: str) -> List[str]:
     return out
 
 
+# ----------------------------------------------------------------------
+# TS/JS spec linker (Angular convention: <name>.spec.ts co-located).
+# ----------------------------------------------------------------------
+
+# `import {A, B as C} from './x'` / `import D from 'lib'` / `import * as N from 'lib'`.
+# Three captured forms:
+#   group 1: braced names (`A, B as C`)
+#   group 2: default-import name (`D`)
+#   group 3: namespace-import name (`N`)
+_RE_SPEC_IMPORT = re.compile(
+    r"^\s*import\s+"
+    r"(?:"
+    r"\{(?P<braced>[^}]+)\}"
+    r"|"
+    r"(?P<default>[A-Za-z_$][A-Za-z0-9_$]*)\s*(?:,\s*\{(?P<after_default>[^}]+)\})?"
+    r"|"
+    r"\*\s+as\s+(?P<namespace>[A-Za-z_$][A-Za-z0-9_$]*)"
+    r")\s+from\s+['\"]([^'\"]+)['\"]",
+    re.M,
+)
+_RE_SPEC_DESCRIBE = re.compile(
+    r"\bdescribe\s*\(\s*['\"`](?P<text>[^'\"`]+)['\"`]\s*,",
+)
+_RE_SPEC_IT = re.compile(
+    r"\b(?:it|test)\s*\(\s*['\"`](?P<text>[^'\"`]+)['\"`]\s*,",
+)
+
+
+def _candidate_spec_files(project_root: str, file_path: str) -> List[str]:
+    """Co-located ``<basename>.spec.<ext>`` next to a TS/JS source file.
+
+    Mirrors the Angular convention where ``cart.service.ts`` has its
+    spec at ``cart.service.spec.ts`` in the same directory. Returns
+    every existing spec extension match (most projects only have one).
+    """
+    if not file_path:
+        return []
+    abs_src = os.path.join(project_root, file_path) if not os.path.isabs(file_path) else file_path
+    src_dir = os.path.dirname(abs_src)
+    src_name = os.path.basename(abs_src)
+    # Strip the source extension to get the basename ("cart.service" from "cart.service.ts").
+    for src_ext in (".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"):
+        if src_name.endswith(src_ext):
+            stem = src_name[: -len(src_ext)]
+            break
+    else:
+        return []
+    out: List[str] = []
+    for spec_ext in _SPEC_EXTENSIONS:
+        candidate = os.path.join(src_dir, stem + spec_ext)
+        if os.path.isfile(candidate):
+            out.append(candidate)
+    return out
+
+
+def _imported_names_from_spec(content: str) -> set:
+    """Collect imported binding names from a TS/JS spec file's source.
+
+    Handles `{A, B as C}`, default `D`, default-with-named `D, {E}`,
+    and namespace `* as N`. Returns the set of locally bound names.
+    """
+    names: set = set()
+    for m in _RE_SPEC_IMPORT.finditer(content):
+        for clause in (m.group("braced"), m.group("after_default")):
+            if clause:
+                for piece in clause.split(","):
+                    piece = piece.strip()
+                    if not piece:
+                        continue
+                    # Handle `B as C` — bind under the alias.
+                    if " as " in piece:
+                        _, alias = piece.split(" as ", 1)
+                        alias = alias.strip()
+                        if alias:
+                            names.add(alias)
+                    else:
+                        names.add(piece)
+        if m.group("default"):
+            names.add(m.group("default"))
+        if m.group("namespace"):
+            names.add(m.group("namespace"))
+    return names
+
+
+def _spec_blocks(content: str) -> List[Tuple[str, int]]:
+    """Return ``[(label, line)]`` for every describe/it block in source.
+
+    Label format: ``<describe> :: <it>`` when the it() is enclosed in a
+    describe(), else just the it() text. We don't try to parse nesting
+    fully — pick the most-recent describe seen above each it().
+    """
+    out: List[Tuple[str, int]] = []
+    # Index every describe/it occurrence by source offset.
+    desc_hits = list(_RE_SPEC_DESCRIBE.finditer(content))
+    it_hits = list(_RE_SPEC_IT.finditer(content))
+    line_starts = _line_offsets(content)
+
+    def line_of(offset: int) -> int:
+        # Binary search would be cleaner, but specs rarely exceed a
+        # few thousand lines so linear is fine.
+        i = 0
+        for j, start in enumerate(line_starts):
+            if start > offset:
+                break
+            i = j
+        return i + 1  # 1-indexed
+
+    for it_m in it_hits:
+        # Most-recent describe BEFORE this it.
+        recent_desc = None
+        for d in desc_hits:
+            if d.start() < it_m.start():
+                recent_desc = d
+            else:
+                break
+        it_text = it_m.group("text").strip()
+        if recent_desc is not None:
+            label = f"{recent_desc.group('text').strip()} :: {it_text}"
+        else:
+            label = it_text
+        out.append((label, line_of(it_m.start())))
+    return out
+
+
+def _line_offsets(content: str) -> List[int]:
+    """Return the byte offset of each line start (line 1 → offsets[0])."""
+    out = [0]
+    for i, ch in enumerate(content):
+        if ch == "\n":
+            out.append(i + 1)
+    return out
+
+
+def _walk_spec_files(project_root: str) -> List[str]:
+    """All ``**/*.spec.{ts,tsx,js,jsx,mjs,cjs}`` files, skipping
+    vendored / build dirs (``node_modules``, ``dist``, etc.)."""
+    if not os.path.isdir(project_root):
+        return []
+    out: List[str] = []
+    for cur, dirs, files in os.walk(project_root):
+        dirs[:] = [d for d in dirs if d not in _SPEC_IGNORE_DIRS]
+        for fname in files:
+            if fname.endswith(_SPEC_EXTENSIONS):
+                out.append(os.path.join(cur, fname))
+    return out
+
+
+def _scan_spec_file_references(
+    spec_path: str,
+) -> Dict[str, List[Tuple[str, int]]]:
+    """Per spec file, list referenced symbol names → ``[(label, line)]``.
+
+    Reference resolution: we treat every imported binding as a candidate
+    symbol-under-test, and pair it with each describe/it block in the
+    file. This is coarse — a spec usually imports one or two SUTs and
+    a handful of fixtures — but the downstream "shortest label wins"
+    tie-breaker keeps the result usable.
+    """
+    try:
+        with open(spec_path, "r", encoding="utf-8") as fh:
+            content = fh.read()
+    except OSError:
+        return {}
+    imported = _imported_names_from_spec(content)
+    if not imported:
+        return {}
+    blocks = _spec_blocks(content)
+    if not blocks:
+        # Fall back to a single placeholder so the spec still links —
+        # even a spec without an it() block tells you "the SUT has tests".
+        blocks = [("(spec)", 1)]
+    out: Dict[str, List[Tuple[str, int]]] = {}
+    for sym in imported:
+        for label, line in blocks:
+            out.setdefault(sym, []).append((label, line))
+    return out
+
+
+def build_spec_reference_index(
+    project_root: str,
+) -> Dict[str, List[Dict[str, Any]]]:
+    """Reverse index ``{symbol → [{test_file, test_function, line}, ...]}``
+    sourced from ``**/*.spec.ts`` (and friends).
+
+    Same shape as :func:`build_reference_index` so the two indexes can
+    be merged transparently downstream.
+    """
+    index: Dict[str, List[Dict[str, Any]]] = {}
+    for spec_path in _walk_spec_files(project_root):
+        rel = os.path.relpath(spec_path, project_root).replace(os.sep, "/")
+        per_file = _scan_spec_file_references(spec_path)
+        for sym, hits in per_file.items():
+            for label, line in hits:
+                index.setdefault(sym, []).append({
+                    "test_file": rel,
+                    "test_function": label,
+                    "line": line,
+                })
+    return index
+
+
 def build_reference_index(
     project_root: str,
 ) -> Dict[str, List[Dict[str, Any]]]:
@@ -313,7 +534,7 @@ def find_test_for_symbol(
         if best is not None:
             return best
 
-    # Co-location fallback (legacy heuristic).
+    # Co-location fallback for Python: tests/test_<basename>*.py.
     if not file_path:
         return None
     basename = _basename(file_path)
@@ -330,6 +551,29 @@ def find_test_for_symbol(
             "test_function": match[0],
             "line": match[1],
         }
+
+    # Co-location fallback for TS/JS: <name>.spec.ts next to <name>.ts.
+    # Triggers when reference_index didn't resolve (e.g. only ng-component
+    # / ng-service classes with co-located specs that import via ./path).
+    for candidate in _candidate_spec_files(project_root, file_path):
+        per_file = _scan_spec_file_references(candidate)
+        # The symbol may not appear in imports — fall back to the first
+        # describe/it block as a coarse "this spec exists" signal.
+        rel = os.path.relpath(candidate, project_root).replace(os.sep, "/")
+        if symbol in per_file and per_file[symbol]:
+            label, line = per_file[symbol][0]
+            return {"test_file": rel, "test_function": label, "line": line}
+        try:
+            with open(candidate, "r", encoding="utf-8") as fh:
+                content = fh.read()
+        except OSError:
+            continue
+        blocks = _spec_blocks(content)
+        if blocks:
+            label, line = blocks[0]
+            return {"test_file": rel, "test_function": label, "line": line}
+        return {"test_file": rel, "test_function": "(spec)", "line": 1}
+
     return None
 
 
@@ -351,6 +595,12 @@ def build_test_index(
     lookup, so the whole pass is O(test_files + symbols).
     """
     reference_index = build_reference_index(project_root)
+    spec_index = build_spec_reference_index(project_root)
+    # Merge: spec_index entries land in the same dict, so a single
+    # symbol can have hits from both Python tests and TS specs (rare
+    # in practice — a name is usually unique to one language tree).
+    for sym, hits in spec_index.items():
+        reference_index.setdefault(sym, []).extend(hits)
     out: Dict[str, Optional[Dict[str, Any]]] = {}
     for name, entry in symbols.items():
         if not isinstance(entry, dict):
