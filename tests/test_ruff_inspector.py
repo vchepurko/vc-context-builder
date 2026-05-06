@@ -44,10 +44,23 @@ def _patch_run(records: list, *, returncode: int = 1):
     return mock.patch("ruff_inspector.subprocess.run", return_value=proc)
 
 
+def _force_ruff_enabled(root: str) -> None:
+    """Drop a conventions.json that explicitly enables ruff so the
+    auto-skip on non-Python projects doesn't short-circuit the
+    subprocess mock. ``should_skip_ruff`` honours
+    ``ruff.enabled = true`` even when no Python markers are present.
+    """
+    conv_dir = os.path.join(root, ".vc-context")
+    os.makedirs(conv_dir, exist_ok=True)
+    with open(os.path.join(conv_dir, "conventions.json"), "w") as fh:
+        json.dump({"ruff": {"enabled": True}}, fh)
+
+
 class CollectTests(unittest.TestCase):
     def setUp(self) -> None:
         self.root = tempfile.mkdtemp(prefix="vc-ruff-")
         self.addCleanup(shutil.rmtree, self.root, True)
+        _force_ruff_enabled(self.root)
 
     def test_no_violations_returns_zero_total(self) -> None:
         with _patch_run([]):
@@ -149,11 +162,16 @@ class CollectTests(unittest.TestCase):
         """Project-specific projects can swap the ruff invocation
         (e.g. ``poetry run ruff`` instead of ``uv run ruff``) via
         conventions.json."""
+        # Overwrite the setUp-installed conventions file so the
+        # `command` override is what gets read.
         conv = os.path.join(self.root, ".vc-context")
         os.makedirs(conv, exist_ok=True)
         with open(os.path.join(conv, "conventions.json"), "w") as fh:
-            json.dump({"ruff": {"command": ["poetry", "run", "ruff", "check",
-                                            "--output-format=json", "."]}}, fh)
+            json.dump({"ruff": {
+                "enabled": True,
+                "command": ["poetry", "run", "ruff", "check",
+                            "--output-format=json", "."],
+            }}, fh)
         cmd = ruff_inspector._load_command(self.root)
         self.assertEqual(cmd[0], "poetry")
 
@@ -164,6 +182,7 @@ class QueryEngineRuffTests(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.root, True)
         with open(os.path.join(self.root, "agent_root.json"), "w") as fh:
             json.dump({"project_root": self.root, "modules": ["."], "roles": {}}, fh)
+        _force_ruff_enabled(self.root)
 
     def test_engine_threads_through_to_collect(self) -> None:
         records = [
