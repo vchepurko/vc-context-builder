@@ -56,7 +56,7 @@ class ContextBuilder:
         self.root_dir = root_dir
         self.ignore_dirs = {
             '.git', 'node_modules', 'vendor', '__pycache__',
-            'dist', 'build', '.venv', 'venv', '.idea', '.vscode'
+            'dist', 'dist_webpack', 'build', '.venv', 'venv', '.idea', '.vscode'
         }
         # The core dynamically queries parsers for supported formats
         self.allowed_exts = get_supported_extensions()
@@ -433,7 +433,7 @@ class ContextBuilder:
                         continue
 
                     candidate: Dict[str, str] = {"file": file_rel}
-                    for k in ("kind", "params", "doc", "role"):
+                    for k in ("kind", "params", "doc", "role", "inputs", "outputs"):
                         v = exp.get(k)
                         if v:
                             candidate[k] = v

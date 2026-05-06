@@ -131,6 +131,14 @@ _RE_EXPRESS_REG = re.compile(
     r'\s*\)',
 )
 
+# Angular @Input / @Output decorators on class members.
+_RE_NG_INPUT = re.compile(
+    r'@Input\s*(?:\([^)]*\))?\s+(\w+)',
+)
+_RE_NG_OUTPUT = re.compile(
+    r'@Output\s*(?:\([^)]*\))?\s+(\w+)',
+)
+
 # JSX / React.createElement detection inside a function body.
 _RE_JSX_RETURN = re.compile(r'<[A-Za-z][A-Za-z0-9]*')
 _RE_REACT_CE = re.compile(r'React\.createElement\s*\(')
@@ -340,7 +348,15 @@ def _detect_role(
                     "Pipe": "ng-pipe",
                     "Directive": "ng-directive",
                 }
-                return _NG_ROLE.get(m.group(1))
+                role = _NG_ROLE.get(m.group(1))
+                if role == "ng-component":
+                    inputs = _RE_NG_INPUT.findall(body)
+                    outputs = _RE_NG_OUTPUT.findall(body)
+                    if inputs:
+                        exp["inputs"] = inputs
+                    if outputs:
+                        exp["outputs"] = outputs
+                return role
 
     # 6. Angular functional guard — *.guard.ts, function/arrow returning
     # Observable<boolean|UrlTree> or Promise<boolean|UrlTree> or boolean.
