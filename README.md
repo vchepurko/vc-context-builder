@@ -189,6 +189,45 @@ Default behaviour matches `install.sh` — only missing files are
 copied; existing commands are skipped to protect customisations. Use
 `--force` to reset everything to upstream.
 
+### Indexing the submodule against itself (contributor mode)
+
+When you're working *on* vc-context-builder (e.g. PRs into the
+submodule itself, not the parent project), the parent's MCP server
+can't help you navigate the builder's own code — it points at the
+parent root, not at `.ai-context/`. Bootstrap a self-index:
+
+```bash
+bash .ai-context/self-index.sh           # one-shot
+bash .ai-context/self-index.sh --watch   # also install a pre-commit
+                                          # hook that rebuilds the
+                                          # index on every commit
+```
+
+Then wire a second MCP entry alongside the existing one in your
+parent project's `.mcp.json`:
+
+```jsonc
+{
+  "mcpServers": {
+    "vc-context": {
+      "command": "python3",
+      "args": [".ai-context/mcp_server.py", "--root", "."],
+      "type": "stdio"
+    },
+    "vc-context-self": {
+      "command": "python3",
+      "args": [".ai-context/mcp_server.py", "--root", ".ai-context"],
+      "type": "stdio"
+    }
+  }
+}
+```
+
+Tools then surface under two prefixes — `mcp__vc-context__*` for the
+parent project and `mcp__vc-context-self__*` for the submodule itself.
+Skip this entirely if you only consume vc-context as a library; the
+self-index is purely a contributor convenience.
+
 ### Optional: TypeScript AST upgrade for Angular metadata
 
 The default TS/JS parser uses regex to extract Angular decorator

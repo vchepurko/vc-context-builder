@@ -3,5 +3,10 @@ agent_root.json
 agent_symbols.json
 agent_tests.json
 agent_routes.json
+agent_ng_routes.json
+agent_callbacks.json
+agent_fsm_flows.json
+agent_locale_keys.json
+agent_test_categories.json
 __pycache__/
 .idea/
