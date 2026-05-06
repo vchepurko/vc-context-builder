@@ -1,5 +1,4 @@
 import re
-from typing import Dict, List
 from parsers.base_parser import BaseParser
 
 class HtmlParser(BaseParser):
@@ -7,7 +6,7 @@ class HtmlParser(BaseParser):
 
     extensions = ['.html', '.htm']
 
-    def extract(self, file_path: str) -> Dict[str, List[str]]:
+    def extract(self, file_path: str) -> dict[str, list[str]]:
         content = self._read_file(file_path)
         if not content:
             return {"exports": [], "dependencies": []}

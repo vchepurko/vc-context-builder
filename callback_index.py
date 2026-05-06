@@ -32,7 +32,8 @@ from __future__ import annotations
 import ast
 import json
 import os
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Optional
+from collections.abc import Iterable
 
 
 CALLBACKS_FILENAME = "agent_callbacks.json"
@@ -86,10 +87,10 @@ def _string_constant(node: ast.AST) -> Optional[str]:
     return None
 
 
-def _string_list(node: ast.AST) -> Optional[List[str]]:
+def _string_list(node: ast.AST) -> Optional[list[str]]:
     if not isinstance(node, (ast.List, ast.Tuple, ast.Set)):
         return None
-    out: List[str] = []
+    out: list[str] = []
     for el in node.elts:
         s = _string_constant(el)
         if s is None:
@@ -98,7 +99,7 @@ def _string_list(node: ast.AST) -> Optional[List[str]]:
     return out
 
 
-def _extract_filter_records(arg: ast.AST) -> List[Tuple[str, str]]:
+def _extract_filter_records(arg: ast.AST) -> list[tuple[str, str]]:
     """Return ``(kind, value)`` records produced by a single decorator arg.
 
     Recognises:
@@ -146,17 +147,17 @@ def _extract_filter_records(arg: ast.AST) -> List[Tuple[str, str]]:
 # Build
 # ----------------------------------------------------------------------
 
-def collect_callbacks(project_root: str) -> Dict[str, List[Dict[str, Any]]]:
+def collect_callbacks(project_root: str) -> dict[str, list[dict[str, Any]]]:
     """Return ``{callback_data_string → [record, ...]}``.
 
     Each record: ``{kind, handler, file, line}``. ``kind`` is
     ``"exact"`` or ``"prefix"``.
     """
-    out: Dict[str, List[Dict[str, Any]]] = {}
+    out: dict[str, list[dict[str, Any]]] = {}
 
     for full in _iter_python_files(project_root):
         try:
-            with open(full, "r", encoding="utf-8") as fh:
+            with open(full, encoding="utf-8") as fh:
                 source = fh.read()
         except OSError:
             continue
@@ -195,7 +196,7 @@ def collect_callbacks(project_root: str) -> Dict[str, List[Dict[str, Any]]]:
     return out
 
 
-def write_callback_index(project_root: str, index: Dict[str, List[Dict[str, Any]]]) -> str:
+def write_callback_index(project_root: str, index: dict[str, list[dict[str, Any]]]) -> str:
     """Write ``agent_callbacks.json`` (sorted keys for deterministic builds)."""
     out_path = os.path.join(project_root, CALLBACKS_FILENAME)
     ordered = {k: index[k] for k in sorted(index)}
@@ -210,9 +211,9 @@ def write_callback_index(project_root: str, index: Dict[str, List[Dict[str, Any]
 # ----------------------------------------------------------------------
 
 def find_callback(
-    index: Dict[str, List[Dict[str, Any]]],
+    index: dict[str, list[dict[str, Any]]],
     data: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Resolve a runtime ``callback_data`` string against the index.
 
     Strategy:

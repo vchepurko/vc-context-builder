@@ -8,7 +8,6 @@ returning a unified flat list with ``lang`` markers.
 
 from __future__ import annotations
 
-import json
 import os
 import sys
 import tempfile
@@ -18,7 +17,6 @@ import unittest
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from http_callers import (  # noqa: E402
-    HttpClientSpec,
     attach_python_callers,
     collect_python_calls,
     load_http_clients,

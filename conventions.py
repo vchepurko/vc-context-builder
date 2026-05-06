@@ -30,7 +30,8 @@ import ast
 import fnmatch
 import json
 import os
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Optional
+from collections.abc import Iterable
 
 
 CONFIG_RELATIVE_PATH = os.path.join(".vc-context", "conventions.json")
@@ -50,7 +51,7 @@ IGNORE_DIRS = {
 # Config loading
 # ----------------------------------------------------------------------
 
-def load_rules(project_root: str) -> List[Dict[str, Any]]:
+def load_rules(project_root: str) -> list[dict[str, Any]]:
     """Return the rule list from ``.vc-context/conventions.json``.
 
     Missing file → empty list. Malformed JSON or unexpected shape →
@@ -61,14 +62,14 @@ def load_rules(project_root: str) -> List[Dict[str, Any]]:
     if not os.path.isfile(config_path):
         return []
     try:
-        with open(config_path, "r", encoding="utf-8") as fh:
+        with open(config_path, encoding="utf-8") as fh:
             data = json.load(fh)
     except (OSError, json.JSONDecodeError):
         return []
     rules = data.get("rules") if isinstance(data, dict) else None
     if not isinstance(rules, list):
         return []
-    cleaned: List[Dict[str, Any]] = []
+    cleaned: list[dict[str, Any]] = []
     for r in rules:
         if not isinstance(r, dict):
             continue
@@ -170,8 +171,8 @@ def _rel(path: str, project_root: str) -> str:
     return rel.replace(os.sep, "/")
 
 
-def _scan_file(file_path: str, source: str, applicable: List[Dict[str, Any]],
-               rel_path: str) -> List[Dict[str, Any]]:
+def _scan_file(file_path: str, source: str, applicable: list[dict[str, Any]],
+               rel_path: str) -> list[dict[str, Any]]:
     """Return violation records for one file.
 
     ``applicable`` is the subset of rules whose ``match_path`` already
@@ -187,7 +188,7 @@ def _scan_file(file_path: str, source: str, applicable: List[Dict[str, Any]],
     forbid_imports = [r for r in applicable if r.get("forbid_import")]
     forbid_calls = [r for r in applicable if r.get("forbid_call")]
 
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
 
     if forbid_imports:
         for node in ast.walk(tree):
@@ -240,7 +241,7 @@ def _call_name(func: ast.AST) -> Optional[str]:
     return None
 
 
-def _record(rule: Dict[str, Any], file_path: str, line: int, message: str) -> Dict[str, Any]:
+def _record(rule: dict[str, Any], file_path: str, line: int, message: str) -> dict[str, Any]:
     return {
         "rule_id": rule["id"],
         "file": file_path,
@@ -254,7 +255,7 @@ def _record(rule: Dict[str, Any], file_path: str, line: int, message: str) -> Di
 # Entry point
 # ----------------------------------------------------------------------
 
-def lint_project(project_root: str) -> List[Dict[str, Any]]:
+def lint_project(project_root: str) -> list[dict[str, Any]]:
     """Run all rules across every Python file under ``project_root``.
 
     Returns a list of violation records, ordered by file then line.
@@ -264,14 +265,14 @@ def lint_project(project_root: str) -> List[Dict[str, Any]]:
     if not rules:
         return []
 
-    violations: List[Dict[str, Any]] = []
+    violations: list[dict[str, Any]] = []
     for full in _iter_python_files(project_root):
         rel = _rel(full, project_root)
         applicable = [r for r in rules if _glob_match(rel, r["match_path"])]
         if not applicable:
             continue
         try:
-            with open(full, "r", encoding="utf-8") as fh:
+            with open(full, encoding="utf-8") as fh:
                 source = fh.read()
         except OSError:
             continue
@@ -281,6 +282,6 @@ def lint_project(project_root: str) -> List[Dict[str, Any]]:
     return violations
 
 
-def has_error(violations: List[Dict[str, Any]]) -> bool:
+def has_error(violations: list[dict[str, Any]]) -> bool:
     """True if any violation is severity ``error`` (drives CLI exit code)."""
     return any(v.get("severity") == "error" for v in violations)

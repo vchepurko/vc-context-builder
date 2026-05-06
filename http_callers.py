@@ -43,7 +43,8 @@ from __future__ import annotations
 import ast
 import json
 import os
-from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
+from typing import Any, Optional
+from collections.abc import Iterable
 
 
 CONFIG_RELATIVE_PATH = os.path.join(".vc-context", "conventions.json")
@@ -68,7 +69,7 @@ class HttpClientSpec:
         self,
         factory_module: str,
         factory_name: str,
-        methods: Set[str],
+        methods: set[str],
         first_arg_is_path: bool,
     ) -> None:
         self.factory_module = factory_module
@@ -77,7 +78,7 @@ class HttpClientSpec:
         self.first_arg_is_path = first_arg_is_path
 
 
-def load_http_clients(project_root: str) -> List[HttpClientSpec]:
+def load_http_clients(project_root: str) -> list[HttpClientSpec]:
     """Read the ``http_clients`` block from ``conventions.json``.
 
     Missing file / missing block / malformed entry → empty list. The
@@ -88,7 +89,7 @@ def load_http_clients(project_root: str) -> List[HttpClientSpec]:
     if not os.path.isfile(config_path):
         return []
     try:
-        with open(config_path, "r", encoding="utf-8") as fh:
+        with open(config_path, encoding="utf-8") as fh:
             data = json.load(fh)
     except (OSError, json.JSONDecodeError):
         return []
@@ -98,7 +99,7 @@ def load_http_clients(project_root: str) -> List[HttpClientSpec]:
     if not isinstance(raw_list, list):
         return []
 
-    out: List[HttpClientSpec] = []
+    out: list[HttpClientSpec] = []
     for entry in raw_list:
         if not isinstance(entry, dict):
             continue
@@ -131,7 +132,7 @@ def _iter_python_files(project_root: str) -> Iterable[str]:
                 yield os.path.join(cur, f)
 
 
-def _factory_aliases(tree: ast.AST, spec: HttpClientSpec) -> Set[str]:
+def _factory_aliases(tree: ast.AST, spec: HttpClientSpec) -> set[str]:
     """Names used in this file to refer to ``spec.factory_module.spec.factory_name``.
 
     Tracks both ``from <module> import <name>`` and ``from <module>
@@ -139,7 +140,7 @@ def _factory_aliases(tree: ast.AST, spec: HttpClientSpec) -> Set[str]:
     is rare for a thin factory and intentionally skipped — keeps the
     parser focused on the common case.
     """
-    aliases: Set[str] = set()
+    aliases: set[str] = set()
     for node in ast.walk(tree):
         if not isinstance(node, ast.ImportFrom):
             continue
@@ -164,7 +165,7 @@ def _string_arg(call: ast.Call, kind_first_arg: bool) -> Optional[str]:
     return None
 
 
-def _enclosing_function_name(node: ast.AST, parents: Dict[int, ast.AST]) -> Optional[str]:
+def _enclosing_function_name(node: ast.AST, parents: dict[int, ast.AST]) -> Optional[str]:
     """Walk up the parent chain to find the nearest FunctionDef name."""
     cur: Optional[ast.AST] = parents.get(id(node))
     while cur is not None:
@@ -174,16 +175,16 @@ def _enclosing_function_name(node: ast.AST, parents: Dict[int, ast.AST]) -> Opti
     return None
 
 
-def _build_parents(tree: ast.AST) -> Dict[int, ast.AST]:
+def _build_parents(tree: ast.AST) -> dict[int, ast.AST]:
     """Map ``id(child) → parent`` for every node in ``tree``."""
-    parents: Dict[int, ast.AST] = {}
+    parents: dict[int, ast.AST] = {}
     for parent in ast.walk(tree):
         for child in ast.iter_child_nodes(parent):
             parents[id(child)] = parent
     return parents
 
 
-def _is_factory_call(node: ast.AST, factory_aliases: Set[str]) -> bool:
+def _is_factory_call(node: ast.AST, factory_aliases: set[str]) -> bool:
     return (
         isinstance(node, ast.Call)
         and isinstance(node.func, ast.Name)
@@ -193,8 +194,8 @@ def _is_factory_call(node: ast.AST, factory_aliases: Set[str]) -> bool:
 
 def _client_var_assignments(
     tree: ast.AST,
-    factory_aliases: Set[str],
-) -> Dict[str, Set[str]]:
+    factory_aliases: set[str],
+) -> dict[str, set[str]]:
     """Return ``{function_name: {var_name, ...}}`` of locals assigned
     from a factory call.
 
@@ -202,7 +203,7 @@ def _client_var_assignments(
     or attribute targets (``self.client = get_client()``). Those are
     rare in handler code and not worth a real flow analysis.
     """
-    out: Dict[str, Set[str]] = {}
+    out: dict[str, set[str]] = {}
     parents = _build_parents(tree)
     for node in ast.walk(tree):
         if not isinstance(node, ast.Assign):
@@ -228,8 +229,8 @@ def _client_var_assignments(
 
 def collect_python_calls(
     project_root: str,
-    specs: List[HttpClientSpec],
-) -> List[Dict[str, Any]]:
+    specs: list[HttpClientSpec],
+) -> list[dict[str, Any]]:
     """Walk every ``.py`` file once and return URL-path call sites.
 
     Each record: ``{path, verb, file, line, raw, function}``.
@@ -246,10 +247,10 @@ def collect_python_calls(
     if not specs:
         return []
 
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     for full in _iter_python_files(project_root):
         try:
-            with open(full, "r", encoding="utf-8") as fh:
+            with open(full, encoding="utf-8") as fh:
                 source = fh.read()
         except OSError:
             continue
@@ -315,8 +316,8 @@ def collect_python_calls(
 # ----------------------------------------------------------------------
 
 def attach_python_callers(
-    route_table: Dict[str, Dict[str, Any]],
-    py_calls: List[Dict[str, Any]],
+    route_table: dict[str, dict[str, Any]],
+    py_calls: list[dict[str, Any]],
 ) -> None:
     """Mutate ``route_table`` in place: add ``callers_python`` arrays.
 
@@ -371,9 +372,9 @@ def _path_only(key: str) -> str:
 # ----------------------------------------------------------------------
 
 def python_callers_for_route(
-    index: Dict[str, Dict[str, Any]],
+    index: dict[str, dict[str, Any]],
     path: str,
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """``[{file, line, raw, function}, ...]`` for ``path`` (or empty)."""
     from route_bridge import find_route_for_path  # type: ignore[import-not-found]
     entry = find_route_for_path(index, path)

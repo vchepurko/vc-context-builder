@@ -33,7 +33,8 @@ from __future__ import annotations
 import ast
 import json
 import os
-from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
+from typing import Any, Optional
+from collections.abc import Iterable
 
 
 FSM_FLOW_FILENAME = "agent_fsm_flows.json"
@@ -71,7 +72,7 @@ def _is_states_group(node: ast.ClassDef) -> bool:
 
 def collect_state_groups(
     project_root: str,
-) -> Dict[str, Dict[str, Any]]:
+) -> dict[str, dict[str, Any]]:
     """Return ``{full_name → {state_class}}`` for every ``StatesGroup`` field.
 
     ``full_name`` is ``ClassName.field_name`` so it matches what the
@@ -79,10 +80,10 @@ def collect_state_groups(
     is a stub the rest of the pipeline fills in — entered_by /
     consumed_by lists start empty.
     """
-    out: Dict[str, Dict[str, Any]] = {}
+    out: dict[str, dict[str, Any]] = {}
     for full in _iter_python_files(project_root):
         try:
-            with open(full, "r", encoding="utf-8") as fh:
+            with open(full, encoding="utf-8") as fh:
                 source = fh.read()
         except OSError:
             continue
@@ -99,7 +100,7 @@ def collect_state_groups(
             for stmt in node.body:
                 # ``waiting_user_id = State()``  → ast.Assign
                 # ``waiting_user_id: State = State()``  → ast.AnnAssign
-                targets: List[ast.AST] = []
+                targets: list[ast.AST] = []
                 if isinstance(stmt, ast.Assign):
                     targets = list(stmt.targets)
                 elif isinstance(stmt, ast.AnnAssign) and stmt.target is not None:
@@ -156,7 +157,7 @@ def _state_ref_from_arg(arg: ast.AST) -> Optional[str]:
     return f"{arg.value.id}.{arg.attr}"
 
 
-def _f_data_filter(dec: ast.Call) -> Optional[Tuple[str, str]]:
+def _f_data_filter(dec: ast.Call) -> Optional[tuple[str, str]]:
     """If decorator filters on ``F.data``, return ``(kind, value)``.
 
     ``kind`` is ``"exact"`` or ``"prefix"``. Returns ``None`` for any
@@ -201,7 +202,7 @@ def _decorator_filter_summary(dec: ast.Call) -> Optional[str]:
     sees what else gates the handler. ``None`` when only the state
     ref was passed.
     """
-    parts: List[str] = []
+    parts: list[str] = []
     for arg in dec.args:
         if _state_ref_from_arg(arg) is not None:
             continue
@@ -218,14 +219,14 @@ def _decorator_filter_summary(dec: ast.Call) -> Optional[str]:
 # set_state detection
 # ----------------------------------------------------------------------
 
-def _set_state_targets(func_body: List[ast.AST]) -> List[str]:
+def _set_state_targets(func_body: list[ast.AST]) -> list[str]:
     """Return every ``X.y`` reference passed to a ``state.set_state(...)``
     call inside ``func_body``.
 
     Catches both ``state.set_state(...)`` and ``await state.set_state(...)``.
     Ignores dynamic / non-attribute arguments.
     """
-    out: List[str] = []
+    out: list[str] = []
     for stmt in func_body:
         for sub in ast.walk(stmt):
             if not isinstance(sub, ast.Call):
@@ -247,7 +248,7 @@ def _set_state_targets(func_body: List[ast.AST]) -> List[str]:
 # Build
 # ----------------------------------------------------------------------
 
-def collect_fsm_flow(project_root: str) -> Dict[str, Dict[str, Any]]:
+def collect_fsm_flow(project_root: str) -> dict[str, dict[str, Any]]:
     """Build the full ``{state_full_name → record}`` index in one pass."""
     flows = collect_state_groups(project_root)
     if not flows:
@@ -255,7 +256,7 @@ def collect_fsm_flow(project_root: str) -> Dict[str, Dict[str, Any]]:
 
     for full in _iter_python_files(project_root):
         try:
-            with open(full, "r", encoding="utf-8") as fh:
+            with open(full, encoding="utf-8") as fh:
                 source = fh.read()
         except OSError:
             continue
@@ -283,7 +284,7 @@ def collect_fsm_flow(project_root: str) -> Dict[str, Dict[str, Any]]:
                         break
                 if state_arg is None or state_arg not in flows:
                     continue
-                rec: Dict[str, Any] = {
+                rec: dict[str, Any] = {
                     "handler": node.name,
                     "file": rel,
                     "line": node.lineno,
@@ -333,7 +334,7 @@ def collect_fsm_flow(project_root: str) -> Dict[str, Dict[str, Any]]:
     return flows
 
 
-def write_fsm_flow(project_root: str, index: Dict[str, Dict[str, Any]]) -> str:
+def write_fsm_flow(project_root: str, index: dict[str, dict[str, Any]]) -> str:
     out_path = os.path.join(project_root, FSM_FLOW_FILENAME)
     ordered = {k: index[k] for k in sorted(index)}
     with open(out_path, "w", encoding="utf-8") as fh:
@@ -347,9 +348,9 @@ def write_fsm_flow(project_root: str, index: Dict[str, Dict[str, Any]]) -> str:
 # ----------------------------------------------------------------------
 
 def trace_fsm_flow(
-    index: Dict[str, Dict[str, Any]],
+    index: dict[str, dict[str, Any]],
     state: str,
-) -> Optional[Dict[str, Any]]:
+) -> Optional[dict[str, Any]]:
     """Resolve a state name to its flow record.
 
     Accepts both the full form (``AddStaffState.waiting_user_id``) and
@@ -367,8 +368,8 @@ def trace_fsm_flow(
     return None
 
 
-def _shallow(record: Dict[str, Any], full_name: str) -> Dict[str, Any]:
-    out: Dict[str, Any] = {"state": full_name}
+def _shallow(record: dict[str, Any], full_name: str) -> dict[str, Any]:
+    out: dict[str, Any] = {"state": full_name}
     out.update({k: list(v) if isinstance(v, list) else dict(v)
                 for k, v in record.items()})
     return out

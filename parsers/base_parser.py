@@ -1,13 +1,12 @@
 from abc import ABC, abstractmethod
-from typing import Dict, List, Type
 import logging
 import os
 
 class BaseParser(ABC):
     """Abstract base class for all language-specific and infrastructure parsers."""
 
-    _ext_registry: Dict[str, 'BaseParser'] = {}
-    _file_registry: Dict[str, 'BaseParser'] = {}
+    _ext_registry: dict[str, 'BaseParser'] = {}
+    _file_registry: dict[str, 'BaseParser'] = {}
 
     @classmethod
     def __init_subclass__(cls, **kwargs):
@@ -44,12 +43,12 @@ class BaseParser(ABC):
         return set(cls._file_registry.keys())
 
     @abstractmethod
-    def extract(self, file_path: str) -> Dict[str, List[str]]:
+    def extract(self, file_path: str) -> dict[str, list[str]]:
         pass
 
     def _read_file(self, file_path: str) -> str:
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, encoding='utf-8') as f:
                 return f.read()
         except Exception as e:
             logging.warning(f"Failed to read {file_path}: {e}")

@@ -1,6 +1,5 @@
 import re
 import logging
-from typing import Dict, List
 
 class FileParser:
     """
@@ -9,14 +8,14 @@ class FileParser:
     """
 
     @staticmethod
-    def parse(file_path: str, ext: str) -> Dict[str, List[str]]:
+    def parse(file_path: str, ext: str) -> dict[str, list[str]]:
         result = {
             "exports": [],       # Classes, functions, interfaces
             "dependencies": []   # Imports, includes, hooks
         }
 
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, encoding='utf-8') as f:
                 content = f.read()
         except Exception as e:
             logging.warning(f"Failed to read {file_path}: {e}")

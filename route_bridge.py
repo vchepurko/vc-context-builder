@@ -33,7 +33,8 @@ import ast
 import json
 import os
 import re
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Optional
+from collections.abc import Iterable
 
 
 ROUTES_FILENAME = "agent_routes.json"
@@ -83,16 +84,16 @@ def _extract_path_arg(call: ast.Call) -> Optional[str]:
     return None
 
 
-def collect_python_routes(project_root: str) -> List[Dict[str, Any]]:
+def collect_python_routes(project_root: str) -> list[dict[str, Any]]:
     """Return every route decorator we can detect.
 
     Each record: ``{path, method, handler, file, line}``. ``method``
     is upper-cased (``GET`` / ``POST`` / ...).
     """
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     for full in _iter_python_files(project_root):
         try:
-            with open(full, "r", encoding="utf-8") as fh:
+            with open(full, encoding="utf-8") as fh:
                 source = fh.read()
         except OSError:
             continue
@@ -178,7 +179,7 @@ def _line_for(source: str, offset: int) -> int:
     return source.count("\n", 0, offset) + 1
 
 
-def collect_js_calls(project_root: str) -> List[Dict[str, Any]]:
+def collect_js_calls(project_root: str) -> list[dict[str, Any]]:
     """Return every JS/TS call site that looks like an HTTP request.
 
     Each record: ``{file, line, raw, prefix, verb}``. ``prefix`` is
@@ -186,10 +187,10 @@ def collect_js_calls(project_root: str) -> List[Dict[str, Any]]:
     lowercase HTTP verb when we picked it from a ``.get/.post/...``
     call, otherwise ``"fetch"``.
     """
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     for full in _iter_js_files(project_root):
         try:
-            with open(full, "r", encoding="utf-8") as fh:
+            with open(full, encoding="utf-8") as fh:
                 source = fh.read()
         except OSError:
             continue
@@ -250,9 +251,9 @@ def _normalise_for_match(prefix: str) -> str:
 
 
 def match_calls_to_routes(
-    routes: List[Dict[str, Any]],
-    js_calls: List[Dict[str, Any]],
-) -> Dict[str, Dict[str, Any]]:
+    routes: list[dict[str, Any]],
+    js_calls: list[dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
     """Build the ``agent_routes.json`` payload.
 
     Strategy: for each JS call, scan the route list and pick the route
@@ -260,11 +261,11 @@ def match_calls_to_routes(
     verb — bare ``fetch`` matches any verb).
     """
     # Pre-compile route patterns once.
-    compiled: List[Tuple[Dict[str, Any], "re.Pattern[str]"]] = [
+    compiled: list[tuple[dict[str, Any], re.Pattern[str]]] = [
         (r, re.compile(_route_to_pattern(r["path"]))) for r in routes
     ]
     # Build initial route entries.
-    table: Dict[str, Dict[str, Any]] = {}
+    table: dict[str, dict[str, Any]] = {}
     for r in routes:
         # Disambiguate by method when the same path serves multiple verbs.
         key = r["path"]
@@ -279,7 +280,7 @@ def match_calls_to_routes(
         }
 
     # Build a parallel key map so we can re-find the entry after match.
-    def _lookup_key(route: Dict[str, Any]) -> str:
+    def _lookup_key(route: dict[str, Any]) -> str:
         # Prefer plain path; fall back to method-prefixed.
         if route["path"] in table and table[route["path"]]["handler"] == route["handler"]:
             return route["path"]
@@ -313,7 +314,7 @@ def match_calls_to_routes(
 # Build entry point
 # ----------------------------------------------------------------------
 
-def build_route_index(project_root: str) -> Dict[str, Dict[str, Any]]:
+def build_route_index(project_root: str) -> dict[str, dict[str, Any]]:
     routes = collect_python_routes(project_root)
     js_calls = collect_js_calls(project_root)
     table = match_calls_to_routes(routes, js_calls)
@@ -335,7 +336,7 @@ def build_route_index(project_root: str) -> Dict[str, Dict[str, Any]]:
     return table
 
 
-def write_route_index(project_root: str, index: Dict[str, Any]) -> str:
+def write_route_index(project_root: str, index: dict[str, Any]) -> str:
     out_path = os.path.join(project_root, ROUTES_FILENAME)
     ordered = {k: index[k] for k in sorted(index)}
     with open(out_path, "w", encoding="utf-8") as fh:
@@ -348,7 +349,7 @@ def write_route_index(project_root: str, index: Dict[str, Any]) -> str:
 # Reverse query helpers (used by QueryEngine)
 # ----------------------------------------------------------------------
 
-def find_route_for_path(index: Dict[str, Dict[str, Any]], path: str) -> Optional[Dict[str, Any]]:
+def find_route_for_path(index: dict[str, dict[str, Any]], path: str) -> Optional[dict[str, Any]]:
     """Return the route record for a given URL path (or method-prefixed key).
 
     Lookup order: exact key → bare path → first method-prefixed match.
@@ -372,7 +373,7 @@ def find_route_for_path(index: Dict[str, Dict[str, Any]], path: str) -> Optional
     return None
 
 
-def callers_for_route(index: Dict[str, Dict[str, Any]], path: str) -> List[Dict[str, Any]]:
+def callers_for_route(index: dict[str, dict[str, Any]], path: str) -> list[dict[str, Any]]:
     """Flat list of every call-site that hits ``path`` — JS *and* Python.
 
     Each record carries a ``lang`` field (``"js"`` / ``"python"``) so
@@ -383,7 +384,7 @@ def callers_for_route(index: Dict[str, Dict[str, Any]], path: str) -> List[Dict[
     entry = find_route_for_path(index, path)
     if entry is None:
         return []
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     for c in entry.get("callers_js") or ():
         rec = dict(c)
         rec["lang"] = "js"
@@ -395,10 +396,10 @@ def callers_for_route(index: Dict[str, Dict[str, Any]], path: str) -> List[Dict[
     return out
 
 
-def route_for_js_file(index: Dict[str, Dict[str, Any]], file_path: str) -> List[Dict[str, Any]]:
+def route_for_js_file(index: dict[str, dict[str, Any]], file_path: str) -> list[dict[str, Any]]:
     """Every route entry whose JS callers include ``file_path``."""
     file_path = file_path.replace(os.sep, "/")
-    out: List[Dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
     for path, entry in index.items():
         for c in entry.get("callers_js") or ():
             if c.get("file") == file_path:

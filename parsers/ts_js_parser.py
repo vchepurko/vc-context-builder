@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import os
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 
 from parsers.base_parser import BaseParser
 
@@ -144,7 +144,7 @@ class TsJsParser(BaseParser):
 
     extensions = ['.js', '.ts', '.jsx', '.tsx', '.mjs', '.cjs']
 
-    def extract(self, file_path: str) -> Dict[str, Any]:
+    def extract(self, file_path: str) -> dict[str, Any]:
         content = self._read_file(file_path)
         if not content:
             return {"exports": [], "dependencies": []}
@@ -156,7 +156,7 @@ class TsJsParser(BaseParser):
         register_sites = list(_RE_EXPRESS_REG.finditer(content))
         scrubbed = _strip_comments(content)
 
-        exports: List[Dict[str, Any]] = []
+        exports: list[dict[str, Any]] = []
         seen: set = set()
 
         for entry in self._iter_decls(scrubbed):
@@ -286,7 +286,7 @@ class TsJsParser(BaseParser):
 # ----------------------------------------------------------------------
 
 def _detect_role(
-    exp: Dict[str, Any],
+    exp: dict[str, Any],
     ext: str,
     norm_path: str,
     register_sites,
@@ -375,7 +375,7 @@ def _strip_comments(text: str) -> str:
     Newlines inside block comments survive verbatim so line counts
     don't drift either.
     """
-    out: List[str] = list(text)
+    out: list[str] = list(text)
     i = 0
     n = len(text)
     in_str: Optional[str] = None
@@ -417,13 +417,13 @@ def _strip_comments(text: str) -> str:
     return "".join(out)
 
 
-def _index_jsdoc_blocks(text: str) -> List[Tuple[int, int, str]]:
+def _index_jsdoc_blocks(text: str) -> list[tuple[int, int, str]]:
     """Pre-index all `/** ... */` blocks: ``[(start, end, body), ...]``.
 
     Stored against the *original* (un-stripped) text so we can still
     locate the block immediately preceding a declaration.
     """
-    out: List[Tuple[int, int, str]] = []
+    out: list[tuple[int, int, str]] = []
     for m in _RE_JSDOC.finditer(text):
         out.append((m.start(), m.end(), m.group(1)))
     return out
@@ -431,13 +431,13 @@ def _index_jsdoc_blocks(text: str) -> List[Tuple[int, int, str]]:
 
 def _jsdoc_for_offset(
     text: str,
-    jsdoc_index: List[Tuple[int, int, str]],
+    jsdoc_index: list[tuple[int, int, str]],
     decl_offset: int,
 ) -> Optional[str]:
     """If a JSDoc block ends *immediately above* ``decl_offset`` (only
     whitespace between), return the cleaned first non-empty line.
     """
-    candidate: Optional[Tuple[int, int, str]] = None
+    candidate: Optional[tuple[int, int, str]] = None
     for start, end, body in jsdoc_index:
         if end > decl_offset:
             break
@@ -474,7 +474,7 @@ def _clean_jsdoc(body: str) -> Optional[str]:
 # Brace / expression scanning
 # ----------------------------------------------------------------------
 
-def _balance_braces(text: str, start: int) -> Tuple[str, int]:
+def _balance_braces(text: str, start: int) -> tuple[str, int]:
     """``text[start]`` must be ``{``. Return ``(body, end_index)`` where
     ``body`` is the slice between the opening ``{`` and the matching
     ``}`` (exclusive on both ends), and ``end_index`` points one past

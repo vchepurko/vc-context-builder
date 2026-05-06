@@ -21,7 +21,7 @@ import json
 import os
 import subprocess
 import sys
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 # Make sibling imports work whether invoked as
 # ``python3 .ai-context/cli.py ...`` or via the bin wrapper.
@@ -41,7 +41,7 @@ def _emit_json(payload: Any) -> None:
     sys.stdout.write("\n")
 
 
-def _print_symbol(name: str, entry: Dict[str, Any]) -> None:
+def _print_symbol(name: str, entry: dict[str, Any]) -> None:
     print(f"{name}")
     for key in ("file", "kind", "params", "role"):
         if entry.get(key):
@@ -57,7 +57,7 @@ def _print_symbol(name: str, entry: Dict[str, Any]) -> None:
         print(f"  test: {test.get('test_file')}{suffix}  ({test.get('test_function')})")
 
 
-def _print_callers(symbol: str, callers: List[Dict[str, str]]) -> None:
+def _print_callers(symbol: str, callers: list[dict[str, str]]) -> None:
     if not callers:
         print(f"No callers found for {symbol}.")
         return
@@ -67,7 +67,7 @@ def _print_callers(symbol: str, callers: List[Dict[str, str]]) -> None:
         print(f"  {entry['file']}  [{kind}]")
 
 
-def _print_role(role: str, names: List[str]) -> None:
+def _print_role(role: str, names: list[str]) -> None:
     if not names:
         print(f"No symbols tagged with role '{role}'.")
         return
@@ -76,7 +76,7 @@ def _print_role(role: str, names: List[str]) -> None:
         print(f"  {n}")
 
 
-def _print_module(folder: str, summary: Dict[str, Any]) -> None:
+def _print_module(folder: str, summary: dict[str, Any]) -> None:
     print(f"Module: {summary.get('directory') or folder}")
     files = summary.get("files") or {}
     if not files:
@@ -100,7 +100,7 @@ def _print_module(folder: str, summary: Dict[str, Any]) -> None:
             print(line)
 
 
-def _print_roles(counts: Dict[str, int]) -> None:
+def _print_roles(counts: dict[str, int]) -> None:
     if not counts:
         print("No roles indexed.")
         return
@@ -109,7 +109,7 @@ def _print_roles(counts: Dict[str, int]) -> None:
         print(f"  {role.ljust(width)}  {counts[role]}")
 
 
-def _print_modules(modules: List[str]) -> None:
+def _print_modules(modules: list[str]) -> None:
     if not modules:
         print("No modules indexed.")
         return
@@ -209,12 +209,12 @@ def cmd_build(args: argparse.Namespace) -> int:
 # Feature A — convention linter
 # ----------------------------------------------------------------------
 
-def _print_violations(violations: List[Dict[str, Any]]) -> None:
+def _print_violations(violations: list[dict[str, Any]]) -> None:
     if not violations:
         print("No violations.")
         return
     # Group by rule_id for readability.
-    by_rule: Dict[str, List[Dict[str, Any]]] = {}
+    by_rule: dict[str, list[dict[str, Any]]] = {}
     for v in violations:
         by_rule.setdefault(v["rule_id"], []).append(v)
     for rule_id in sorted(by_rule):
@@ -285,7 +285,7 @@ def cmd_coverage(args: argparse.Namespace) -> int:
 # Feature C — route bridge
 # ----------------------------------------------------------------------
 
-def _print_route(entry: Dict[str, Any]) -> None:
+def _print_route(entry: dict[str, Any]) -> None:
     print(f"  path:    {entry.get('path')}")
     print(f"  method:  {entry.get('method')}")
     print(f"  handler: {entry.get('handler')}")
@@ -415,7 +415,7 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: Optional[list[str]] = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
     try:

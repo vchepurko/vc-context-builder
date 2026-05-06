@@ -2,7 +2,6 @@ import os
 import sys
 import json
 import logging
-from typing import Dict, List, Set
 
 # Ensure sibling modules (`symbols`, `parsers`) resolve when this script is
 # invoked from the project root via `python3 .ai-context/agent_map.py`.
@@ -60,7 +59,7 @@ class ContextBuilder:
         self.callbacks_filename = CALLBACKS_FILENAME
         self.fsm_flow_filename = FSM_FLOW_FILENAME
         self.readme_filename = 'AGENT_README.md'
-        self.processed_modules: List[str] = []
+        self.processed_modules: list[str] = []
 
         # Top-level project dirs that look like packages — used to prune
         # stdlib + third-party noise from dependency lists.
@@ -68,7 +67,7 @@ class ContextBuilder:
 
         # One-shot AST scan: every callable name registered as a
         # scheduler job, so the parser can tag them later.
-        self.scheduler_jobs: Set[str] = extract_scheduler_jobs_from_codebase(
+        self.scheduler_jobs: set[str] = extract_scheduler_jobs_from_codebase(
             self.root_dir, self.ignore_dirs
         )
         if self.scheduler_jobs:
@@ -135,7 +134,7 @@ class ContextBuilder:
                 logging.info(f"Updating context map for: {root}")
                 self._build_module_map(root, valid_files)
 
-    def _build_module_map(self, dir_path: str, files: List[str]) -> None:
+    def _build_module_map(self, dir_path: str, files: list[str]) -> None:
         map_file_path = os.path.join(dir_path, self.map_filename)
         rendered = {}
 
@@ -193,10 +192,10 @@ class ContextBuilder:
             with open(map_file_path, 'w', encoding='utf-8') as f:
                 json.dump(module_data, f, indent=2, ensure_ascii=False)
                 f.write("\n")
-        except IOError as e:
+        except OSError as e:
             logging.error(f"Failed to write {map_file_path}: {e}")
 
-    def _apply_custom_roles_to_exports(self, data: Dict, file_path: str) -> None:
+    def _apply_custom_roles_to_exports(self, data: dict, file_path: str) -> None:
         """Walk every export in ``data`` and apply user-declared rules.
 
         ``data`` is mutated in-place: each export may gain (or have its
@@ -218,7 +217,7 @@ class ContextBuilder:
         # for the body-level matchers when the parser didn't stash a
         # private `_body` field.
         try:
-            with open(file_path, "r", encoding="utf-8") as fh:
+            with open(file_path, encoding="utf-8") as fh:
                 source_text = fh.read()
         except OSError:
             source_text = ""
@@ -264,7 +263,7 @@ class ContextBuilder:
         self._generate_agent_sop()
         logging.info("Context build complete. Agent SOP is ready.")
 
-    def _needs_update(self, dir_path: str, files: List[str]) -> bool:
+    def _needs_update(self, dir_path: str, files: list[str]) -> bool:
         map_file_path = os.path.join(dir_path, self.map_filename)
 
         if not os.path.exists(map_file_path):
@@ -280,7 +279,7 @@ class ContextBuilder:
                     return True
 
             # 2. ФИКС: Проверяем, не удалили ли (или добавили) файлы
-            with open(map_file_path, 'r', encoding='utf-8') as f:
+            with open(map_file_path, encoding='utf-8') as f:
                 old_data = json.load(f)
                 old_files = set(old_data.get("files", {}).keys())
                 current_files = set(files)
@@ -311,7 +310,7 @@ class ContextBuilder:
                 continue
             mp = os.path.join(cur, self.map_filename)
             try:
-                with open(mp, 'r', encoding='utf-8') as fh:
+                with open(mp, encoding='utf-8') as fh:
                     yield mp, json.load(fh)
             except (OSError, json.JSONDecodeError) as e:
                 logging.warning(f"Skipping unreadable map {mp}: {e}")
@@ -334,8 +333,8 @@ class ContextBuilder:
         # Aggregate roles across every module map. We re-read maps from
         # disk (vs holding state in memory) so this works even when most
         # directories were skipped via the mtime cache.
-        roles: Dict[str, List[str]] = {}
-        seen_per_role: Dict[str, set] = {}
+        roles: dict[str, list[str]] = {}
+        seen_per_role: dict[str, set] = {}
 
         for _mp, data in self._iter_all_module_maps():
             files = data.get("files", {})
@@ -384,7 +383,7 @@ class ContextBuilder:
             with open(root_map_path, 'w', encoding='utf-8') as f:
                 json.dump(root_data, f, indent=2)
                 f.write("\n")
-        except IOError as e:
+        except OSError as e:
             logging.error(f"Failed to write root map: {e}")
 
     def _build_symbol_index(self) -> None:
@@ -396,7 +395,7 @@ class ContextBuilder:
         definition over a re-export). Tie-break alphabetically on file
         path to keep builds deterministic.
         """
-        index: Dict[str, Dict[str, str]] = {}
+        index: dict[str, dict[str, str]] = {}
 
         for _mp, data in self._iter_all_module_maps():
             directory = data.get("directory") or "."
@@ -417,7 +416,7 @@ class ContextBuilder:
                     if not name:
                         continue
 
-                    candidate: Dict[str, str] = {"file": file_rel}
+                    candidate: dict[str, str] = {"file": file_rel}
                     for k in ("kind", "params", "doc", "role"):
                         v = exp.get(k)
                         if v:
@@ -447,7 +446,7 @@ class ContextBuilder:
             logging.info(
                 "Wrote symbol index: %s (%d symbols).", self.symbols_filename, len(ordered)
             )
-        except IOError as e:
+        except OSError as e:
             logging.error(f"Failed to write symbol index: {e}")
 
     # ------------------------------------------------------------------
@@ -461,7 +460,7 @@ class ContextBuilder:
         """
         symbols_path = os.path.join(self.root_dir, self.symbols_filename)
         try:
-            with open(symbols_path, 'r', encoding='utf-8') as fh:
+            with open(symbols_path, encoding='utf-8') as fh:
                 symbols = json.load(fh)
         except (OSError, json.JSONDecodeError) as e:
             logging.warning(f"Skipping test index: {e}")
@@ -629,7 +628,7 @@ class ContextBuilder:
             with open(readme_path, 'w', encoding='utf-8') as f:
                 f.write(content)
             logging.info(f"Generated Agent SOP: {self.readme_filename}")
-        except IOError as e:
+        except OSError as e:
             logging.error(f"Failed to write {self.readme_filename}: {e}")
 
 if __name__ == "__main__":

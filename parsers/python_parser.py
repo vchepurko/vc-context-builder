@@ -1,5 +1,5 @@
 import ast
-from typing import Dict, List, Optional, Set
+from typing import Optional
 
 from parsers.base_parser import BaseParser
 
@@ -39,8 +39,8 @@ class PythonParser(BaseParser):
     def extract(
         self,
         file_path: str,
-        scheduler_jobs: Optional[Set[str]] = None,
-    ) -> Dict[str, List]:
+        scheduler_jobs: Optional[set[str]] = None,
+    ) -> dict[str, list]:
         """Parse a Python file.
 
         ``scheduler_jobs`` — set of callable names registered via
@@ -62,7 +62,7 @@ class PythonParser(BaseParser):
         file_role = path_role(file_path)
         scheduler_jobs = scheduler_jobs or set()
 
-        exports: List[Dict[str, str]] = []
+        exports: list[dict[str, str]] = []
         deps: set = set()
         seen: set = set()
 
@@ -99,15 +99,15 @@ class PythonParser(BaseParser):
     def _summarise(
         node,
         file_role: Optional[str] = None,
-        scheduler_jobs: Optional[Set[str]] = None,
+        scheduler_jobs: Optional[set[str]] = None,
         source: Optional[str] = None,
-    ) -> Dict[str, str]:
+    ) -> dict[str, str]:
         kind = (
             "class" if isinstance(node, ast.ClassDef)
             else "async-func" if isinstance(node, ast.AsyncFunctionDef)
             else "func"
         )
-        out: Dict[str, str] = {"name": node.name, "kind": kind}
+        out: dict[str, str] = {"name": node.name, "kind": kind}
 
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             try:

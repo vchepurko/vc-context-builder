@@ -1,5 +1,4 @@
 import re
-from typing import Dict, List
 from parsers.base_parser import BaseParser
 
 class DevOpsParser(BaseParser):
@@ -8,7 +7,7 @@ class DevOpsParser(BaseParser):
     extensions = ['.yml', '.yaml']
     filenames = ['Dockerfile', 'docker-compose.yml', 'Makefile']
 
-    def extract(self, file_path: str) -> Dict[str, List[str]]:
+    def extract(self, file_path: str) -> dict[str, list[str]]:
         content = self._read_file(file_path)
 
         exports = []

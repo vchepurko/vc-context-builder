@@ -20,7 +20,7 @@ from __future__ import annotations
 import ast
 import os
 import re
-from typing import Optional, Set
+from typing import Optional
 
 
 # ---------------------------------------------------------------------------
@@ -348,8 +348,8 @@ def _first_arg_callable_name(call: ast.Call) -> Optional[str]:
 
 def extract_scheduler_jobs_from_codebase(
     root_dir: str,
-    ignore_dirs: Optional[Set[str]] = None,
-) -> Set[str]:
+    ignore_dirs: Optional[set[str]] = None,
+) -> set[str]:
     """Single-pass AST scan of every ``.py`` file under ``root_dir``.
 
     Collects the set of callable *names* registered through any
@@ -361,7 +361,7 @@ def extract_scheduler_jobs_from_codebase(
         "dist", "build", ".venv", "venv", ".idea", ".vscode",
     }
 
-    found: Set[str] = set()
+    found: set[str] = set()
 
     for cur, dirs, files in os.walk(root_dir):
         dirs[:] = [d for d in dirs if d not in ignore]
@@ -370,7 +370,7 @@ def extract_scheduler_jobs_from_codebase(
                 continue
             full = os.path.join(cur, f)
             try:
-                with open(full, "r", encoding="utf-8") as fp:
+                with open(full, encoding="utf-8") as fp:
                     src = fp.read()
             except OSError:
                 continue

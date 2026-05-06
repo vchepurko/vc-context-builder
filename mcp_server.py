@@ -22,7 +22,8 @@ import json
 import os
 import sys
 import traceback
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Optional
+from collections.abc import Callable
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 if _HERE not in sys.path:
@@ -40,7 +41,7 @@ PROTOCOL_VERSION = "2024-11-05"
 # Tool registry
 # ----------------------------------------------------------------------
 
-def _tool_specs() -> List[Dict[str, Any]]:
+def _tool_specs() -> list[dict[str, Any]]:
     """JSON-Schema descriptors for the six exposed tools."""
     return [
         {
@@ -209,7 +210,7 @@ class _Dispatcher:
 
     def __init__(self, engine: QueryEngine) -> None:
         self.engine = engine
-        self._handlers: Dict[str, Callable[[Dict[str, Any]], Any]] = {
+        self._handlers: dict[str, Callable[[dict[str, Any]], Any]] = {
             "find_symbol":       self._find_symbol,
             "find_by_role":      self._find_by_role,
             "who_calls":         self._who_calls,
@@ -224,46 +225,46 @@ class _Dispatcher:
             "trace_fsm_flow":    self._trace_fsm_flow,
         }
 
-    def call(self, name: str, args: Dict[str, Any]) -> Any:
+    def call(self, name: str, args: dict[str, Any]) -> Any:
         handler = self._handlers.get(name)
         if handler is None:
             raise ValueError(f"Unknown tool: {name}")
         return handler(args or {})
 
-    def _find_symbol(self, args: Dict[str, Any]) -> Any:
+    def _find_symbol(self, args: dict[str, Any]) -> Any:
         return self.engine.find_symbol(str(args.get("name", "")))
 
-    def _find_by_role(self, args: Dict[str, Any]) -> Any:
+    def _find_by_role(self, args: dict[str, Any]) -> Any:
         return self.engine.find_by_role(str(args.get("role", "")))
 
-    def _who_calls(self, args: Dict[str, Any]) -> Any:
+    def _who_calls(self, args: dict[str, Any]) -> Any:
         return self.engine.who_calls(str(args.get("symbol", "")))
 
-    def _summarise_module(self, args: Dict[str, Any]) -> Any:
+    def _summarise_module(self, args: dict[str, Any]) -> Any:
         return self.engine.summarise_module(str(args.get("folder", "")))
 
-    def _list_roles(self, args: Dict[str, Any]) -> Any:
+    def _list_roles(self, args: dict[str, Any]) -> Any:
         return self.engine.list_roles()
 
-    def _list_modules(self, args: Dict[str, Any]) -> Any:
+    def _list_modules(self, args: dict[str, Any]) -> Any:
         return self.engine.list_modules()
 
-    def _lint_violations(self, args: Dict[str, Any]) -> Any:
+    def _lint_violations(self, args: dict[str, Any]) -> Any:
         return self.engine.lint_violations()
 
-    def _find_test(self, args: Dict[str, Any]) -> Any:
+    def _find_test(self, args: dict[str, Any]) -> Any:
         return self.engine.find_test(str(args.get("symbol", "")))
 
-    def _route_callers(self, args: Dict[str, Any]) -> Any:
+    def _route_callers(self, args: dict[str, Any]) -> Any:
         return self.engine.route_callers(str(args.get("path", "")))
 
-    def _route_for_js_call(self, args: Dict[str, Any]) -> Any:
+    def _route_for_js_call(self, args: dict[str, Any]) -> Any:
         return self.engine.route_for_js_call(str(args.get("file_path", "")))
 
-    def _find_callback(self, args: Dict[str, Any]) -> Any:
+    def _find_callback(self, args: dict[str, Any]) -> Any:
         return self.engine.find_callback(str(args.get("data", "")))
 
-    def _trace_fsm_flow(self, args: Dict[str, Any]) -> Any:
+    def _trace_fsm_flow(self, args: dict[str, Any]) -> Any:
         return self.engine.trace_fsm_flow(str(args.get("state", "")))
 
 
@@ -271,18 +272,18 @@ class _Dispatcher:
 # JSON-RPC framing
 # ----------------------------------------------------------------------
 
-def _ok(req_id: Any, result: Any) -> Dict[str, Any]:
+def _ok(req_id: Any, result: Any) -> dict[str, Any]:
     return {"jsonrpc": "2.0", "id": req_id, "result": result}
 
 
-def _err(req_id: Any, code: int, message: str, data: Any = None) -> Dict[str, Any]:
-    error: Dict[str, Any] = {"code": code, "message": message}
+def _err(req_id: Any, code: int, message: str, data: Any = None) -> dict[str, Any]:
+    error: dict[str, Any] = {"code": code, "message": message}
     if data is not None:
         error["data"] = data
     return {"jsonrpc": "2.0", "id": req_id, "error": error}
 
 
-def _content_text(payload: Any) -> Dict[str, Any]:
+def _content_text(payload: Any) -> dict[str, Any]:
     """Wrap a Python object as MCP tool content (single text block)."""
     text = json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=False)
     return {"content": [{"type": "text", "text": text}]}
@@ -292,7 +293,7 @@ def _content_text(payload: Any) -> Dict[str, Any]:
 # Method handlers
 # ----------------------------------------------------------------------
 
-def handle_request(req: Dict[str, Any], dispatcher: _Dispatcher) -> Optional[Dict[str, Any]]:
+def handle_request(req: dict[str, Any], dispatcher: _Dispatcher) -> Optional[dict[str, Any]]:
     """Translate one JSON-RPC request into a response.
 
     Returns ``None`` for notifications (requests without an ``id``) —
@@ -398,7 +399,7 @@ def serve(project_root: str, stdin=None, stdout=None) -> int:
     return 0
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: Optional[list[str]] = None) -> int:
     argv = argv if argv is not None else sys.argv[1:]
     # Accept --root <path> for symmetry with the CLI; default cwd.
     project_root = os.getcwd()

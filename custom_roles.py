@@ -40,7 +40,7 @@ import json
 import os
 import re
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 
 CONFIG_RELATIVE_PATH = os.path.join(".vc-context", "roles.json")
@@ -68,14 +68,14 @@ class CustomRole:
     match_call: Optional[re.Pattern] = None
     match_kind: Optional[str] = None
     # Raw source patterns — kept around purely for debugging / tests.
-    raw: Dict[str, Any] = field(default_factory=dict)
+    raw: dict[str, Any] = field(default_factory=dict)
 
 
 # ----------------------------------------------------------------------
 # Config loading
 # ----------------------------------------------------------------------
 
-def load_custom_roles(project_root: str) -> List[CustomRole]:
+def load_custom_roles(project_root: str) -> list[CustomRole]:
     """Return the list of declared custom roles.
 
     Missing config / malformed JSON / unexpected shape → empty list.
@@ -85,7 +85,7 @@ def load_custom_roles(project_root: str) -> List[CustomRole]:
     if not os.path.isfile(config_path):
         return []
     try:
-        with open(config_path, "r", encoding="utf-8") as fh:
+        with open(config_path, encoding="utf-8") as fh:
             data = json.load(fh)
     except (OSError, json.JSONDecodeError):
         return []
@@ -93,7 +93,7 @@ def load_custom_roles(project_root: str) -> List[CustomRole]:
     if not isinstance(raw_rules, list):
         return []
 
-    out: List[CustomRole] = []
+    out: list[CustomRole] = []
     for r in raw_rules:
         rule = _parse_rule(r)
         if rule is not None:
@@ -161,7 +161,7 @@ def _compile(pattern: Any) -> Optional[re.Pattern]:
 # Glob helper — supports ``**`` and ``{a,b}`` brace alternation
 # ----------------------------------------------------------------------
 
-def _expand_braces(pattern: str) -> List[str]:
+def _expand_braces(pattern: str) -> list[str]:
     """Expand ``{a,b,c}`` alternations into a list of fnmatch globs.
 
     Only handles a single, non-nested brace group — that covers the
@@ -179,7 +179,7 @@ def _expand_braces(pattern: str) -> List[str]:
     parts = [p for p in body.split(",") if p]
     if not parts:
         return [pattern]
-    out: List[str] = []
+    out: list[str] = []
     for p in parts:
         for sub in _expand_braces(head + p + tail):
             out.append(sub)
@@ -234,10 +234,10 @@ def _glob_one(rel: str, pat: str) -> bool:
 # ----------------------------------------------------------------------
 
 def apply_custom_roles(
-    export: Dict[str, Any],
+    export: dict[str, Any],
     file_path: str,
     source_text: str,
-    custom_roles: List[CustomRole],
+    custom_roles: list[CustomRole],
     project_root: Optional[str] = None,
 ) -> Optional[str]:
     """Try every rule against one export. Return the highest-priority
@@ -266,7 +266,7 @@ def apply_custom_roles(
 
 def _rule_matches(
     rule: CustomRole,
-    export: Dict[str, Any],
+    export: dict[str, Any],
     rel_path: str,
     body: str,
     decorators_text: str,
@@ -295,7 +295,7 @@ def _rule_matches(
     return True
 
 
-def _function_body_text(export: Dict[str, Any], source_text: str) -> str:
+def _function_body_text(export: dict[str, Any], source_text: str) -> str:
     """Return the function body slice for regex matching.
 
     The parser may stash the body under ``_body`` (rich case); else we

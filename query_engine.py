@@ -14,7 +14,8 @@ from __future__ import annotations
 
 import json
 import os
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Optional
+from collections.abc import Iterable
 
 
 class QueryEngine:
@@ -52,38 +53,38 @@ class QueryEngine:
 
     def __init__(self, project_root: str = ".") -> None:
         self.project_root = os.path.abspath(project_root)
-        self._root: Optional[Dict[str, Any]] = None
-        self._symbols: Optional[Dict[str, Dict[str, Any]]] = None
+        self._root: Optional[dict[str, Any]] = None
+        self._symbols: Optional[dict[str, dict[str, Any]]] = None
         # Each entry: (rel_dir, parsed_map_json)
-        self._module_maps: Optional[List[Tuple[str, Dict[str, Any]]]] = None
+        self._module_maps: Optional[list[tuple[str, dict[str, Any]]]] = None
         # Reverse-index for who_calls — built once on demand.
-        self._reverse_deps: Optional[Dict[str, List[Dict[str, str]]]] = None
+        self._reverse_deps: Optional[dict[str, list[dict[str, str]]]] = None
         # Optional per-tier caches for the new artifacts. ``None`` =
         # not yet attempted; ``{}`` = read but artifact absent / empty.
-        self._tests: Optional[Dict[str, Any]] = None
-        self._routes: Optional[Dict[str, Dict[str, Any]]] = None
-        self._callbacks: Optional[Dict[str, List[Dict[str, Any]]]] = None
-        self._fsm_flows: Optional[Dict[str, Dict[str, Any]]] = None
+        self._tests: Optional[dict[str, Any]] = None
+        self._routes: Optional[dict[str, dict[str, Any]]] = None
+        self._callbacks: Optional[dict[str, list[dict[str, Any]]]] = None
+        self._fsm_flows: Optional[dict[str, dict[str, Any]]] = None
 
     # ------------------------------------------------------------------
     # Lazy loaders
     # ------------------------------------------------------------------
 
-    def _load_root(self) -> Dict[str, Any]:
+    def _load_root(self) -> dict[str, Any]:
         if self._root is None:
             path = os.path.join(self.project_root, self.ROOT_FILENAME)
-            with open(path, "r", encoding="utf-8") as fh:
+            with open(path, encoding="utf-8") as fh:
                 self._root = json.load(fh)
         return self._root
 
-    def _load_symbols(self) -> Dict[str, Dict[str, Any]]:
+    def _load_symbols(self) -> dict[str, dict[str, Any]]:
         if self._symbols is None:
             path = os.path.join(self.project_root, self.SYMBOLS_FILENAME)
-            with open(path, "r", encoding="utf-8") as fh:
+            with open(path, encoding="utf-8") as fh:
                 self._symbols = json.load(fh)
         return self._symbols
 
-    def _load_tests(self) -> Dict[str, Any]:
+    def _load_tests(self) -> dict[str, Any]:
         """Return ``agent_tests.json`` content (or ``{}`` if missing).
 
         Unlike the root/symbols loaders, a missing artifact is NOT an
@@ -93,24 +94,24 @@ class QueryEngine:
         if self._tests is None:
             path = os.path.join(self.project_root, self.TESTS_FILENAME)
             try:
-                with open(path, "r", encoding="utf-8") as fh:
+                with open(path, encoding="utf-8") as fh:
                     self._tests = json.load(fh)
             except (OSError, json.JSONDecodeError):
                 self._tests = {}
         return self._tests
 
-    def _load_routes(self) -> Dict[str, Dict[str, Any]]:
+    def _load_routes(self) -> dict[str, dict[str, Any]]:
         """Return ``agent_routes.json`` content (or ``{}`` if missing)."""
         if self._routes is None:
             path = os.path.join(self.project_root, self.ROUTES_FILENAME)
             try:
-                with open(path, "r", encoding="utf-8") as fh:
+                with open(path, encoding="utf-8") as fh:
                     self._routes = json.load(fh)
             except (OSError, json.JSONDecodeError):
                 self._routes = {}
         return self._routes
 
-    def _load_callbacks(self) -> Dict[str, List[Dict[str, Any]]]:
+    def _load_callbacks(self) -> dict[str, list[dict[str, Any]]]:
         """Return ``agent_callbacks.json`` content (or ``{}`` if missing).
 
         Same graceful-degradation contract as the other optional
@@ -120,36 +121,36 @@ class QueryEngine:
         if self._callbacks is None:
             path = os.path.join(self.project_root, self.CALLBACKS_FILENAME)
             try:
-                with open(path, "r", encoding="utf-8") as fh:
+                with open(path, encoding="utf-8") as fh:
                     self._callbacks = json.load(fh)
             except (OSError, json.JSONDecodeError):
                 self._callbacks = {}
         return self._callbacks
 
-    def _load_fsm_flows(self) -> Dict[str, Dict[str, Any]]:
+    def _load_fsm_flows(self) -> dict[str, dict[str, Any]]:
         """Return ``agent_fsm_flows.json`` content (or ``{}`` if missing)."""
         if self._fsm_flows is None:
             path = os.path.join(self.project_root, self.FSM_FLOW_FILENAME)
             try:
-                with open(path, "r", encoding="utf-8") as fh:
+                with open(path, encoding="utf-8") as fh:
                     self._fsm_flows = json.load(fh)
             except (OSError, json.JSONDecodeError):
                 self._fsm_flows = {}
         return self._fsm_flows
 
-    def _iter_module_maps(self) -> Iterable[Tuple[str, Dict[str, Any]]]:
+    def _iter_module_maps(self) -> Iterable[tuple[str, dict[str, Any]]]:
         """Yield ``(relative_directory, parsed_map_json)`` for each
         module map under the project root.
         """
         if self._module_maps is None:
-            collected: List[Tuple[str, Dict[str, Any]]] = []
+            collected: list[tuple[str, dict[str, Any]]] = []
             for cur, dirs, files in os.walk(self.project_root):
                 dirs[:] = [d for d in dirs if d not in self.IGNORE_DIRS]
                 if self.MAP_FILENAME not in files:
                     continue
                 map_path = os.path.join(cur, self.MAP_FILENAME)
                 try:
-                    with open(map_path, "r", encoding="utf-8") as fh:
+                    with open(map_path, encoding="utf-8") as fh:
                         data = json.load(fh)
                 except (OSError, json.JSONDecodeError):
                     # Best-effort: a corrupt cache is not a query-time
@@ -193,7 +194,7 @@ class QueryEngine:
     # Public API — one method per RPC
     # ------------------------------------------------------------------
 
-    def find_symbol(self, name: str) -> Optional[Dict[str, Any]]:
+    def find_symbol(self, name: str) -> Optional[dict[str, Any]]:
         """Return the symbol record from ``agent_symbols.json``.
 
         The record carries ``file`` plus whichever of ``kind``, ``params``,
@@ -222,7 +223,7 @@ class QueryEngine:
     # working. Members include the umbrella itself so symbols still
     # tagged with it (e.g. fallback ``aiogram-handler`` for non-message
     # event types) aren't lost.
-    _ROLE_UMBRELLAS: Dict[str, set] = {
+    _ROLE_UMBRELLAS: dict[str, set] = {
         "aiogram-handler": {
             "aiogram-handler",
             "callback-handler",
@@ -233,7 +234,7 @@ class QueryEngine:
         },
     }
 
-    def find_by_role(self, role: str) -> List[str]:
+    def find_by_role(self, role: str) -> list[str]:
         """Return all symbol names tagged with ``role``.
 
         Roles live in ``agent_root.json.roles`` (e.g. ``webhook``,
@@ -249,7 +250,7 @@ class QueryEngine:
         members = self._ROLE_UMBRELLAS.get(role)
         if members is not None:
             seen: set = set()
-            out: List[str] = []
+            out: list[str] = []
             for member in members:
                 for name in roles.get(member) or ():
                     if name not in seen:
@@ -260,7 +261,7 @@ class QueryEngine:
         bucket = roles.get(role) or []
         return list(bucket)
 
-    def who_calls(self, symbol: str) -> List[Dict[str, str]]:
+    def who_calls(self, symbol: str) -> list[dict[str, str]]:
         """Best-effort callers list for ``symbol``.
 
         Heuristic
@@ -289,7 +290,7 @@ class QueryEngine:
                 target_pkg = head
 
         index = self._build_reverse_index()
-        seen: Dict[str, Dict[str, str]] = {}
+        seen: dict[str, dict[str, str]] = {}
 
         # Direct hits on the symbol name.
         for hit in index.get(symbol, []):
@@ -304,7 +305,7 @@ class QueryEngine:
 
         return sorted(seen.values(), key=lambda r: r["file"])
 
-    def summarise_module(self, folder: str) -> Optional[Dict[str, Any]]:
+    def summarise_module(self, folder: str) -> Optional[dict[str, Any]]:
         """Return a tight summary of a folder's ``_module_map.json``.
 
         For each file in the folder we keep the export ``name``, ``kind``,
@@ -323,12 +324,12 @@ class QueryEngine:
         if not os.path.exists(map_path):
             return None
         try:
-            with open(map_path, "r", encoding="utf-8") as fh:
+            with open(map_path, encoding="utf-8") as fh:
                 data = json.load(fh)
         except (OSError, json.JSONDecodeError):
             return None
 
-        slim_files: Dict[str, Any] = {}
+        slim_files: dict[str, Any] = {}
         for fname, fdata in (data.get("files") or {}).items():
             if not isinstance(fdata, dict):
                 slim_files[fname] = fdata
@@ -356,7 +357,7 @@ class QueryEngine:
             "files": slim_files,
         }
 
-    def list_roles(self) -> Dict[str, int]:
+    def list_roles(self) -> dict[str, int]:
         """``role → count`` map across the whole project.
 
         Synthetic umbrella counts (e.g. ``aiogram-handler``) are added
@@ -366,7 +367,7 @@ class QueryEngine:
         """
         root = self._load_root()
         roles = root.get("roles") or {}
-        out: Dict[str, int] = {r: len(names) for r, names in roles.items()}
+        out: dict[str, int] = {r: len(names) for r, names in roles.items()}
         for umbrella, members in self._ROLE_UMBRELLAS.items():
             seen: set = set()
             for m in members:
@@ -380,7 +381,7 @@ class QueryEngine:
                 out[umbrella] = len(seen)
         return out
 
-    def list_modules(self) -> List[str]:
+    def list_modules(self) -> list[str]:
         """All scanned module folders, in the order recorded by the builder."""
         root = self._load_root()
         return list(root.get("modules") or [])
@@ -389,7 +390,7 @@ class QueryEngine:
     # Feature A — convention linter
     # ------------------------------------------------------------------
 
-    def lint_violations(self) -> List[Dict[str, Any]]:
+    def lint_violations(self) -> list[dict[str, Any]]:
         """Run the convention linter (``.vc-context/conventions.json``).
 
         Empty list when the config file is missing — the linter is
@@ -405,7 +406,7 @@ class QueryEngine:
     # Feature B — test linking
     # ------------------------------------------------------------------
 
-    def find_test(self, symbol: str) -> Optional[Dict[str, Any]]:
+    def find_test(self, symbol: str) -> Optional[dict[str, Any]]:
         """Return the test record for ``symbol`` or ``None``.
 
         Reads from the prebuilt ``agent_tests.json`` when available;
@@ -426,7 +427,7 @@ class QueryEngine:
         return find_test_for_symbol(self.project_root, symbol,
                                     symbol_entry.get("file") or "")
 
-    def coverage_stats(self) -> Dict[str, Dict[str, int]]:
+    def coverage_stats(self) -> dict[str, dict[str, int]]:
         """Return per-role coverage counts plus an overall total.
 
         Shape: ``{role_or_'overall': {with_test, total}}``.
@@ -441,7 +442,7 @@ class QueryEngine:
             entry = tests.get(name)
             return isinstance(entry, dict) and bool(entry.get("test_file"))
 
-        role_buckets: Dict[str, Dict[str, int]] = {}
+        role_buckets: dict[str, dict[str, int]] = {}
         for name, entry in symbols.items():
             role = entry.get("role") if isinstance(entry, dict) else None
             if role:
@@ -456,13 +457,13 @@ class QueryEngine:
             if _has_test(name):
                 overall["with_test"] += 1
         # Keep the overall bucket last for stable rendering.
-        ordered: Dict[str, Dict[str, int]] = {
+        ordered: dict[str, dict[str, int]] = {
             r: role_buckets[r] for r in sorted(role_buckets)
         }
         ordered["overall"] = overall
         return ordered
 
-    def _symbols_get(self, name: str) -> Optional[Dict[str, Any]]:
+    def _symbols_get(self, name: str) -> Optional[dict[str, Any]]:
         symbols = self._load_symbols()
         entry = symbols.get(name)
         return dict(entry) if isinstance(entry, dict) else None
@@ -471,7 +472,7 @@ class QueryEngine:
     # Feature C — cross-language route bridge
     # ------------------------------------------------------------------
 
-    def find_route(self, path: str) -> Optional[Dict[str, Any]]:
+    def find_route(self, path: str) -> Optional[dict[str, Any]]:
         """Return the full route record (with ``callers_js``) or ``None``.
 
         Accepts either the bare URL path (``/api/foo``) or a
@@ -480,12 +481,12 @@ class QueryEngine:
         from route_bridge import find_route_for_path  # type: ignore[import-not-found]
         return find_route_for_path(self._load_routes(), path)
 
-    def route_callers(self, path: str) -> List[Dict[str, Any]]:
+    def route_callers(self, path: str) -> list[dict[str, Any]]:
         """JS/TS call-sites for the given route path. Empty when none/missing."""
         from route_bridge import callers_for_route  # type: ignore[import-not-found]
         return callers_for_route(self._load_routes(), path)
 
-    def route_for_js_call(self, file_path: str) -> List[Dict[str, Any]]:
+    def route_for_js_call(self, file_path: str) -> list[dict[str, Any]]:
         """Routes whose ``callers_js`` list mentions ``file_path``."""
         from route_bridge import route_for_js_file  # type: ignore[import-not-found]
         return route_for_js_file(self._load_routes(), file_path)
@@ -494,7 +495,7 @@ class QueryEngine:
     # Feature D — aiogram callback_data resolver
     # ------------------------------------------------------------------
 
-    def find_callback(self, data: str) -> List[Dict[str, Any]]:
+    def find_callback(self, data: str) -> list[dict[str, Any]]:
         """Resolve an aiogram ``callback_data`` string to its handler(s).
 
         Tries an exact lookup first, then falls back to the longest
@@ -508,7 +509,7 @@ class QueryEngine:
     # Feature F — aiogram FSM flow graph
     # ------------------------------------------------------------------
 
-    def trace_fsm_flow(self, state: str) -> Optional[Dict[str, Any]]:
+    def trace_fsm_flow(self, state: str) -> Optional[dict[str, Any]]:
         """Resolve an FSM state to its lifecycle graph.
 
         Accepts the full ``StatesGroup.field`` form or a bare field name
@@ -522,7 +523,7 @@ class QueryEngine:
     # Internal: reverse-dependency index for who_calls
     # ------------------------------------------------------------------
 
-    def _build_reverse_index(self) -> Dict[str, List[Dict[str, str]]]:
+    def _build_reverse_index(self) -> dict[str, list[dict[str, str]]]:
         """Walk every module map once, return ``token → [callers]``.
 
         ``token`` is anything that appears in a file's ``dependencies``
@@ -533,7 +534,7 @@ class QueryEngine:
         if self._reverse_deps is not None:
             return self._reverse_deps
 
-        index: Dict[str, List[Dict[str, str]]] = {}
+        index: dict[str, list[dict[str, str]]] = {}
         for rel_dir, data in self._iter_module_maps():
             base = data.get("directory") or rel_dir or ""
             base = base.replace("\\", "/")

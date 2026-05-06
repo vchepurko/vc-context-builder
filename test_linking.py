@@ -19,8 +19,7 @@ from __future__ import annotations
 import ast
 import json
 import os
-import re
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from typing import Any, Optional
 
 
 TESTS_FILENAME = "agent_tests.json"
@@ -35,7 +34,7 @@ def _basename(file_path: str) -> str:
     return name
 
 
-def _candidate_test_files(project_root: str, basename: str) -> List[str]:
+def _candidate_test_files(project_root: str, basename: str) -> list[str]:
     """All files named ``test_<basename>.py`` anywhere under ``tests/``.
 
     We support nested ``tests/`` subdirectories (e.g.
@@ -45,7 +44,7 @@ def _candidate_test_files(project_root: str, basename: str) -> List[str]:
     tests_dir = os.path.join(project_root, DEFAULT_TESTS_DIR)
     if not os.path.isdir(tests_dir):
         return []
-    out: List[str] = []
+    out: list[str] = []
     for cur, dirs, files in os.walk(tests_dir):
         # Don't descend into junk subtrees.
         dirs[:] = [d for d in dirs if d not in {"__pycache__", ".git"}]
@@ -54,14 +53,14 @@ def _candidate_test_files(project_root: str, basename: str) -> List[str]:
     return out
 
 
-def _scan_test_functions(test_path: str) -> List[Tuple[str, int]]:
+def _scan_test_functions(test_path: str) -> list[tuple[str, int]]:
     """Return ``[(function_name, line)]`` for every ``test_*`` function.
 
     Uses AST so we only catch real definitions (not ``test_X = ...``
     or string mentions). Returns an empty list on parse failure.
     """
     try:
-        with open(test_path, "r", encoding="utf-8") as fh:
+        with open(test_path, encoding="utf-8") as fh:
             source = fh.read()
     except OSError:
         return []
@@ -69,7 +68,7 @@ def _scan_test_functions(test_path: str) -> List[Tuple[str, int]]:
         tree = ast.parse(source)
     except SyntaxError:
         return []
-    out: List[Tuple[str, int]] = []
+    out: list[tuple[str, int]] = []
     # We collect both top-level test_* functions and methods inside
     # `class Test*:` blocks — pytest accepts both styles.
     for node in ast.walk(tree):
@@ -79,7 +78,7 @@ def _scan_test_functions(test_path: str) -> List[Tuple[str, int]]:
     return out
 
 
-def _best_match(symbol: str, candidates: List[Tuple[str, int]]) -> Optional[Tuple[str, int]]:
+def _best_match(symbol: str, candidates: list[tuple[str, int]]) -> Optional[tuple[str, int]]:
     """Pick the test whose name contains ``symbol`` (case-insensitive).
 
     Tie-breaker: shortest name wins (the most specific test —
@@ -102,7 +101,7 @@ def find_test_for_symbol(
     project_root: str,
     symbol: str,
     file_path: str,
-) -> Optional[Dict[str, Any]]:
+) -> Optional[dict[str, Any]]:
     """Return ``{test_file, test_function, line}`` or ``None``.
 
     Pure function — used by the builder to populate
@@ -133,15 +132,15 @@ def find_test_for_symbol(
 
 def build_test_index(
     project_root: str,
-    symbols: Dict[str, Dict[str, Any]],
-) -> Dict[str, Optional[Dict[str, Any]]]:
+    symbols: dict[str, dict[str, Any]],
+) -> dict[str, Optional[dict[str, Any]]]:
     """Build the ``{symbol → entry|null}`` map for ``agent_tests.json``.
 
     ``symbols`` is the loaded ``agent_symbols.json`` content. Symbols
     without a test get ``null`` so the surface stays uniform — agents
     can ask ``find_test(X)`` and never get a 404.
     """
-    out: Dict[str, Optional[Dict[str, Any]]] = {}
+    out: dict[str, Optional[dict[str, Any]]] = {}
     for name, entry in symbols.items():
         if not isinstance(entry, dict):
             out[name] = None
@@ -151,7 +150,7 @@ def build_test_index(
     return out
 
 
-def write_test_index(project_root: str, index: Dict[str, Any]) -> str:
+def write_test_index(project_root: str, index: dict[str, Any]) -> str:
     """Persist ``agent_tests.json`` and return its absolute path."""
     out_path = os.path.join(project_root, TESTS_FILENAME)
     ordered = {k: index[k] for k in sorted(index)}
