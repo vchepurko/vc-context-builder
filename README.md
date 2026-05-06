@@ -46,6 +46,30 @@ Detection mixes AST/regex pattern matching with file-path heuristics.
 Filtered out (intentional): stdlib + third-party imports, private
 helpers, empty `__init__.py` files, glue modules with nothing to expose.
 
+### Angular routes
+
+Beside the existing HTTP route bridge (`agent_routes.json`, Express /
+FastAPI), Angular projects get a parallel artifact `agent_ng_routes
+.json` extracted from `RouterModule.forRoot([…])` /
+`RouterModule.forChild([…])` / `provideRouter([…])` / bare
+`const X: Routes = [...]` declarations.
+
+Each record carries `{path, component, file, line, lazy, redirect_to,
+guards}`. MCP tools sit on top:
+
+* `ng_list_routes` — dump every route.
+* `ng_route_for_path` — `'users/:id'` → record(s); exact match first,
+  substring fallback so `'users'` finds `users/:id` too.
+* `ng_routes_for_component` — reverse lookup, "where is HomeComponent
+  mounted?".
+
+Slash command `/ng-route-impact <path-or-Component>` ties them
+together with the component / guard symbol lookups for a one-screen
+answer.
+
+The artifact is omitted on non-Angular projects — no empty file in
+the tree.
+
 ### Test linking
 
 `agent_tests.json` pairs each indexed symbol with its nearest test
