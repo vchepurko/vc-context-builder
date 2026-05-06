@@ -19,6 +19,12 @@ Goals (parity with the Python parser, give or take):
                              ``router.<verb>(...)`` for the symbol.
     * ``vue-composable``   — ``composables/`` directory, name starts
                              with ``use``.
+    * ``ng-component``     — Angular ``@Component`` decorator on class.
+    * ``ng-service``       — Angular ``@Injectable`` decorator on class.
+    * ``ng-module``        — Angular ``@NgModule`` decorator on class.
+    * ``ng-pipe``          — Angular ``@Pipe`` decorator on class.
+    * ``ng-directive``     — Angular ``@Directive`` decorator on class.
+    * ``ng-guard``         — functional guard in a ``*.guard.ts`` file.
 
 Heuristic, regex-driven, zero deps. The JS/TS world is too gnarly for
 a stdlib-only true AST pass — we trade precision for scope.
@@ -319,6 +325,27 @@ def _detect_role(
     # `use` (no required body shape — that's the Vue convention).
     if "/composables/" in ("/" + norm_path) and name.startswith("use"):
         return "vue-composable"
+
+    # 5. Angular — detect by decorator preceding the class declaration.
+    if kind == "class" and ext == ".ts":
+        class_pos = full_text.find(f"class {name}")
+        if class_pos != -1:
+            preceding = full_text[max(0, class_pos - 400) : class_pos]
+            m = re.search(r"@(Component|Injectable|NgModule|Pipe|Directive)\s*[\(\{]", preceding)
+            if m:
+                _NG_ROLE = {
+                    "Component": "ng-component",
+                    "Injectable": "ng-service",
+                    "NgModule": "ng-module",
+                    "Pipe": "ng-pipe",
+                    "Directive": "ng-directive",
+                }
+                return _NG_ROLE.get(m.group(1))
+
+    # 6. Angular functional guard — *.guard.ts, function/arrow returning
+    # Observable<boolean|UrlTree> or Promise<boolean|UrlTree> or boolean.
+    if ext == ".ts" and ".guard." in norm_path and kind in ("func", "async-func"):
+        return "ng-guard"
 
     return None
 
