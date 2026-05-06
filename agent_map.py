@@ -23,6 +23,11 @@ from custom_roles import (
 # Feature artifacts — built after the symbol index in `run()`.
 from test_linking import build_test_index, write_test_index, TESTS_FILENAME
 from route_bridge import build_route_index, write_route_index, ROUTES_FILENAME
+from ng_route_bridge import (
+    NG_ROUTES_FILENAME,
+    build_ng_route_index,
+    write_ng_route_index,
+)
 from callback_index import (
     CALLBACKS_FILENAME,
     collect_callbacks,
@@ -67,6 +72,7 @@ class ContextBuilder:
         self.symbols_filename = 'agent_symbols.json'
         self.tests_filename = TESTS_FILENAME
         self.routes_filename = ROUTES_FILENAME
+        self.ng_routes_filename = NG_ROUTES_FILENAME
         self.callbacks_filename = CALLBACKS_FILENAME
         self.fsm_flow_filename = FSM_FLOW_FILENAME
         self.test_categories_filename = TEST_CATEGORIES_FILENAME
@@ -279,6 +285,7 @@ class ContextBuilder:
         # Feature B + C — depend on the symbol index being on disk.
         self._build_test_index()
         self._build_route_index()
+        self._build_ng_route_index()
         self._build_callback_index()
         self._build_fsm_flow_index()
         self._build_test_categories_index()
@@ -514,6 +521,25 @@ class ContextBuilder:
             )
         except OSError as e:
             logging.error(f"Failed to write route index: {e}")
+
+    # ------------------------------------------------------------------
+    # Feature R — Angular RouterModule path→component map.
+    # ------------------------------------------------------------------
+
+    def _build_ng_route_index(self) -> None:
+        try:
+            routes = build_ng_route_index(self.root_dir)
+            # Skip the artifact entirely on non-Angular projects so we
+            # don't pollute the file tree with an empty list.
+            if not routes:
+                return
+            write_ng_route_index(self.root_dir, routes)
+            logging.info(
+                "Wrote Angular route index: %s (%d route(s)).",
+                self.ng_routes_filename, len(routes),
+            )
+        except OSError as e:
+            logging.error(f"Failed to write Angular route index: {e}")
 
     # ------------------------------------------------------------------
     # Feature D — aiogram callback_data index

@@ -49,6 +49,7 @@ class QueryEngine:
     SYMBOLS_FILENAME = "agent_symbols.json"
     TESTS_FILENAME = "agent_tests.json"
     ROUTES_FILENAME = "agent_routes.json"
+    NG_ROUTES_FILENAME = "agent_ng_routes.json"
     CALLBACKS_FILENAME = "agent_callbacks.json"
     FSM_FLOW_FILENAME = "agent_fsm_flows.json"
     TEST_CATEGORIES_FILENAME = "agent_test_categories.json"
@@ -71,6 +72,7 @@ class QueryEngine:
         # not yet attempted; ``{}`` = read but artifact absent / empty.
         self._tests: Optional[Dict[str, Any]] = None
         self._routes: Optional[Dict[str, Dict[str, Any]]] = None
+        self._ng_routes: Optional[List[Dict[str, Any]]] = None
         self._callbacks: Optional[Dict[str, List[Dict[str, Any]]]] = None
         self._fsm_flows: Optional[Dict[str, Dict[str, Any]]] = None
         self._test_categories: Optional[Dict[str, Dict[str, Any]]] = None
@@ -120,6 +122,18 @@ class QueryEngine:
             except (OSError, json.JSONDecodeError):
                 self._routes = {}
         return self._routes
+
+    def _load_ng_routes(self) -> List[Dict[str, Any]]:
+        """Return ``agent_ng_routes.json`` content (or ``[]`` if missing)."""
+        if self._ng_routes is None:
+            path = os.path.join(self.project_root, self.NG_ROUTES_FILENAME)
+            try:
+                with open(path, "r", encoding="utf-8") as fh:
+                    data = json.load(fh)
+                self._ng_routes = data if isinstance(data, list) else []
+            except (OSError, json.JSONDecodeError):
+                self._ng_routes = []
+        return self._ng_routes
 
     def _load_callbacks(self) -> Dict[str, List[Dict[str, Any]]]:
         """Return ``agent_callbacks.json`` content (or ``{}`` if missing).
@@ -610,6 +624,33 @@ class QueryEngine:
         """Routes whose ``callers_js`` list mentions ``file_path``."""
         from route_bridge import route_for_js_file  # type: ignore[import-not-found]
         return route_for_js_file(self._load_routes(), file_path)
+
+    # ------------------------------------------------------------------
+    # Feature R — Angular RouterModule path → component map.
+    # ------------------------------------------------------------------
+
+    def ng_list_routes(self) -> List[Dict[str, Any]]:
+        """All extracted Angular routes, in (file, line) order. Empty
+        list on non-Angular projects (no agent_ng_routes.json)."""
+        return list(self._load_ng_routes())
+
+    def ng_route_for_path(self, path: str) -> List[Dict[str, Any]]:
+        """Resolve an Angular URL path to route records.
+
+        Exact match wins; falls back to substring contains so a query
+        for ``users`` finds ``users/:id`` and ``admin/users``. Strips a
+        leading slash before matching so callers can use either form.
+        """
+        from ng_route_bridge import route_for_path as _rp  # type: ignore[import-not-found]
+        if path is None:
+            return []
+        normalised = path.lstrip("/")
+        return _rp(self._load_ng_routes(), normalised)
+
+    def ng_routes_for_component(self, name: str) -> List[Dict[str, Any]]:
+        """Reverse lookup — every route whose ``component`` is *name*."""
+        from ng_route_bridge import routes_for_component as _rfc  # type: ignore[import-not-found]
+        return _rfc(self._load_ng_routes(), name)
 
     # ------------------------------------------------------------------
     # Feature D — aiogram callback_data resolver

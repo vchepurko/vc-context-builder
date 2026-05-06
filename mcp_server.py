@@ -657,6 +657,45 @@ def _tool_specs() -> List[Dict[str, Any]]:
                 "required": ["service"],
             },
         },
+        {
+            "name": "ng_list_routes",
+            "description": (
+                "Every Angular route extracted from "
+                "RouterModule.forRoot/forChild/provideRouter blocks. "
+                "Each record: {path, component, file, line, lazy, "
+                "redirect_to, guards}. Empty on non-Angular projects."
+            ),
+            "inputSchema": {"type": "object", "properties": {}},
+        },
+        {
+            "name": "ng_route_for_path",
+            "description": (
+                "Resolve an Angular URL path (e.g. 'users/:id' or "
+                "'/admin') to its route record(s). Exact match first, "
+                "falls back to substring so 'users' finds both "
+                "'users/:id' and 'admin/users'. Strips a leading "
+                "slash so either form works."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {"path": {"type": "string"}},
+                "required": ["path"],
+            },
+        },
+        {
+            "name": "ng_routes_for_component",
+            "description": (
+                "Reverse lookup — every Angular route whose "
+                "`component` field equals the given class name. "
+                "Useful for 'where is HomeComponent mounted?' before "
+                "renaming or moving the file."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {"name": {"type": "string"}},
+                "required": ["name"],
+            },
+        },
     ]
 
 
@@ -703,6 +742,9 @@ class _Dispatcher:
             "ng_uses_selector":     self._ng_uses_selector,
             "ng_overview":          self._ng_overview,
             "ng_inject_graph":      self._ng_inject_graph,
+            "ng_list_routes":       self._ng_list_routes,
+            "ng_route_for_path":    self._ng_route_for_path,
+            "ng_routes_for_component": self._ng_routes_for_component,
         }
 
     def call(self, name: str, args: Dict[str, Any]) -> Any:
@@ -894,6 +936,16 @@ class _Dispatcher:
     def _ng_inject_graph(self, args: Dict[str, Any]) -> Any:
         service = str(args.get("service", "")).strip()
         return self.engine.ng_inject_graph(service) if service else []
+
+    def _ng_list_routes(self, args: Dict[str, Any]) -> Any:
+        return self.engine.ng_list_routes()
+
+    def _ng_route_for_path(self, args: Dict[str, Any]) -> Any:
+        return self.engine.ng_route_for_path(str(args.get("path", "")))
+
+    def _ng_routes_for_component(self, args: Dict[str, Any]) -> Any:
+        name = str(args.get("name", "")).strip()
+        return self.engine.ng_routes_for_component(name) if name else []
 
 
 # ----------------------------------------------------------------------
