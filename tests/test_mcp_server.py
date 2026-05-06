@@ -90,8 +90,17 @@ class McpServerTests(FixtureMixin, unittest.TestCase):
             # Feature N — notification audit log reader.
             "notify_log_search",
             "notify_log_stats",
-            # Feature O — ruff violations inspector.
+            # Feature O — ruff violations inspector + formatter check.
             "ruff_violations",
+            "ruff_format",
+            # Feature O′ — mypy violations inspector.
+            "mypy_violations",
+            # Feature P — Angular helpers (template scan + audits).
+            "find_in_templates",
+            "ng_audit_component",
+            "ng_uses_selector",
+            "ng_overview",
+            "ng_inject_graph",
         })
 
     def test_tools_call_find_symbol(self) -> None:

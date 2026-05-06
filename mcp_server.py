@@ -577,6 +577,86 @@ def _tool_specs() -> List[Dict[str, Any]]:
                 "required": ["pattern"],
             },
         },
+        {
+            "name": "ng_audit_component",
+            "description": (
+                "Composite audit of a single Angular @Component. Returns "
+                "{name, file, role, selector, template_url, standalone, "
+                "inputs, outputs, style_urls, test} — everything indexed "
+                "for the class without making the caller stitch four "
+                "separate find_symbol / find_test / find_in_templates "
+                "calls. Use this before any component-level refactor."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Component class name (case-sensitive).",
+                    },
+                },
+                "required": ["name"],
+            },
+        },
+        {
+            "name": "ng_uses_selector",
+            "description": (
+                "Find every HTML template that uses an Angular selector "
+                "(e.g. 'app-cart-item' or 'mat-button'). Wraps "
+                "find_in_templates with two passes — `<selector` for "
+                "elements and `[selector]` for attribute directives — "
+                "deduped by (file, line). Returns [{file, line, text}] "
+                "capped at 100."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "selector": {
+                        "type": "string",
+                        "description": "Selector without surrounding brackets.",
+                    },
+                    "match_path": {
+                        "type": "string",
+                        "description": "Optional fnmatch glob to scope.",
+                    },
+                },
+                "required": ["selector"],
+            },
+        },
+        {
+            "name": "ng_overview",
+            "description": (
+                "One-call zero-arg snapshot of Angular surface: counts "
+                "for ng-component / ng-service / ng-module / ng-pipe / "
+                "ng-directive / ng-guard, plus a `standalone_components` "
+                "count and the list of detected `providers_root` "
+                "(services with `providedIn: 'root'`). Cheap — reads "
+                "agent_symbols.json once."
+            ),
+            "inputSchema": {"type": "object", "properties": {}},
+        },
+        {
+            "name": "ng_inject_graph",
+            "description": (
+                "For an Angular @Injectable service, list call sites "
+                "across components / services / guards (heuristic: "
+                "constructor params and `inject(Service)` calls in "
+                "scrubbed bodies). Returns [{file, line, kind}] where "
+                "kind is 'constructor' or 'inject'. Confirm by reading "
+                "the source — this is a substring scan, not a full TS "
+                "type-resolver."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "service": {
+                        "type": "string",
+                        "description": "Service class name.",
+                    },
+                },
+                "required": ["service"],
+            },
+        },
     ]
 
 
@@ -619,6 +699,10 @@ class _Dispatcher:
             "ruff_format":       self._ruff_format,
             "mypy_violations":      self._mypy_violations,
             "find_in_templates":    self._find_in_templates,
+            "ng_audit_component":   self._ng_audit_component,
+            "ng_uses_selector":     self._ng_uses_selector,
+            "ng_overview":          self._ng_overview,
+            "ng_inject_graph":      self._ng_inject_graph,
         }
 
     def call(self, name: str, args: Dict[str, Any]) -> Any:
@@ -791,6 +875,25 @@ class _Dispatcher:
         if isinstance(match_path, str) and match_path.strip():
             kw["match_path"] = match_path.strip()
         return self.engine.find_in_templates(pattern, **kw)
+
+    def _ng_audit_component(self, args: Dict[str, Any]) -> Any:
+        name = str(args.get("name", "")).strip()
+        return self.engine.ng_audit_component(name) if name else None
+
+    def _ng_uses_selector(self, args: Dict[str, Any]) -> Any:
+        selector = str(args.get("selector", "")).strip()
+        match_path = args.get("match_path")
+        kw: Dict[str, Any] = {}
+        if isinstance(match_path, str) and match_path.strip():
+            kw["match_path"] = match_path.strip()
+        return self.engine.ng_uses_selector(selector, **kw)
+
+    def _ng_overview(self, args: Dict[str, Any]) -> Any:
+        return self.engine.ng_overview()
+
+    def _ng_inject_graph(self, args: Dict[str, Any]) -> Any:
+        service = str(args.get("service", "")).strip()
+        return self.engine.ng_inject_graph(service) if service else []
 
 
 # ----------------------------------------------------------------------
