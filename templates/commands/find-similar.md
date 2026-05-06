@@ -41,3 +41,14 @@ Output shape:
 ## Refactor candidates (ranked)
 1. <group> — <why>
 ```
+
+## Token cost
+
+| Path | Approx tokens |
+|---|---|
+| This command (3–5 MCP calls) | ~400–700 |
+| Manual: grep + Read 10–20 candidate files for context | ~15–40K |
+| Savings | ~95–98% |
+
+Append `_Used N MCP calls (~M tokens) — saved ~XK vs grep+read._` at
+the bottom so the user can see the win.

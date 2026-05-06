@@ -58,3 +58,13 @@ Constraints:
 - If both element and attribute forms appear, mention both — sometimes
   the same name does double duty (e.g. `<my-tooltip>` element + `[my-
   tooltip]` directive on a host element).
+
+## Token cost
+
+| Path | Approx tokens |
+|---|---|
+| This command (1–2 MCP calls) | ~100–300 |
+| Manual: ripgrep across HTML, paste 5–15 hit snippets into context | ~3–10K |
+| Savings | ~95–97% |
+
+End with `_Used N MCP calls (~M tokens) — saved ~XK vs ripgrep+paste._`

@@ -472,6 +472,30 @@ Discovery-phase savings sit around **30-50% of total session tokens** in
 practice — not the marketing 70×. Edit + verify phases dominate; this
 tool only attacks the orientation slice.
 
+### Per-command savings (slash commands)
+
+Every curated slash command in `templates/commands/*.md` ends with a
+"Token cost" table that estimates the win versus the manual approach
+(grep + Read fan-out). The agent prints a one-line summary at the
+bottom of its response so the saving is visible per call:
+
+```
+_Used 5 MCP calls (~600 tokens) — saved ~9K vs reading sources directly._
+```
+
+Approximate ranges per command shape:
+
+| Command shape | MCP cost | Manual cost | Savings |
+|---|---|---|---|
+| Symbol audit (`/audit-handler`, `/ng-audit-component`) | ~600–1500 tokens | 10–20K | 90–95% |
+| Surface map (`/ng-overview`, `/ng-list-by-role`) | ~100 tokens | 50K+ | ~99% |
+| Selector / call-site lookup (`/ng-find-selector`, `/refactor-callsites`) | ~200–700 tokens | 5–40K | 90–98% |
+| Pattern-match (`/find-similar`) | ~400–700 tokens | 15–40K | 95–98% |
+
+Numbers are estimates — the actual win depends on project size and
+how deep the manual approach would go. The point is to make the
+benefit *visible at the call site*, not to claim a fixed number.
+
 ---
 
 ## What this tool is **not**

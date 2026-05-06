@@ -54,3 +54,14 @@ Constraints:
 - Always run `find_call_sites` *per method*, not per service — service
   references in `import` lines aren't useful, only call sites are.
 - For services with 0 injection sites, flag as dead-code candidate.
+
+## Token cost
+
+| Path | Approx tokens |
+|---|---|
+| This command (4 MCP calls + per-method find_call_sites) | ~600–1.2K |
+| Manual: Read service.ts + grep per-method across .ts + Read top callers | ~10–25K |
+| Savings | ~90–95% |
+
+End the report with `_Used N MCP calls (~M tokens) — saved ~XK vs
+reading service + grepping callers._`

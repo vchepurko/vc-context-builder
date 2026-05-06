@@ -61,3 +61,13 @@ Constraints:
   user to `/ng-audit-component` / `/ng-find-selector` for the lists.
 - If `find_symbol` returns null, suggest re-running with a different
   case (kebab-case selector → CamelCase class name) and stop.
+
+## Token cost
+
+| Path | Approx tokens |
+|---|---|
+| This command (3–6 MCP calls — role-aware fan-out) | ~500–1.2K |
+| Manual: grep across templates + grep across .ts + Read main + Read tests | ~15–30K |
+| Savings | ~92–96% |
+
+End with `_Used N MCP calls (~M tokens) — saved ~XK vs grep+read fan-out._`

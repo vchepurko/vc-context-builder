@@ -44,3 +44,14 @@ Constraints:
 - ≤ 25 call sites in detail; collapse the rest as `(+N in <module>)`.
 - Markdown links for every reference.
 - Skip files inside `.venv`, `node_modules`, `.ai-context/__pycache__`.
+
+## Token cost
+
+| Path | Approx tokens |
+|---|---|
+| This command (3–4 MCP calls + per-site Read) | ~1–3K depending on N |
+| Manual: ripgrep + Read each hit's full file | ~20–60K (every caller's full file enters context) |
+| Savings | ~90–95% |
+
+End the report with `_Used 4 MCP calls + N targeted Reads (~M tokens)
+— saved ~XK vs ripgrep+full-file Reads._`
