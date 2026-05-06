@@ -147,6 +147,33 @@ Default behaviour matches `install.sh` — only missing files are
 copied; existing commands are skipped to protect customisations. Use
 `--force` to reset everything to upstream.
 
+### Optional: TypeScript AST upgrade for Angular metadata
+
+The default TS/JS parser uses regex to extract Angular decorator
+metadata (selector / templateUrl / providedIn / standalone / inputs /
+outputs).  Regex is fast and zero-config but misses dynamic shapes
+like `providedIn: SOME_TOKEN` or computed selectors.
+
+Opt into the AST path when accuracy matters:
+
+```jsonc
+// .vc-context/conventions.json
+{
+  "typescript_ast": {"enabled": true}
+}
+```
+
+Requirements: the *target project* needs Node (any recent version)
+and `typescript` installed (locally via `npm i typescript --save-dev`
+or globally).  vc-context itself stays stdlib-only — when Node /
+typescript aren't reachable the parser falls back to regex silently.
+
+Performance: each Angular `.ts` file triggers one Node spawn
+(~50 ms warm).  For a 500-component project that's ~25 s of extra
+indexing on a full rebuild.  Incremental builds amortise it; if
+that's still too slow, leave `enabled: false` and live with the
+regex result.
+
 ---
 
 ## Quick taste — three ways to ask the same question
