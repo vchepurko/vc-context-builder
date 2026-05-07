@@ -382,6 +382,39 @@ uses the `bytes // 4` heuristic — rough but stable for trends.
 Pass `--no-metrics` to `mcp_server.py` to opt out (writer becomes a
 no-op; no disk activity).
 
+### Quality findings — wasteful pairs, hot rereads, empty streaks
+
+Add `--quality` to the CLI (or `quality: true` to the MCP call) to
+get a Phase-2 audit on top of the raw counters:
+
+```bash
+$ vc-context stats --since 24h --quality
+=== since 24h: 142 calls, ~3.2k tok, avg 6.1 ms, empty 9%, ok 100% ===
+  find_symbol     87  (61%)  ~1812 tok   avg 4.0 ms   empty 4%
+  ...
+
+--- quality: 3 finding(s) ---
+  [wasteful_pairs] (1)
+    INFO  find_symbol('QueryEngine') → read_slice within 60s; could have used include_body=true
+  [hot_rereads] (1)
+    WARN  find_symbol({'name': 'Dispatcher'}) called 4× — consider caching
+  [empty_streaks] (1)
+    WARN  find_call_sites returned empty 3 times in a row — wrong query or misspelled symbol?
+```
+
+Detectors (see `mcp/quality.py` for thresholds):
+
+- **wasteful_pairs** — `find_symbol(name=X)` followed by
+  `read_slice(file=…)` within 60s when `include_body=true` was
+  *not* passed. One round-trip would have sufficed.
+- **hot_rereads** — same `(tool, args_summary)` queried ≥3× — cache
+  the result instead.
+- **empty_streaks** — ≥3 consecutive empty results from the same
+  tool — wrong API or misspelled symbol.
+
+Each finding cites evidence (timestamps + tool calls) so an agent
+or human can audit the claim.
+
 ---
 
 ## Evidence-based answers — fact tools
@@ -411,6 +444,23 @@ opt back in, or use the dedicated tools above. Pair `read_slice`
 with `find_symbol(..., fields=["file","line","end_line"])` for the
 "jump to evidence" pattern: one round-trip to find, one to read the
 exact range that proves the claim.
+
+---
+
+## Playbooks — task-shaped MCP recipes
+
+When you have a concrete task type, open the matching playbook for a
+pre-baked MCP sequence + output format:
+
+- [Bug investigation](playbooks/bug_investigation.md) — "Why does X
+  fail?", stack trace in hand.
+- [Impact analysis](playbooks/impact_analysis.md) — "What breaks if I
+  change X?", before refactor.
+- [Refactoring review](playbooks/refactoring_review.md) — reviewing
+  your own or someone else's refactor / PR.
+
+See [playbooks/README.md](playbooks/README.md) for when to add a new
+one.
 
 ---
 
