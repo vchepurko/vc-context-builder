@@ -10,13 +10,19 @@ Adding a tool: drop a method ``_my_tool(args)`` on ``Dispatcher`` and
 register it in ``_handlers``. Then add the matching JSON-Schema
 record to :func:`mcp.specs.tool_specs`. The parity test guards both
 halves staying aligned.
+
+Metrics: when constructed with ``metrics_writer``, every call emits
+one JSONL line via :class:`mcp.metrics.MetricsWriter`. The writer
+itself never raises into the call site, so the metrics path stays
+strictly opt-in / fail-open.
 """
 
 from __future__ import annotations
 
 import os
 import sys
-from typing import Any, Callable, Dict
+import time
+from typing import Any, Callable, Dict, Optional
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _PARENT = os.path.dirname(_HERE)
@@ -25,13 +31,20 @@ if _PARENT not in sys.path:
 
 from query_engine import QueryEngine  # noqa: E402
 
+from mcp.metrics import MetricsWriter  # noqa: E402
+
 
 
 class Dispatcher:
     """Glue between MCP tool calls and the ``QueryEngine``."""
 
-    def __init__(self, engine: QueryEngine) -> None:
+    def __init__(
+        self,
+        engine: QueryEngine,
+        metrics_writer: Optional[MetricsWriter] = None,
+    ) -> None:
         self.engine = engine
+        self.metrics_writer = metrics_writer
         self._handlers: Dict[str, Callable[[Dict[str, Any]], Any]] = {
             "find_symbol":       self._find_symbol,
             "find_symbols":      self._find_symbols,
@@ -56,6 +69,7 @@ class Dispatcher:
             "logline_to_symbol": self._logline_to_symbol,
             "list_checks":       self._list_checks,
             "run_check":         self._run_check,
+            "get_session_metrics": self._get_session_metrics,
             "inspect_class":     self._inspect_class,
             "list_locale_keys":  self._list_locale_keys,
             "find_locale_key":   self._find_locale_key,
@@ -76,6 +90,26 @@ class Dispatcher:
         }
 
     def call(self, name: str, args: Dict[str, Any]) -> Any:
+        if self.metrics_writer is None:
+            return self._invoke(name, args)
+        # Metric path — wrap with timing + best-effort emit. We capture
+        # the result/ok in locals so `finally` can record even on raise;
+        # the writer's own try/except keeps disk failures invisible.
+        t0 = time.monotonic()
+        result: Any = None
+        ok = False
+        try:
+            result = self._invoke(name, args)
+            ok = True
+            return result
+        finally:
+            t_ms = int((time.monotonic() - t0) * 1000)
+            try:
+                self.metrics_writer.record(name, args, result, t_ms, ok)
+            except Exception:
+                pass
+
+    def _invoke(self, name: str, args: Dict[str, Any]) -> Any:
         handler = self._handlers.get(name)
         if handler is None:
             raise ValueError(f"Unknown tool: {name}")
@@ -195,6 +229,16 @@ class Dispatcher:
             else None
         )
         return self.engine.run_check(name, timeout_sec=timeout_sec)
+
+    def _get_session_metrics(self, args: Dict[str, Any]) -> Any:
+        kw: Dict[str, Any] = {}
+        v = args.get("since")
+        if isinstance(v, str) and v.strip():
+            kw["since"] = v.strip()
+        v = args.get("group_by")
+        if isinstance(v, str) and v.strip():
+            kw["group_by"] = v.strip()
+        return self.engine.get_session_metrics(**kw)
 
     def _inspect_class(self, args: Dict[str, Any]) -> Any:
         return self.engine.inspect_class(str(args.get("name", "")).strip())

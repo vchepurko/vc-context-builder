@@ -204,6 +204,47 @@ def cmd_raises(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_stats(args: argparse.Namespace) -> int:
+    engine = _engine(args)
+    out = engine.get_session_metrics(
+        since=args.since, group_by=args.by,
+    )
+    if args.json:
+        _emit_json(out)
+        return 0
+    calls = out.get("calls", 0)
+    if not calls:
+        print(f"No metrics for since={args.since!r}.")
+        return 0
+    print(
+        f"=== since {args.since}: {calls} calls, "
+        f"~{out.get('total_tokens', 0)} tok, "
+        f"avg {out.get('avg_t_ms', 0)} ms, "
+        f"empty {int(out.get('empty_ratio', 0) * 100)}%, "
+        f"ok {int(out.get('ok_ratio', 1) * 100)}% ==="
+    )
+    bucket_key = f"by_{args.by}"
+    buckets = out.get(bucket_key, {}) or {}
+    if not buckets:
+        return 0
+    width = max(len(k) for k in buckets) if buckets else 0
+    # Sort by call count descending — top consumers first.
+    rows = sorted(
+        buckets.items(), key=lambda kv: kv[1].get("calls", 0), reverse=True,
+    )
+    for key, stats in rows:
+        n = stats.get("calls", 0)
+        pct = (100.0 * n / calls) if calls else 0.0
+        toks = stats.get("tokens", 0)
+        empty = int(stats.get("empty_ratio", 0) * 100)
+        avg = stats.get("avg_t_ms", 0)
+        print(
+            f"  {key.ljust(width)}  {n:>3}  ({pct:>2.0f}%)  "
+            f"~{toks} tok   avg {avg} ms   empty {empty}%"
+        )
+    return 0
+
+
 def cmd_slice(args: argparse.Namespace) -> int:
     engine = _engine(args)
     out = engine.read_slice(args.file, args.start, args.end)
@@ -475,6 +516,20 @@ def _build_parser() -> argparse.ArgumentParser:
     p_slice.add_argument("start", type=int)
     p_slice.add_argument("end", type=int)
     p_slice.set_defaults(handler=cmd_slice)
+
+    p_stats = sub.add_parser(
+        "stats",
+        help="Aggregate per-call MCP telemetry (calls, tokens, latency).",
+    )
+    p_stats.add_argument(
+        "--since", default="today",
+        help="24h | 7d | today | all (default today).",
+    )
+    p_stats.add_argument(
+        "--by", default="tool", choices=("tool", "hour", "empty"),
+        help="Group buckets by (default tool).",
+    )
+    p_stats.set_defaults(handler=cmd_stats)
 
     p_role = sub.add_parser("role", help="All symbols tagged with a role.")
     p_role.add_argument("role")

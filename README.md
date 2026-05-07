@@ -354,6 +354,36 @@ Same answer. Different cost per look-up.
 
 ---
 
+## Telemetry — see how the agent is using the MCP surface
+
+Every MCP call emits one JSONL line to
+`~/.vc-context/metrics/<repo-hash>-<YYYY-MM-DD>.jsonl` (override via
+`VC_CONTEXT_METRICS_DIR`). Aggregate via:
+
+```bash
+$ vc-context stats --since 24h --by tool
+=== since 24h: 142 calls, ~3.2k tok, avg 6.1 ms, empty 9%, ok 100% ===
+  find_symbol     87  (61%)  ~1812 tok   avg 4.0 ms   empty 4%
+  who_calls       23  (16%)  ~480  tok   avg 7.5 ms   empty 22%   ← подозра
+  read_slice      18  (13%)  ~720  tok   avg 2.1 ms   empty 0%
+  get_callees      9   (6%)  ~110  tok   avg 1.0 ms   empty 11%
+  list_roles       5   (3%)  ~80   tok   avg 3.0 ms   empty 0%
+```
+
+Or via MCP for an LLM-readable summary:
+`get_session_metrics(since="24h", group_by="tool")` →
+`{calls, total_tokens, avg_t_ms, empty_ratio, ok_ratio, by_tool}`.
+
+`empty_ratio` flags wasted round-trips (calls returning `null` /
+`[]` / `{}` / `{total: 0}`); high values mean either the symbol
+doesn't exist or the agent's calling the wrong tool. `approx_tokens`
+uses the `bytes // 4` heuristic — rough but stable for trends.
+
+Pass `--no-metrics` to `mcp_server.py` to opt out (writer becomes a
+no-op; no disk activity).
+
+---
+
 ## Evidence-based answers — fact tools
 
 Three Tier-1 tools support claims with AST-derived evidence so the

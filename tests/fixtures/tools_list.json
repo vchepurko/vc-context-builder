@@ -12,6 +12,7 @@
   "get_callees",
   "get_locale_key",
   "get_raised_exceptions",
+  "get_session_metrics",
   "inspect_class",
   "lint_violations",
   "list_checks",
