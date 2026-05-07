@@ -19,13 +19,16 @@ def tool_specs() -> List[Dict[str, Any]]:
             "name": "find_symbol",
             "description": (
                 "Look up a symbol in agent_symbols.json. Returns the "
-                "{file, kind, params, doc, role} record, or null when "
-                "the name is unknown.\n\n"
+                "{file, line, end_line, kind, params, doc, role} "
+                "record, or null when the name is unknown. `line` and "
+                "`end_line` are 1-indexed; `end_line` is Python-only "
+                "(JS/TS only carries `line`).\n\n"
                 "Token economy:\n"
-                "- Pass `fields: ['file']` for a 'where is X?' answer "
-                "(~30 tokens) — beats `bash grep` on cost.\n"
+                "- Pass `fields: ['file', 'line']` for a 'jump to X' "
+                "answer (~40 tokens) — agent can Read(file, "
+                "offset=line, limit=20) immediately, no follow-up grep.\n"
                 "- Pass `include_body: true` to embed the function/class "
-                "source in the response and skip a follow-up Read.\n"
+                "source in the response and skip the Read entirely.\n"
                 "- For multiple symbols, prefer `find_symbols` (one "
                 "round-trip vs N)."
             ),

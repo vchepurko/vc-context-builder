@@ -2,7 +2,7 @@ import os
 import sys
 import json
 import logging
-from typing import Dict, List, Set
+from typing import Any, Dict, List, Set
 
 # Ensure sibling modules (`symbols`, `parsers`) resolve when this script is
 # invoked from the project root via `python3 .ai-context/agent_map.py`.
@@ -548,7 +548,7 @@ class ContextBuilder:
         definition over a re-export). Tie-break alphabetically on file
         path to keep builds deterministic.
         """
-        index: Dict[str, Dict[str, str]] = {}
+        index: Dict[str, Dict[str, Any]] = {}
 
         for _mp, data in self._iter_all_module_maps():
             directory = data.get("directory") or "."
@@ -569,8 +569,9 @@ class ContextBuilder:
                     if not name:
                         continue
 
-                    candidate: Dict[str, str] = {"file": file_rel}
-                    for k in ("kind", "params", "doc", "role", "inputs", "outputs"):
+                    candidate: Dict[str, Any] = {"file": file_rel}
+                    for k in ("kind", "params", "doc", "role", "inputs",
+                              "outputs", "line", "end_line"):
                         v = exp.get(k)
                         if v:
                             candidate[k] = v

@@ -39,6 +39,8 @@ class _FixtureMixin:
         _write(os.path.join(tmp, "agent_symbols.json"), json.dumps({
             "my_webhook": {
                 "file": "pkg/handlers.py",
+                "line": 4,
+                "end_line": 6,
                 "kind": "async-func",
                 "params": "(request)",
                 "doc": "Handle a webhook callback.",
@@ -46,11 +48,14 @@ class _FixtureMixin:
             },
             "MyService": {
                 "file": "pkg/service.py",
+                "line": 1,
+                "end_line": 2,
                 "kind": "class",
                 "role": "service",
             },
             "FooComponent": {
                 "file": "pkg/foo.component.ts",
+                "line": 4,
                 "kind": "class",
                 "role": "ng-component",
             },
@@ -94,7 +99,13 @@ class FieldsWhitelistTests(_FixtureMixin, unittest.TestCase):
     def test_default_returns_full_record_with_test(self) -> None:
         out = self.engine.find_symbol("my_webhook")
         self.assertEqual(set(out.keys()),
-                         {"file", "kind", "params", "doc", "role", "test"})
+                         {"file", "line", "end_line", "kind", "params",
+                          "doc", "role", "test"})
+
+    def test_fields_file_and_line(self) -> None:
+        # The "where + jump" case — file + 1-indexed start line, ~40 toks.
+        out = self.engine.find_symbol("my_webhook", fields=["file", "line"])
+        self.assertEqual(out, {"file": "pkg/handlers.py", "line": 4})
 
     def test_fields_file_only(self) -> None:
         out = self.engine.find_symbol("my_webhook", fields=["file"])

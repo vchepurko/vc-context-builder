@@ -41,7 +41,7 @@ from typing import Any, Dict, Optional
 
 CACHE_DIR = ".vc-context"
 CACHE_FILENAME = "_parse_cache.json"
-CACHE_VERSION = 1
+CACHE_VERSION = 2  # v2: per-export `line` / `end_line` (Python) fields
 
 # Files whose mtime contributes to the cache epoch — when any of these
 # changes, the cache is wholesale invalidated.  These are the configs
