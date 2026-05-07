@@ -53,5 +53,27 @@ async def fetch_data_async():
         self.assertIn('sys', result['dependencies'])
         self.assertIn('typing', result['dependencies'])
 
+    def test_line_numbers(self):
+        """Each export carries 1-indexed `line` and `end_line` from the AST."""
+        result = self.parser.extract(self.test_file)
+        by_name = {e["name"]: e for e in result["exports"]}
+
+        # The fixture starts with a blank line, so line numbers are
+        # offset by 1 from the literal source. Anchor on the keyword
+        # presence rather than hard-coded lines so the test survives
+        # whitespace tweaks above.
+        with open(self.test_file, encoding="utf-8") as fh:
+            lines = fh.readlines()
+
+        for name, kw in (("DatabaseConnector", "class DatabaseConnector"),
+                         ("global_helper_function", "def global_helper_function"),
+                         ("fetch_data_async", "async def fetch_data_async")):
+            entry = by_name[name]
+            self.assertIn("line", entry, f"{name}: missing `line`")
+            self.assertIn("end_line", entry, f"{name}: missing `end_line`")
+            self.assertGreaterEqual(entry["end_line"], entry["line"])
+            self.assertIn(kw, lines[entry["line"] - 1])
+
+
 if __name__ == '__main__':
     unittest.main()

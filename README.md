@@ -307,13 +307,16 @@ tools/call: find_symbol("add_admin")
 
 ### Token economy — paying only for what you ask
 
-The default record (~135 tokens of MCP envelope + payload) covers the
-"tell me everything" case. For tighter loops:
+Every symbol record carries 1-indexed `line` (start) and, for Python,
+`end_line` — so callers can `Read(file, offset=line, limit=…)` without
+a follow-up grep. The default record (~150 tokens of MCP envelope +
+payload) covers the "tell me everything" case. For tighter loops:
 
 ```jsonc
-// "Where is X?" — beats `bash grep` on cost (~30 tokens)
-find_symbol("add_admin", { "fields": ["file"] })
-→ {"file": "bot/api_client/staff.py"}
+// "Jump to X" — beats `bash grep` on cost (~40 tokens)
+find_symbol("add_admin", { "fields": ["file", "line"] })
+→ {"file": "bot/api_client/staff.py", "line": 42}
+// → Read("bot/api_client/staff.py", offset=42, limit=20)
 
 // Skip the follow-up Read — embed the source body inline
 find_symbol("add_admin", { "include_body": true })
@@ -321,13 +324,15 @@ find_symbol("add_admin", { "include_body": true })
 
 // Three lookups, one round-trip (~150 tokens vs ~3×135)
 find_symbols(["add_admin", "remove_admin", "list_admins"],
-             { "fields": ["file", "kind"] })
+             { "fields": ["file", "line", "kind"] })
 → {"add_admin": {...}, "remove_admin": {...}, "list_admins": {...}}
 ```
 
 Body extraction uses Python AST (`get_source_segment`) for `.py` and a
 regex-anchored line slice for JS/TS, capped at
-`BODY_SNIPPET_LINES`/`BODY_SNIPPET_MAX_BYTES`.
+`BODY_SNIPPET_LINES`/`BODY_SNIPPET_MAX_BYTES`. JS/TS records carry
+`line` only (no `end_line`) — the regex parser doesn't track block
+end positions; the slice cap is the practical upper bound.
 
 **CLI** (shell, CI, generic agent):
 

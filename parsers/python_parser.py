@@ -1,5 +1,5 @@
 import ast
-from typing import Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set
 
 from parsers.base_parser import BaseParser
 
@@ -101,13 +101,22 @@ class PythonParser(BaseParser):
         file_role: Optional[str] = None,
         scheduler_jobs: Optional[Set[str]] = None,
         source: Optional[str] = None,
-    ) -> Dict[str, str]:
+    ) -> Dict[str, Any]:
         kind = (
             "class" if isinstance(node, ast.ClassDef)
             else "async-func" if isinstance(node, ast.AsyncFunctionDef)
             else "func"
         )
-        out: Dict[str, str] = {"name": node.name, "kind": kind}
+        out: Dict[str, Any] = {"name": node.name, "kind": kind}
+
+        # 1-indexed start/end lines of the def block. `end_lineno` is
+        # always set on FunctionDef/ClassDef in 3.8+; defensive fallback
+        # for the rare malformed-AST case keeps end >= start.
+        line = getattr(node, "lineno", None)
+        if isinstance(line, int):
+            out["line"] = line
+            end_line = getattr(node, "end_lineno", None) or line
+            out["end_line"] = end_line
 
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
             try:

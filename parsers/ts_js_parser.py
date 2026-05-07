@@ -206,11 +206,16 @@ class TsJsParser(BaseParser):
             exports.append(entry)
 
         # Attach JSDoc-derived `doc` field by looking at the source
-        # immediately above each declaration's anchor offset.
+        # immediately above each declaration's anchor offset. Same
+        # anchor doubles as the source for the symbol's 1-indexed
+        # `line` field — `_strip_comments` preserves offsets, so
+        # `content.count("\n", 0, anchor) + 1` is the line in the
+        # original file.
         for exp in exports:
             anchor = exp.pop("_anchor", None)
             if anchor is None:
                 continue
+            exp["line"] = content.count("\n", 0, anchor) + 1
             doc = _jsdoc_for_offset(content, jsdoc_index, anchor)
             if doc:
                 exp["doc"] = doc
