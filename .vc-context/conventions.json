@@ -12,6 +12,9 @@
     ],
     "snapshots-check": [
       "python3", "tests/regen_snapshots.py", "--check"
+    ],
+    "typecheck": [
+      "uv", "run", "--with", "mypy", "mypy", "."
     ]
   }
 }
