@@ -305,6 +305,30 @@ tools/call: find_symbol("add_admin")
    "role": "api-client"}
 ```
 
+### Token economy — paying only for what you ask
+
+The default record (~135 tokens of MCP envelope + payload) covers the
+"tell me everything" case. For tighter loops:
+
+```jsonc
+// "Where is X?" — beats `bash grep` on cost (~30 tokens)
+find_symbol("add_admin", { "fields": ["file"] })
+→ {"file": "bot/api_client/staff.py"}
+
+// Skip the follow-up Read — embed the source body inline
+find_symbol("add_admin", { "include_body": true })
+→ {... "body": "async def add_admin(user_id: int, role: str='manager'):\n    ..."}
+
+// Three lookups, one round-trip (~150 tokens vs ~3×135)
+find_symbols(["add_admin", "remove_admin", "list_admins"],
+             { "fields": ["file", "kind"] })
+→ {"add_admin": {...}, "remove_admin": {...}, "list_admins": {...}}
+```
+
+Body extraction uses Python AST (`get_source_segment`) for `.py` and a
+regex-anchored line slice for JS/TS, capped at
+`BODY_SNIPPET_LINES`/`BODY_SNIPPET_MAX_BYTES`.
+
 **CLI** (shell, CI, generic agent):
 
 ```bash

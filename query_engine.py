@@ -240,15 +240,36 @@ class QueryEngine:
     # Public API — one method per RPC
     # ------------------------------------------------------------------
 
-    def find_symbol(self, name: str) -> Optional[Dict[str, Any]]:
+    def find_symbol(
+        self,
+        name: str,
+        *,
+        fields: Optional[List[str]] = None,
+        include_body: bool = False,
+    ) -> Optional[Dict[str, Any]]:
         """Return the symbol record from ``agent_symbols.json``.
 
-        The record carries ``file`` plus whichever of ``kind``, ``params``,
-        ``doc``, ``role`` the indexer captured. When ``agent_tests.json``
-        is present and has a non-null entry for this symbol, the result
-        also gains a ``test`` field.
+        Parameters
+        ----------
+        name:
+            Symbol name (case-sensitive).
+        fields:
+            Whitelist of keys to keep in the response.  Defaults to the
+            full record (~120 tokens for an aiogram handler with
+            params + doc + test).  Pass ``["file"]`` for a 30-token
+            "where is X?" answer; pass ``["file", "kind"]`` etc. to
+            grow as needed.  Unknown keys are dropped silently.  Set
+            this to bring MCP closer to bash-grep cost on simple
+            lookups.
+        include_body:
+            When ``True``, also embed a ``body`` field with the
+            verbatim source slice for the symbol (Python: AST
+            ``get_source_segment``; JS/TS: ``BODY_SNIPPET_LINES``
+            lines starting at the indexed ``line``).  Saves a follow-up
+            ``Read`` of the file when the caller already knows it
+            wants the body.  Capped at ``BODY_SNIPPET_MAX_BYTES``.
 
-        ``None`` if the symbol is unknown.
+        Returns ``None`` when the symbol is unknown.
         """
         symbols = self._load_symbols()
         entry = symbols.get(name)
@@ -262,7 +283,114 @@ class QueryEngine:
         test_entry = tests.get(name)
         if test_entry:
             out["test"] = test_entry
+        if include_body:
+            body = self._extract_body(name, out)
+            if body is not None:
+                out["body"] = body
+        if fields:
+            allow = set(fields)
+            out = {k: v for k, v in out.items() if k in allow}
         return out
+
+    def find_symbols(
+        self,
+        names: List[str],
+        *,
+        fields: Optional[List[str]] = None,
+        include_body: bool = False,
+    ) -> Dict[str, Optional[Dict[str, Any]]]:
+        """Batch wrapper — N lookups in one MCP round-trip.
+
+        Three lookups via ``find_symbol`` cost ~3 × 135 ≈ 400 tokens
+        of round-trip overhead; a single ``find_symbols`` call carries
+        the same payload at ~150 tokens because schema + envelope are
+        shared.  Use when the caller needs more than one symbol at a
+        time (sibling handlers, dependency chains, etc.).
+
+        Names not in the index map to ``null`` so the dict stays
+        keyed by request order.
+        """
+        out: Dict[str, Optional[Dict[str, Any]]] = {}
+        for name in names:
+            out[name] = self.find_symbol(
+                name, fields=fields, include_body=include_body,
+            )
+        return out
+
+    # Defaults for the include_body slicer — chosen so a typical class
+    # body fits without needing a follow-up Read, but large blobs
+    # (huge React components, generated code) are clipped.
+    BODY_SNIPPET_LINES = 200
+    BODY_SNIPPET_MAX_BYTES = 8000
+
+    def _extract_body(
+        self, name: str, record: Dict[str, Any],
+    ) -> Optional[str]:
+        """Return the verbatim source slice for a symbol record, or
+        ``None`` when the file isn't available.
+
+        Python: re-parses the file with ``ast`` so the slice respects
+        decorators / class scope.  JS/TS/anything else: a regex
+        locates the declaration line, then a line-based slice capped
+        at ``BODY_SNIPPET_LINES`` lines / ``BODY_SNIPPET_MAX_BYTES``
+        bytes.
+
+        ``name`` is passed separately because ``agent_symbols.json``
+        keys symbols by name; the record dict itself doesn't carry it.
+        """
+        rel = record.get("file")
+        if not isinstance(rel, str) or not rel:
+            return None
+        abs_path = os.path.join(self.project_root, rel)
+        try:
+            with open(abs_path, "r", encoding="utf-8", errors="replace") as fh:
+                source = fh.read()
+        except OSError:
+            return None
+        target = name
+        if not isinstance(target, str) or not target:
+            return None
+        if rel.endswith(".py"):
+            import ast
+            try:
+                tree = ast.parse(source)
+            except SyntaxError:
+                return None
+            for node in ast.walk(tree):
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) \
+                        and node.name == target:
+                    seg = ast.get_source_segment(source, node)
+                    if seg is None:
+                        continue
+                    if len(seg.encode("utf-8")) > self.BODY_SNIPPET_MAX_BYTES:
+                        # Fall through to line-trim path so the response
+                        # stays bounded even on huge classes.
+                        seg = seg[: self.BODY_SNIPPET_MAX_BYTES] + "\n# … truncated …"
+                    return seg
+            return None
+        # JS / TS: agent_symbols.json doesn't carry a line for these
+        # yet, so locate the declaration via regex on the file body.
+        # Patterns cover the common shapes the TS parser already
+        # detects (class / function / const = ).  Cheap; the
+        # ``BODY_SNIPPET_LINES`` cap bounds the worst case.
+        import re
+        decl_re = re.compile(
+            r"^\s*(?:export\s+(?:default\s+)?)?(?:async\s+)?"
+            r"(?:abstract\s+)?(?:class|function|const|let|var|interface|type|enum)\s+"
+            + re.escape(target) + r"\b",
+            re.M,
+        )
+        m = decl_re.search(source)
+        if m is None:
+            return None
+        # Walk back to start of the line for stable formatting.
+        start_offset = source.rfind("\n", 0, m.start()) + 1
+        line_start = source[:start_offset].count("\n")
+        lines = source.splitlines()
+        snippet = "\n".join(lines[line_start : line_start + self.BODY_SNIPPET_LINES])
+        if len(snippet.encode("utf-8")) > self.BODY_SNIPPET_MAX_BYTES:
+            snippet = snippet[: self.BODY_SNIPPET_MAX_BYTES] + "\n// … truncated …"
+        return snippet
 
     # Legacy umbrella roles — when a caller asks for an old name we
     # union the new, more specific buckets so older queries keep
