@@ -418,6 +418,37 @@ def tool_specs() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": "get_session_metrics",
+            "description": (
+                "Aggregate this project's per-call MCP telemetry. "
+                "Returns "
+                "{calls, total_tokens, avg_t_ms, empty_ratio, ok_ratio, "
+                "by_<group>}. Use to *see* how the agent is using the "
+                "MCP surface — call counts, payload tokens, latency, "
+                "and 'wasted' empty results.\n\n"
+                "`since` accepts ``24h`` / ``7d`` / ``today`` / ``all`` "
+                "(default ``today``). `group_by` is one of ``tool`` "
+                "(default), ``hour``, ``empty``.\n\n"
+                "Telemetry lives in "
+                "``~/.vc-context/metrics/<repo-hash>-<date>.jsonl`` "
+                "(override via ``VC_CONTEXT_METRICS_DIR``). The writer "
+                "is fail-open — broken metrics never break a tool call."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "since": {
+                        "type": "string",
+                        "description": "24h | 7d | today | all (default today).",
+                    },
+                    "group_by": {
+                        "type": "string",
+                        "description": "tool | hour | empty (default tool).",
+                    },
+                },
+            },
+        },
+        {
             "name": "inspect_class",
             "description": (
                 "Return a structured summary of a Python class — "

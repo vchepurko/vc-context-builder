@@ -978,6 +978,35 @@ class QueryEngine:
         return _resolve(self.project_root, line, symbols=symbols)
 
     # ------------------------------------------------------------------
+    # Telemetry — per-call metrics aggregated for the user
+    # ------------------------------------------------------------------
+
+    def get_session_metrics(
+        self,
+        *,
+        since: Optional[str] = None,
+        group_by: str = "tool",
+    ) -> Dict[str, Any]:
+        """Aggregate this project's per-call metrics.
+
+        ``since`` accepts ``"24h"``, ``"7d"``, ``"today"``, ``"all"``.
+        Default = ``"today"``.  ``group_by`` is one of ``"tool"``
+        (default), ``"hour"``, or ``"empty"``.
+
+        Returns the shape produced by :func:`mcp.metrics.aggregate`:
+        ``{calls, total_tokens, avg_t_ms, empty_ratio, ok_ratio,
+        by_<group>}``.  Empty payload when the writer has never run
+        for this project.
+        """
+        from mcp.metrics import aggregate, read_metrics  # noqa: E402
+
+        entries = read_metrics(
+            self.project_root,
+            since=since if since is not None else "today",
+        )
+        return aggregate(entries, group_by=group_by)
+
+    # ------------------------------------------------------------------
     # Feature J — whitelisted check runner (tests / lint / typecheck)
     # ------------------------------------------------------------------
 
