@@ -382,6 +382,39 @@ uses the `bytes // 4` heuristic — rough but stable for trends.
 Pass `--no-metrics` to `mcp_server.py` to opt out (writer becomes a
 no-op; no disk activity).
 
+### Quality findings — wasteful pairs, hot rereads, empty streaks
+
+Add `--quality` to the CLI (or `quality: true` to the MCP call) to
+get a Phase-2 audit on top of the raw counters:
+
+```bash
+$ vc-context stats --since 24h --quality
+=== since 24h: 142 calls, ~3.2k tok, avg 6.1 ms, empty 9%, ok 100% ===
+  find_symbol     87  (61%)  ~1812 tok   avg 4.0 ms   empty 4%
+  ...
+
+--- quality: 3 finding(s) ---
+  [wasteful_pairs] (1)
+    INFO  find_symbol('QueryEngine') → read_slice within 60s; could have used include_body=true
+  [hot_rereads] (1)
+    WARN  find_symbol({'name': 'Dispatcher'}) called 4× — consider caching
+  [empty_streaks] (1)
+    WARN  find_call_sites returned empty 3 times in a row — wrong query or misspelled symbol?
+```
+
+Detectors (see `mcp/quality.py` for thresholds):
+
+- **wasteful_pairs** — `find_symbol(name=X)` followed by
+  `read_slice(file=…)` within 60s when `include_body=true` was
+  *not* passed. One round-trip would have sufficed.
+- **hot_rereads** — same `(tool, args_summary)` queried ≥3× — cache
+  the result instead.
+- **empty_streaks** — ≥3 consecutive empty results from the same
+  tool — wrong API or misspelled symbol.
+
+Each finding cites evidence (timestamps + tool calls) so an agent
+or human can audit the claim.
+
 ---
 
 ## Evidence-based answers — fact tools
@@ -411,6 +444,83 @@ opt back in, or use the dedicated tools above. Pair `read_slice`
 with `find_symbol(..., fields=["file","line","end_line"])` for the
 "jump to evidence" pattern: one round-trip to find, one to read the
 exact range that proves the claim.
+
+---
+
+## Card-shaped tools — one-call answers
+
+When a playbook needs a full picture before deciding what to read,
+use the *card* tools — each replaces a 3-5 call sequence with a
+single ~250-token response:
+
+```bash
+$ vc-context card QueryEngine
+QueryEngine
+  file: query_engine.py:28-1759
+  kind: class
+  doc: Lazy-loading reader over the three artifact tiers.
+  callees (102): _build_reverse_index, _by, _collect, _extract_body, ...
+  test: tests/test_class_inspector.py:143  (test_engine_round_trip)
+  callers: (none)
+```
+
+```bash
+$ vc-context file-card backend/routes/admin.py
+backend/routes/admin.py
+  dependencies: fastapi, ...
+  roles: route: 7
+  exports (7):
+    - list_admins:42  async-func [route]  -- GET /api/admin/staff/admins ...
+    - add_admin:58  async-func [route]  -- POST /api/admin/staff/admins ...
+    ...
+```
+
+```bash
+$ vc-context repo-map
+=== 14 modules, 117 files, 412 exports ===
+  ./bot/handlers      12 files   89 exports  [aiogram-handler]
+  ./database/repositories  8 files  41 exports  [repository]
+  ./services           7 files   26 exports  [service]
+  ...
+```
+
+```bash
+$ vc-context changed --base main
+12 changed symbol(s):
+  add_admin       bot/api_client/staff.py:42-58   (async-func) [api-client]
+  list_admins     backend/routes/admin.py:42-50   (async-func) [route]
+  ...
+```
+
+```bash
+$ vc-context decorated dataclass
+3 symbol(s) decorated with 'dataclass':
+  Config  config.py:7  (class)
+  ...
+```
+
+MCP equivalents: `get_symbol_card`, `get_file_card`, `repo_map`,
+`get_changed_symbols`, `get_decorated_with`. `decorators` are
+captured only on top-level declarations (matches the rest of the
+indexer); method-level decorators (`@staticmethod`, `@property`)
+don't appear.
+
+---
+
+## Playbooks — task-shaped MCP recipes
+
+When you have a concrete task type, open the matching playbook for a
+pre-baked MCP sequence + output format:
+
+- [Bug investigation](playbooks/bug_investigation.md) — "Why does X
+  fail?", stack trace in hand.
+- [Impact analysis](playbooks/impact_analysis.md) — "What breaks if I
+  change X?", before refactor.
+- [Refactoring review](playbooks/refactoring_review.md) — reviewing
+  your own or someone else's refactor / PR.
+
+See [playbooks/README.md](playbooks/README.md) for when to add a new
+one.
 
 ---
 

@@ -572,7 +572,7 @@ class ContextBuilder:
                     candidate: Dict[str, Any] = {"file": file_rel}
                     for k in ("kind", "params", "doc", "role", "inputs",
                               "outputs", "line", "end_line",
-                              "callees", "raises"):
+                              "callees", "raises", "decorators"):
                         v = exp.get(k)
                         if v:
                             candidate[k] = v

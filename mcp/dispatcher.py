@@ -50,6 +50,11 @@ class Dispatcher:
             "find_symbols":      self._find_symbols,
             "get_callees":       self._get_callees,
             "get_raised_exceptions": self._get_raised_exceptions,
+            "get_decorated_with": self._get_decorated_with,
+            "get_symbol_card":   self._get_symbol_card,
+            "get_file_card":     self._get_file_card,
+            "get_changed_symbols": self._get_changed_symbols,
+            "repo_map":          self._repo_map,
             "read_slice":        self._read_slice,
             "find_by_role":      self._find_by_role,
             "who_calls":         self._who_calls,
@@ -147,6 +152,33 @@ class Dispatcher:
             str(args.get("symbol", "")).strip()
         )
 
+    def _get_decorated_with(self, args: Dict[str, Any]) -> Any:
+        return self.engine.get_decorated_with(
+            str(args.get("decorator", "")).strip()
+        )
+
+    def _get_symbol_card(self, args: Dict[str, Any]) -> Any:
+        return self.engine.get_symbol_card(
+            str(args.get("symbol", "")).strip()
+        )
+
+    def _get_file_card(self, args: Dict[str, Any]) -> Any:
+        return self.engine.get_file_card(
+            str(args.get("path", "")).strip()
+        )
+
+    def _get_changed_symbols(self, args: Dict[str, Any]) -> Any:
+        base = args.get("base")
+        base_arg = (
+            str(base).strip()
+            if isinstance(base, str) and base.strip()
+            else None
+        )
+        return self.engine.get_changed_symbols(base=base_arg)
+
+    def _repo_map(self, args: Dict[str, Any]) -> Any:
+        return self.engine.repo_map()
+
     def _read_slice(self, args: Dict[str, Any]) -> Any:
         path = str(args.get("file", "")).strip()
         try:
@@ -238,6 +270,8 @@ class Dispatcher:
         v = args.get("group_by")
         if isinstance(v, str) and v.strip():
             kw["group_by"] = v.strip()
+        if args.get("quality") is True:
+            kw["quality"] = True
         return self.engine.get_session_metrics(**kw)
 
     def _inspect_class(self, args: Dict[str, Any]) -> Any:
