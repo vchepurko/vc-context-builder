@@ -43,7 +43,18 @@ def _emit_json(payload: Any) -> None:
 
 def _print_symbol(name: str, entry: Dict[str, Any]) -> None:
     print(f"{name}")
-    for key in ("file", "kind", "params", "role"):
+    # File + line range come first — most agents/devs need them next.
+    file_v = entry.get("file")
+    if file_v:
+        line_v = entry.get("line")
+        end_v = entry.get("end_line")
+        suffix = ""
+        if line_v:
+            suffix = f":{line_v}"
+            if end_v and end_v != line_v:
+                suffix += f"-{end_v}"
+        print(f"  file: {file_v}{suffix}")
+    for key in ("kind", "params", "role"):
         if entry.get(key):
             print(f"  {key}: {entry[key]}")
     if entry.get("doc"):
@@ -55,6 +66,20 @@ def _print_symbol(name: str, entry: Dict[str, Any]) -> None:
         line = test.get("line")
         suffix = f":{line}" if line else ""
         print(f"  test: {test.get('test_file')}{suffix}  ({test.get('test_function')})")
+    # Fact fields only show when explicitly requested via --fields
+    # (HIDE_BY_DEFAULT keeps them off the lean response).
+    callees = entry.get("callees")
+    if callees:
+        print(f"  callees ({len(callees)}): {', '.join(callees[:8])}"
+              + (" ..." if len(callees) > 8 else ""))
+    raises = entry.get("raises")
+    if raises:
+        print(f"  raises: {', '.join(raises)}")
+    body = entry.get("body")
+    if body:
+        print("  body:")
+        for line in str(body).splitlines():
+            print(f"    {line}")
 
 
 def _print_callers(symbol: str, callers: List[Dict[str, str]]) -> None:
@@ -127,7 +152,15 @@ def _engine(args: argparse.Namespace) -> QueryEngine:
 
 def cmd_find(args: argparse.Namespace) -> int:
     engine = _engine(args)
-    entry = engine.find_symbol(args.symbol)
+    fields = (
+        [f.strip() for f in args.fields.split(",") if f.strip()]
+        if getattr(args, "fields", None) else None
+    )
+    entry = engine.find_symbol(
+        args.symbol,
+        fields=fields,
+        include_body=bool(getattr(args, "body", False)),
+    )
     if entry is None:
         if args.json:
             _emit_json(None)
@@ -138,6 +171,58 @@ def cmd_find(args: argparse.Namespace) -> int:
         _emit_json({"name": args.symbol, **entry})
     else:
         _print_symbol(args.symbol, entry)
+    return 0
+
+
+def cmd_callees(args: argparse.Namespace) -> int:
+    engine = _engine(args)
+    callees = engine.get_callees(args.symbol)
+    if args.json:
+        _emit_json(callees)
+        return 0 if callees else 1
+    if not callees:
+        print(f"No callees recorded for {args.symbol}.")
+        return 1
+    print(f"{len(callees)} callee(s) of {args.symbol}:")
+    for c in callees:
+        print(f"  {c}")
+    return 0
+
+
+def cmd_raises(args: argparse.Namespace) -> int:
+    engine = _engine(args)
+    raises = engine.get_raised_exceptions(args.symbol)
+    if args.json:
+        _emit_json(raises)
+        return 0 if raises else 1
+    if not raises:
+        print(f"No raises recorded for {args.symbol}.")
+        return 1
+    print(f"{len(raises)} exception(s) raised by {args.symbol}:")
+    for r in raises:
+        print(f"  {r}")
+    return 0
+
+
+def cmd_slice(args: argparse.Namespace) -> int:
+    engine = _engine(args)
+    out = engine.read_slice(args.file, args.start, args.end)
+    if out is None:
+        if args.json:
+            _emit_json(None)
+        else:
+            print(
+                f"Could not read slice: {args.file}:{args.start}-{args.end}",
+                file=sys.stderr,
+            )
+        return 1
+    if args.json:
+        _emit_json(out)
+    else:
+        marker = "  (truncated)" if out.get("truncated") else ""
+        print(f"{out['file']}:{out['start']}-{out['end']}{marker}")
+        for offset, line in enumerate(out["content"].splitlines()):
+            print(f"  {out['start'] + offset:>5}  {line}")
     return 0
 
 
@@ -353,11 +438,43 @@ def _build_parser() -> argparse.ArgumentParser:
 
     p_find = sub.add_parser("find", help="Look up a symbol by name.")
     p_find.add_argument("symbol")
+    p_find.add_argument(
+        "--fields",
+        help="Comma-separated whitelist (e.g. file,line,kind). "
+             "Default = full record minus fact fields.",
+    )
+    p_find.add_argument(
+        "--body", action="store_true",
+        help="Embed verbatim source body in the response.",
+    )
     p_find.set_defaults(handler=cmd_find)
 
     p_calls = sub.add_parser("calls", help="Best-effort callers of a symbol.")
     p_calls.add_argument("symbol")
     p_calls.set_defaults(handler=cmd_calls)
+
+    p_callees = sub.add_parser(
+        "callees",
+        help="What identifiers does this symbol invoke? (AST-derived)",
+    )
+    p_callees.add_argument("symbol")
+    p_callees.set_defaults(handler=cmd_callees)
+
+    p_raises = sub.add_parser(
+        "raises",
+        help="What exception classes does this symbol raise?",
+    )
+    p_raises.add_argument("symbol")
+    p_raises.set_defaults(handler=cmd_raises)
+
+    p_slice = sub.add_parser(
+        "slice",
+        help="Read a bounded line range of a project file (≤200 lines).",
+    )
+    p_slice.add_argument("file")
+    p_slice.add_argument("start", type=int)
+    p_slice.add_argument("end", type=int)
+    p_slice.set_defaults(handler=cmd_slice)
 
     p_role = sub.add_parser("role", help="All symbols tagged with a role.")
     p_role.add_argument("role")
