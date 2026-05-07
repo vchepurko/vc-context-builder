@@ -20,7 +20,14 @@ def tool_specs() -> List[Dict[str, Any]]:
             "description": (
                 "Look up a symbol in agent_symbols.json. Returns the "
                 "{file, kind, params, doc, role} record, or null when "
-                "the name is unknown."
+                "the name is unknown.\n\n"
+                "Token economy:\n"
+                "- Pass `fields: ['file']` for a 'where is X?' answer "
+                "(~30 tokens) — beats `bash grep` on cost.\n"
+                "- Pass `include_body: true` to embed the function/class "
+                "source in the response and skip a follow-up Read.\n"
+                "- For multiple symbols, prefer `find_symbols` (one "
+                "round-trip vs N)."
             ),
             "inputSchema": {
                 "type": "object",
@@ -29,8 +36,57 @@ def tool_specs() -> List[Dict[str, Any]]:
                         "type": "string",
                         "description": "Symbol name (case-sensitive).",
                     },
+                    "fields": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": (
+                            "Whitelist of keys to keep in the response "
+                            "(e.g. ['file'], ['file', 'kind']). Default "
+                            "= full record."
+                        ),
+                    },
+                    "include_body": {
+                        "type": "boolean",
+                        "description": (
+                            "Embed verbatim source body (Python: AST "
+                            "segment; JS/TS: line-based slice). "
+                            "Saves a Read."
+                        ),
+                    },
                 },
                 "required": ["name"],
+            },
+        },
+        {
+            "name": "find_symbols",
+            "description": (
+                "Batch lookup — N symbol records in one MCP call. "
+                "Returns a {name → record_or_null} map. Same `fields` "
+                "and `include_body` knobs as find_symbol.\n\n"
+                "Token economy: 3 separate find_symbol calls cost "
+                "~3 × 135 = ~400 tokens of round-trip overhead; one "
+                "find_symbols(['A','B','C']) call carries the same "
+                "payload at ~150 tokens."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "names": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Symbol names (case-sensitive).",
+                    },
+                    "fields": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Same as find_symbol.fields.",
+                    },
+                    "include_body": {
+                        "type": "boolean",
+                        "description": "Same as find_symbol.include_body.",
+                    },
+                },
+                "required": ["names"],
             },
         },
         {

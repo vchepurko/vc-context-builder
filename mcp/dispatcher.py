@@ -34,6 +34,7 @@ class Dispatcher:
         self.engine = engine
         self._handlers: Dict[str, Callable[[Dict[str, Any]], Any]] = {
             "find_symbol":       self._find_symbol,
+            "find_symbols":      self._find_symbols,
             "find_by_role":      self._find_by_role,
             "who_calls":         self._who_calls,
             "summarise_module":  self._summarise_module,
@@ -78,7 +79,28 @@ class Dispatcher:
         return handler(args or {})
 
     def _find_symbol(self, args: Dict[str, Any]) -> Any:
-        return self.engine.find_symbol(str(args.get("name", "")))
+        kw = self._symbol_kwargs(args)
+        return self.engine.find_symbol(str(args.get("name", "")), **kw)
+
+    def _find_symbols(self, args: Dict[str, Any]) -> Any:
+        names = args.get("names")
+        if not isinstance(names, list):
+            return {}
+        # Defensive cast — clients sometimes pass non-strings.
+        cleaned = [str(n) for n in names if n]
+        kw = self._symbol_kwargs(args)
+        return self.engine.find_symbols(cleaned, **kw)
+
+    @staticmethod
+    def _symbol_kwargs(args: Dict[str, Any]) -> Dict[str, Any]:
+        """Shared kwarg extractor for find_symbol / find_symbols."""
+        kw: Dict[str, Any] = {}
+        fields = args.get("fields")
+        if isinstance(fields, list):
+            kw["fields"] = [str(f) for f in fields if isinstance(f, str)]
+        if args.get("include_body") is True:
+            kw["include_body"] = True
+        return kw
 
     def _find_by_role(self, args: Dict[str, Any]) -> Any:
         return self.engine.find_by_role(str(args.get("role", "")))
