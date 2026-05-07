@@ -171,6 +171,124 @@ def tool_specs() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": "get_symbol_card",
+            "description": (
+                "One-call symbol overview — bundles ``find_symbol`` "
+                "(file/line/end_line/kind/params/doc/role), "
+                "``get_callees``, ``get_raised_exceptions``, "
+                "``find_test``, and a capped callers summary "
+                "(``{total, top: [first-5]}``) into a single "
+                "round-trip.\n\n"
+                "Token economy: replaces the 4-call sequence "
+                "(find_symbol → get_callees → get_raised_exceptions → "
+                "who_calls → find_test) with one ~250-token "
+                "response. Use to bootstrap a playbook step that "
+                "needs full context before deciding what to read."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "symbol": {
+                        "type": "string",
+                        "description": "Symbol name (case-sensitive).",
+                    },
+                },
+                "required": ["symbol"],
+            },
+        },
+        {
+            "name": "get_file_card",
+            "description": (
+                "One-call file overview — exports + dependencies + "
+                "dominant role of a single file. Slim version of "
+                "``summarise_module`` scoped to one path.\n\n"
+                "Use to answer 'what does this file do?' without "
+                "reading it. Returns null when the file isn't in any "
+                "module map."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "Project-relative file path.",
+                    },
+                },
+                "required": ["path"],
+            },
+        },
+        {
+            "name": "get_changed_symbols",
+            "description": (
+                "Return symbols whose ``(file, line, end_line)`` "
+                "overlap any hunk of ``git diff <base>..HEAD`` "
+                "(default base: working tree). Each item: "
+                "``{name, file, line, end_line, kind, role?}``, "
+                "sorted by ``(file, line)``.\n\n"
+                "Use to scope a refactor review or CI signal — "
+                "'which symbols did this branch actually touch?' "
+                "Empty list when not in a git repo OR diff is empty. "
+                "Symbols not in the index (new files yet to re-index) "
+                "are silently dropped."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "base": {
+                        "type": "string",
+                        "description": (
+                            "Git ref to diff against "
+                            "(e.g. 'main', 'origin/main'). "
+                            "Default = working tree."
+                        ),
+                    },
+                },
+            },
+        },
+        {
+            "name": "repo_map",
+            "description": (
+                "Top-level project shape — every module with file "
+                "count, export count, dominant role, role histogram. "
+                "Walks every ``_module_map.json`` once.\n\n"
+                "Cheapest answer to 'what does this project look "
+                "like?'. Use as the first call when starting fresh "
+                "on an unfamiliar codebase. Output: "
+                "``{modules: [...], totals: {modules, files, exports}}``."
+            ),
+            "inputSchema": {"type": "object", "properties": {}},
+        },
+        {
+            "name": "get_decorated_with",
+            "description": (
+                "Return symbols whose ``decorators`` array contains "
+                "the given decorator name. Match is suffix-aware: "
+                "``'router.get'`` matches ``router.get`` exactly; "
+                "``'get'`` matches ``router.get`` / ``app.get`` / "
+                "bare ``get``. Pass the full attribute path to "
+                "disambiguate.\n\n"
+                "Generalisation of ``find_by_role`` — works for ANY "
+                "decorator the indexer captured, not just the "
+                "role-mapped ones (``@cached``, ``@deprecated``, "
+                "custom decorators). Each item: "
+                "``{name, file, line, kind, role?}``, sorted by "
+                "``(file, line)``."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "decorator": {
+                        "type": "string",
+                        "description": (
+                            "Decorator name (with or without dotted "
+                            "path)."
+                        ),
+                    },
+                },
+                "required": ["decorator"],
+            },
+        },
+        {
             "name": "find_by_role",
             "description": (
                 "Return every symbol name tagged with the given role "
@@ -423,12 +541,16 @@ def tool_specs() -> List[Dict[str, Any]]:
                 "Aggregate this project's per-call MCP telemetry. "
                 "Returns "
                 "{calls, total_tokens, avg_t_ms, empty_ratio, ok_ratio, "
-                "by_<group>}. Use to *see* how the agent is using the "
-                "MCP surface — call counts, payload tokens, latency, "
-                "and 'wasted' empty results.\n\n"
+                "by_<group>, quality?}. Use to *see* how the agent is "
+                "using the MCP surface — call counts, payload tokens, "
+                "latency, and 'wasted' empty results.\n\n"
                 "`since` accepts ``24h`` / ``7d`` / ``today`` / ``all`` "
                 "(default ``today``). `group_by` is one of ``tool`` "
                 "(default), ``hour``, ``empty``.\n\n"
+                "Pass `quality: true` to add a `quality` block with "
+                "wasteful round-trips, hot rereads, and empty streaks. "
+                "Detectors are conservative; each finding cites "
+                "evidence (timestamps + tool calls).\n\n"
                 "Telemetry lives in "
                 "``~/.vc-context/metrics/<repo-hash>-<date>.jsonl`` "
                 "(override via ``VC_CONTEXT_METRICS_DIR``). The writer "
@@ -444,6 +566,13 @@ def tool_specs() -> List[Dict[str, Any]]:
                     "group_by": {
                         "type": "string",
                         "description": "tool | hour | empty (default tool).",
+                    },
+                    "quality": {
+                        "type": "boolean",
+                        "description": (
+                            "Include Phase-2 quality findings "
+                            "(wasteful_pairs, hot_rereads, empty_streaks)."
+                        ),
                     },
                 },
             },

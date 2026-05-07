@@ -447,6 +447,66 @@ exact range that proves the claim.
 
 ---
 
+## Card-shaped tools — one-call answers
+
+When a playbook needs a full picture before deciding what to read,
+use the *card* tools — each replaces a 3-5 call sequence with a
+single ~250-token response:
+
+```bash
+$ vc-context card QueryEngine
+QueryEngine
+  file: query_engine.py:28-1759
+  kind: class
+  doc: Lazy-loading reader over the three artifact tiers.
+  callees (102): _build_reverse_index, _by, _collect, _extract_body, ...
+  test: tests/test_class_inspector.py:143  (test_engine_round_trip)
+  callers: (none)
+```
+
+```bash
+$ vc-context file-card backend/routes/admin.py
+backend/routes/admin.py
+  dependencies: fastapi, ...
+  roles: route: 7
+  exports (7):
+    - list_admins:42  async-func [route]  -- GET /api/admin/staff/admins ...
+    - add_admin:58  async-func [route]  -- POST /api/admin/staff/admins ...
+    ...
+```
+
+```bash
+$ vc-context repo-map
+=== 14 modules, 117 files, 412 exports ===
+  ./bot/handlers      12 files   89 exports  [aiogram-handler]
+  ./database/repositories  8 files  41 exports  [repository]
+  ./services           7 files   26 exports  [service]
+  ...
+```
+
+```bash
+$ vc-context changed --base main
+12 changed symbol(s):
+  add_admin       bot/api_client/staff.py:42-58   (async-func) [api-client]
+  list_admins     backend/routes/admin.py:42-50   (async-func) [route]
+  ...
+```
+
+```bash
+$ vc-context decorated dataclass
+3 symbol(s) decorated with 'dataclass':
+  Config  config.py:7  (class)
+  ...
+```
+
+MCP equivalents: `get_symbol_card`, `get_file_card`, `repo_map`,
+`get_changed_symbols`, `get_decorated_with`. `decorators` are
+captured only on top-level declarations (matches the rest of the
+indexer); method-level decorators (`@staticmethod`, `@property`)
+don't appear.
+
+---
+
 ## Playbooks — task-shaped MCP recipes
 
 When you have a concrete task type, open the matching playbook for a

@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 
@@ -244,7 +245,7 @@ class QueryEngine:
     # large lists (callees especially) don't bloat the lean shape.
     # Always available via explicit ``fields=`` whitelist or via the
     # dedicated `get_callees` / `get_raised_exceptions` tools.
-    HIDE_BY_DEFAULT = ("callees", "raises")
+    HIDE_BY_DEFAULT = ("callees", "raises", "decorators")
 
     def find_symbol(
         self,
@@ -435,6 +436,48 @@ class QueryEngine:
         callees = entry.get("callees") or []
         return list(callees) if isinstance(callees, list) else []
 
+    def get_decorated_with(self, decorator: str) -> List[Dict[str, Any]]:
+        """Return symbols whose ``decorators`` list contains
+        ``decorator``.
+
+        Match is *suffix-aware* — passing ``"router.get"`` matches
+        ``router.get``; passing ``"get"`` matches ``router.get`` /
+        ``app.get`` / bare ``get`` because decorator-name semantics
+        cross attribute chains.  Pass the full path
+        (e.g. ``"app.middleware"``) to disambiguate.
+
+        Each item: ``{name, file, line, kind, role?}``.  Empty list
+        when nothing matches OR the index pre-dates ``decorators``
+        capture (run ``python3 .ai-context/agent_map.py``).
+
+        Generalisation of ``find_by_role`` — works for ANY decorator
+        the indexer saw, not just the role-mapped ones.
+        """
+        target = decorator.strip()
+        if not target:
+            return []
+        symbols = self._load_symbols()
+        out: List[Dict[str, Any]] = []
+        for name, entry in symbols.items():
+            decs = entry.get("decorators") or []
+            if not isinstance(decs, list):
+                continue
+            for d in decs:
+                if d == target or d.endswith("." + target):
+                    rec: Dict[str, Any] = {
+                        "name": name,
+                        "file": entry.get("file"),
+                        "line": entry.get("line"),
+                        "kind": entry.get("kind"),
+                    }
+                    role = entry.get("role")
+                    if role:
+                        rec["role"] = role
+                    out.append(rec)
+                    break
+        out.sort(key=lambda r: (r.get("file") or "", r.get("line") or 0))
+        return out
+
     def get_raised_exceptions(self, symbol: str) -> List[str]:
         """Return exception class names this symbol raises.
 
@@ -520,6 +563,63 @@ class QueryEngine:
             "content": content,
             "truncated": truncated,
         }
+
+    def get_symbol_card(self, symbol: str) -> Optional[Dict[str, Any]]:
+        """One-call symbol overview: bundles ``find_symbol`` (with
+        line range), ``get_callees``, ``get_raised_exceptions``,
+        ``find_test``, and a compact callers summary into a single
+        round-trip.
+
+        Token economy: replaces the typical 4-call sequence
+        (find_symbol → get_callees → get_raised_exceptions → who_calls
+        → find_test) with one ~250-token response.  Use this when a
+        playbook needs a full picture of a symbol before deciding what
+        to read next.
+
+        Returns ``None`` when the symbol is unknown.  Callers list is
+        capped at 5 entries (full count in ``callers.total``) so big
+        hub functions don't bloat the card.
+        """
+        symbols = self._load_symbols()
+        entry = symbols.get(symbol)
+        if entry is None:
+            return None
+
+        callees = entry.get("callees") or []
+        raises = entry.get("raises") or []
+
+        out: Dict[str, Any] = {
+            "name": symbol,
+            "file": entry.get("file"),
+            "line": entry.get("line"),
+            "end_line": entry.get("end_line"),
+            "kind": entry.get("kind"),
+            "params": entry.get("params"),
+            "doc": entry.get("doc"),
+            "role": entry.get("role"),
+            "callees": list(callees) if isinstance(callees, list) else [],
+            "raises": list(raises) if isinstance(raises, list) else [],
+        }
+
+        # Test linkage — best-effort.
+        tests = self._load_tests()
+        test_entry = tests.get(symbol)
+        if test_entry:
+            out["test"] = test_entry
+
+        # Callers summary — capped, since hub symbols can have 50+.
+        callers = self.who_calls(symbol)
+        out["callers"] = {
+            "total": len(callers),
+            "top": callers[:5],
+        }
+
+        # Drop keys that didn't apply (None / empty) so the card stays
+        # tight — callers/callees/raises always render even when empty
+        # because their *shape* is part of the contract.
+        keep_empty = {"name", "callees", "raises", "callers"}
+        out = {k: v for k, v in out.items() if k in keep_empty or v}
+        return out
 
     def find_by_role(self, role: str) -> List[str]:
         """Return all symbol names tagged with ``role``.
@@ -642,6 +742,125 @@ class QueryEngine:
         return {
             "directory": data.get("directory") or normalised or ".",
             "files": slim_files,
+        }
+
+    def repo_map(self) -> Dict[str, Any]:
+        """Return a top-level project shape — module list with file
+        counts, export counts, and dominant role per module.
+
+        Built by walking every ``_module_map.json`` once.  The output
+        is the cheapest way to ask "what does this project look like?"
+        without iterating modules manually.
+
+        Shape::
+
+            {
+              "modules": [
+                {
+                  "path": "./bot/handlers",
+                  "files": 12,
+                  "exports": 89,
+                  "dominant_role": "aiogram-handler",
+                  "roles": {"aiogram-handler": 67, "fsm-state": 4}
+                },
+                ...
+              ],
+              "totals": {"modules": 14, "files": 83, "exports": 412}
+            }
+        """
+        modules: List[Dict[str, Any]] = []
+        total_files = 0
+        total_exports = 0
+        for mp, data in self._iter_module_maps():
+            files = data.get("files") or {}
+            file_count = len(files)
+            exports = 0
+            roles: Dict[str, int] = {}
+            for fdata in files.values():
+                if not isinstance(fdata, dict):
+                    continue
+                for exp in fdata.get("exports") or []:
+                    if not isinstance(exp, dict):
+                        continue
+                    exports += 1
+                    r = exp.get("role")
+                    if r:
+                        roles[r] = roles.get(r, 0) + 1
+            dominant = max(roles, key=roles.get) if roles else None
+            modules.append({
+                "path": data.get("directory") or os.path.dirname(self._rel(mp)),
+                "files": file_count,
+                "exports": exports,
+                "dominant_role": dominant,
+                "roles": roles,
+            })
+            total_files += file_count
+            total_exports += exports
+        modules.sort(key=lambda m: m["path"])
+        return {
+            "modules": modules,
+            "totals": {
+                "modules": len(modules),
+                "files": total_files,
+                "exports": total_exports,
+            },
+        }
+
+    def get_file_card(self, path: str) -> Optional[Dict[str, Any]]:
+        """Return a single file's summary — exports, dependencies,
+        dominant role.  Slim version of ``summarise_module`` scoped to
+        one file.
+
+        Pulls from the file's containing folder ``_module_map.json``.
+        Each export shows ``name``, ``kind``, ``role``, ``line``,
+        ``end_line`` (when indexed) plus the first line of its doc.
+        Returns ``None`` when the file isn't in any module map.
+
+        Use to answer "what does this file do?" without reading it.
+        """
+        rel = path.replace("\\", "/").strip("/")
+        if os.path.isabs(rel):
+            rel = self._rel(rel)
+        if "/" in rel:
+            folder, fname = rel.rsplit("/", 1)
+        else:
+            folder, fname = "", rel
+        map_path = os.path.join(self.project_root, folder, self.MAP_FILENAME)
+        if not os.path.exists(map_path):
+            return None
+        try:
+            with open(map_path, encoding="utf-8") as fh:
+                data = json.load(fh)
+        except (OSError, json.JSONDecodeError):
+            return None
+        files = data.get("files") or {}
+        fdata = files.get(fname)
+        if not isinstance(fdata, dict):
+            return None
+
+        slim_exports: List[Dict[str, Any]] = []
+        roles_seen: Dict[str, int] = {}
+        for exp in fdata.get("exports") or []:
+            if not isinstance(exp, dict):
+                continue
+            slim: Dict[str, Any] = {"name": exp.get("name"), "kind": exp.get("kind")}
+            for k in ("role", "line", "end_line"):
+                v = exp.get(k)
+                if v:
+                    slim[k] = v
+            first = self._first_line(exp.get("doc"))
+            if first:
+                slim["doc"] = first
+            slim_exports.append(slim)
+            r = exp.get("role")
+            if r:
+                roles_seen[r] = roles_seen.get(r, 0) + 1
+
+        return {
+            "file": rel,
+            "exports": slim_exports,
+            "dependencies": fdata.get("dependencies") or [],
+            "roles": roles_seen,
         }
 
     def list_roles(self) -> Dict[str, int]:
@@ -978,6 +1197,103 @@ class QueryEngine:
         return _resolve(self.project_root, line, symbols=symbols)
 
     # ------------------------------------------------------------------
+    # Git bridge — symbols touched by current changes
+    # ------------------------------------------------------------------
+
+    _DIFF_HUNK_RE = re.compile(
+        r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@",
+    )
+
+    def get_changed_symbols(
+        self,
+        base: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Return symbols whose ``(file, line, end_line)`` overlap any
+        hunk of ``git diff <base>..HEAD`` (default base: working tree
+        — i.e. ``git diff`` for unstaged + staged).
+
+        Each item: ``{name, file, line, end_line, kind, role?}``.
+        Sorted by ``(file, line)`` for deterministic output.
+
+        Use to scope a refactor review or a CI signal: "which symbols
+        did this branch actually touch?"  Symbols whose def block is
+        outside any hunk (e.g. a single-line comment edit inside a
+        function still touches that function) are still returned —
+        the function's full range overlaps.
+
+        Returns ``[]`` when not in a git repo OR when the diff is
+        empty.  Symbols not in the index (new files yet to be
+        re-indexed) are silently dropped — call
+        ``python3 .ai-context/agent_map.py`` and retry.
+        """
+        try:
+            import subprocess  # local import — keeps import time low
+            cmd = ["git", "diff", "--unified=0"]
+            if base and base.strip():
+                cmd.append(f"{base.strip()}..HEAD")
+            proc = subprocess.run(
+                cmd, cwd=self.project_root, capture_output=True,
+                text=True, timeout=10,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            return []
+        if proc.returncode != 0:
+            return []
+
+        # Parse hunks: file -> [(start, end_inclusive), ...]
+        hunks: Dict[str, List[tuple]] = {}
+        current_file: Optional[str] = None
+        for line in proc.stdout.splitlines():
+            if line.startswith("+++ b/"):
+                current_file = line[6:].strip()
+                continue
+            if line.startswith("+++ "):
+                # +++ /dev/null (file deleted) — no symbol overlap to record
+                current_file = None
+                continue
+            if not line.startswith("@@") or current_file is None:
+                continue
+            m = self._DIFF_HUNK_RE.match(line)
+            if not m:
+                continue
+            start = int(m.group(1))
+            length = int(m.group(2) or 1)
+            if length == 0:
+                continue  # pure deletion in old side, no new lines
+            hunks.setdefault(current_file, []).append(
+                (start, start + length - 1),
+            )
+
+        if not hunks:
+            return []
+
+        symbols = self._load_symbols()
+        out: List[Dict[str, Any]] = []
+        for name, entry in symbols.items():
+            file_v = entry.get("file")
+            if not file_v or file_v not in hunks:
+                continue
+            sym_start = entry.get("line")
+            sym_end = entry.get("end_line") or sym_start
+            if not isinstance(sym_start, int) or not isinstance(sym_end, int):
+                continue
+            for h_start, h_end in hunks[file_v]:
+                if h_end < sym_start or h_start > sym_end:
+                    continue
+                rec: Dict[str, Any] = {
+                    "name": name, "file": file_v,
+                    "line": sym_start, "end_line": sym_end,
+                    "kind": entry.get("kind"),
+                }
+                role = entry.get("role")
+                if role:
+                    rec["role"] = role
+                out.append(rec)
+                break
+        out.sort(key=lambda r: (r["file"], r["line"]))
+        return out
+
+    # ------------------------------------------------------------------
     # Telemetry — per-call metrics aggregated for the user
     # ------------------------------------------------------------------
 
@@ -986,6 +1302,7 @@ class QueryEngine:
         *,
         since: Optional[str] = None,
         group_by: str = "tool",
+        quality: bool = False,
     ) -> Dict[str, Any]:
         """Aggregate this project's per-call metrics.
 
@@ -993,10 +1310,15 @@ class QueryEngine:
         Default = ``"today"``.  ``group_by`` is one of ``"tool"``
         (default), ``"hour"``, or ``"empty"``.
 
+        When ``quality=True``, also compute Phase-2 quality signals
+        (wasteful round-trips, hot rereads, empty streaks) from the
+        same JSONL stream and embed them under the ``quality`` key.
+        Detectors are conservative — see ``mcp.quality`` for thresholds.
+
         Returns the shape produced by :func:`mcp.metrics.aggregate`:
         ``{calls, total_tokens, avg_t_ms, empty_ratio, ok_ratio,
-        by_<group>}``.  Empty payload when the writer has never run
-        for this project.
+        by_<group>, quality?}``.  Empty payload when the writer has
+        never run for this project.
         """
         from mcp.metrics import aggregate, read_metrics  # noqa: E402
 
@@ -1004,7 +1326,11 @@ class QueryEngine:
             self.project_root,
             since=since if since is not None else "today",
         )
-        return aggregate(entries, group_by=group_by)
+        out = aggregate(entries, group_by=group_by)
+        if quality:
+            from mcp.quality import quality_report  # noqa: E402
+            out["quality"] = quality_report(entries)
+        return out
 
     # ------------------------------------------------------------------
     # Feature J — whitelisted check runner (tests / lint / typecheck)

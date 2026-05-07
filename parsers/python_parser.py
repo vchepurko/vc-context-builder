@@ -138,13 +138,35 @@ class PythonParser(BaseParser):
         # Stash decorator + body text for custom_roles regexes. These
         # are private fields (`_`-prefixed) — agent_map.py strips them
         # before writing JSON to disk.
+        decorator_names: List[str] = []
         try:
             decorators = getattr(node, "decorator_list", []) or []
             dec_text = "\n".join(ast.unparse(d) for d in decorators)
             if dec_text:
                 out["_decorators_text"] = dec_text
+            # Also extract decorator names for `get_decorated_with`.
+            # ``@cached`` → "cached"; ``@app.get("/x")`` → "app.get";
+            # ``@router.message(F.text)`` → "router.message".
+            for dec in decorators:
+                node_for_name = dec.func if isinstance(dec, ast.Call) else dec
+                if isinstance(node_for_name, ast.Name):
+                    decorator_names.append(node_for_name.id)
+                elif isinstance(node_for_name, ast.Attribute):
+                    parts: List[str] = [node_for_name.attr]
+                    cur: ast.AST = node_for_name.value
+                    while isinstance(cur, ast.Attribute):
+                        parts.append(cur.attr)
+                        cur = cur.value
+                    if isinstance(cur, ast.Name):
+                        parts.append(cur.id)
+                    decorator_names.append(".".join(reversed(parts)))
         except Exception:
             pass
+        if decorator_names:
+            # De-duplicate while preserving order.
+            seen: Set[str] = set()
+            unique = [d for d in decorator_names if not (d in seen or seen.add(d))]
+            out["decorators"] = unique
         if source is not None:
             try:
                 seg = ast.get_source_segment(source, node)

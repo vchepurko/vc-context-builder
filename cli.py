@@ -204,10 +204,158 @@ def cmd_raises(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_card(args: argparse.Namespace) -> int:
+    engine = _engine(args)
+    card = engine.get_symbol_card(args.symbol)
+    if card is None:
+        if args.json:
+            _emit_json(None)
+        else:
+            print(f"Symbol not found: {args.symbol}", file=sys.stderr)
+        return 1
+    if args.json:
+        _emit_json(card)
+        return 0
+    name = card["name"]
+    print(name)
+    file_v = card.get("file")
+    if file_v:
+        suffix = ""
+        if card.get("line"):
+            suffix = f":{card['line']}"
+            if card.get("end_line") and card["end_line"] != card["line"]:
+                suffix += f"-{card['end_line']}"
+        print(f"  file: {file_v}{suffix}")
+    for k in ("kind", "params", "role"):
+        if card.get(k):
+            print(f"  {k}: {card[k]}")
+    if card.get("doc"):
+        print(f"  doc: {card['doc']}")
+    callees = card.get("callees") or []
+    if callees:
+        print(f"  callees ({len(callees)}): {', '.join(callees[:8])}"
+              + (" ..." if len(callees) > 8 else ""))
+    raises = card.get("raises") or []
+    if raises:
+        print(f"  raises: {', '.join(raises)}")
+    test = card.get("test") or {}
+    if test.get("test_file"):
+        line = test.get("line")
+        suf = f":{line}" if line else ""
+        print(f"  test: {test['test_file']}{suf}  ({test.get('test_function')})")
+    callers = card.get("callers") or {}
+    total = callers.get("total", 0)
+    if total:
+        print(f"  callers ({total}):")
+        for c in (callers.get("top") or [])[:5]:
+            print(f"    {c.get('file')}  [{c.get('kind') or 'file'}]")
+    else:
+        print("  callers: (none)")
+    return 0
+
+
+def cmd_file_card(args: argparse.Namespace) -> int:
+    engine = _engine(args)
+    card = engine.get_file_card(args.path)
+    if card is None:
+        if args.json:
+            _emit_json(None)
+        else:
+            print(f"File not in any module map: {args.path}", file=sys.stderr)
+        return 1
+    if args.json:
+        _emit_json(card)
+        return 0
+    print(card["file"])
+    deps = card.get("dependencies") or []
+    if deps:
+        print(f"  dependencies: {', '.join(deps)}")
+    roles = card.get("roles") or {}
+    if roles:
+        bits = ", ".join(f"{r}: {n}" for r, n in roles.items())
+        print(f"  roles: {bits}")
+    exports = card.get("exports") or []
+    if exports:
+        print(f"  exports ({len(exports)}):")
+        for exp in exports:
+            line = exp.get("line")
+            suf = f":{line}" if line else ""
+            tag = exp.get("kind") or ""
+            role = f" [{exp['role']}]" if exp.get("role") else ""
+            doc = f"  -- {exp['doc']}" if exp.get("doc") else ""
+            print(f"    - {exp.get('name')}{suf}  {tag}{role}{doc}")
+    return 0
+
+
+def cmd_changed(args: argparse.Namespace) -> int:
+    engine = _engine(args)
+    out = engine.get_changed_symbols(base=args.base)
+    if args.json:
+        _emit_json(out)
+        return 0 if out else 1
+    if not out:
+        print("No changed symbols (or not a git repo).")
+        return 1
+    print(f"{len(out)} changed symbol(s):")
+    for r in out:
+        line = r.get("line")
+        end = r.get("end_line")
+        suf = f":{line}" if line else ""
+        if end and end != line:
+            suf += f"-{end}"
+        role = f" [{r['role']}]" if r.get("role") else ""
+        print(f"  {r['name']}  {r.get('file')}{suf}  ({r.get('kind')}){role}")
+    return 0
+
+
+def cmd_decorated(args: argparse.Namespace) -> int:
+    engine = _engine(args)
+    out = engine.get_decorated_with(args.decorator)
+    if args.json:
+        _emit_json(out)
+        return 0 if out else 1
+    if not out:
+        print(f"No symbols decorated with {args.decorator!r}.")
+        return 1
+    print(f"{len(out)} symbol(s) decorated with {args.decorator!r}:")
+    for r in out:
+        line = r.get("line")
+        suf = f":{line}" if line else ""
+        role = f" [{r['role']}]" if r.get("role") else ""
+        print(f"  {r['name']}  {r.get('file')}{suf}  ({r.get('kind')}){role}")
+    return 0
+
+
+def cmd_repo_map(args: argparse.Namespace) -> int:
+    engine = _engine(args)
+    out = engine.repo_map()
+    if args.json:
+        _emit_json(out)
+        return 0
+    totals = out.get("totals") or {}
+    print(
+        f"=== {totals.get('modules', 0)} modules, "
+        f"{totals.get('files', 0)} files, "
+        f"{totals.get('exports', 0)} exports ==="
+    )
+    modules = out.get("modules") or []
+    if not modules:
+        return 0
+    width = max(len(m["path"]) for m in modules)
+    for m in modules:
+        dom = f"  [{m['dominant_role']}]" if m.get("dominant_role") else ""
+        print(
+            f"  {m['path'].ljust(width)}  "
+            f"{m['files']:>3} files  {m['exports']:>3} exports{dom}"
+        )
+    return 0
+
+
 def cmd_stats(args: argparse.Namespace) -> int:
     engine = _engine(args)
     out = engine.get_session_metrics(
         since=args.since, group_by=args.by,
+        quality=bool(getattr(args, "quality", False)),
     )
     if args.json:
         _emit_json(out)
@@ -225,23 +373,39 @@ def cmd_stats(args: argparse.Namespace) -> int:
     )
     bucket_key = f"by_{args.by}"
     buckets = out.get(bucket_key, {}) or {}
-    if not buckets:
-        return 0
-    width = max(len(k) for k in buckets) if buckets else 0
-    # Sort by call count descending — top consumers first.
-    rows = sorted(
-        buckets.items(), key=lambda kv: kv[1].get("calls", 0), reverse=True,
-    )
-    for key, stats in rows:
-        n = stats.get("calls", 0)
-        pct = (100.0 * n / calls) if calls else 0.0
-        toks = stats.get("tokens", 0)
-        empty = int(stats.get("empty_ratio", 0) * 100)
-        avg = stats.get("avg_t_ms", 0)
-        print(
-            f"  {key.ljust(width)}  {n:>3}  ({pct:>2.0f}%)  "
-            f"~{toks} tok   avg {avg} ms   empty {empty}%"
+    if buckets:
+        width = max(len(k) for k in buckets)
+        # Sort by call count descending — top consumers first.
+        rows = sorted(
+            buckets.items(), key=lambda kv: kv[1].get("calls", 0), reverse=True,
         )
+        for key, stats in rows:
+            n = stats.get("calls", 0)
+            pct = (100.0 * n / calls) if calls else 0.0
+            toks = stats.get("tokens", 0)
+            empty = int(stats.get("empty_ratio", 0) * 100)
+            avg = stats.get("avg_t_ms", 0)
+            print(
+                f"  {key.ljust(width)}  {n:>3}  ({pct:>2.0f}%)  "
+                f"~{toks} tok   avg {avg} ms   empty {empty}%"
+            )
+
+    quality = out.get("quality")
+    if quality:
+        print()
+        print(
+            f"--- quality: {quality.get('total_findings', 0)} finding(s) ---"
+        )
+        for kind in ("wasteful_pairs", "hot_rereads", "empty_streaks"):
+            findings = quality.get(kind) or []
+            if not findings:
+                continue
+            print(f"  [{kind}] ({len(findings)})")
+            for f in findings[:5]:
+                sev = f.get("severity", "info").upper()
+                print(f"    {sev}  {f.get('message')}")
+            if len(findings) > 5:
+                print(f"    ... +{len(findings) - 5} more")
     return 0
 
 
@@ -517,6 +681,43 @@ def _build_parser() -> argparse.ArgumentParser:
     p_slice.add_argument("end", type=int)
     p_slice.set_defaults(handler=cmd_slice)
 
+    p_card = sub.add_parser(
+        "card",
+        help="One-call symbol overview (find_symbol + callees + raises + test + callers).",
+    )
+    p_card.add_argument("symbol")
+    p_card.set_defaults(handler=cmd_card)
+
+    p_fcard = sub.add_parser(
+        "file-card",
+        help="One-call file overview (exports + deps + dominant role).",
+    )
+    p_fcard.add_argument("path")
+    p_fcard.set_defaults(handler=cmd_file_card)
+
+    p_changed = sub.add_parser(
+        "changed",
+        help="Symbols touched by `git diff <base>..HEAD` (default: working tree).",
+    )
+    p_changed.add_argument(
+        "--base", default=None,
+        help="Git ref to diff against (e.g. main, origin/main). Default: working tree.",
+    )
+    p_changed.set_defaults(handler=cmd_changed)
+
+    p_dec = sub.add_parser(
+        "decorated",
+        help="Symbols whose decorators include the given name (suffix-aware).",
+    )
+    p_dec.add_argument("decorator")
+    p_dec.set_defaults(handler=cmd_decorated)
+
+    p_repo = sub.add_parser(
+        "repo-map",
+        help="Top-level project shape (modules + roles + counts).",
+    )
+    p_repo.set_defaults(handler=cmd_repo_map)
+
     p_stats = sub.add_parser(
         "stats",
         help="Aggregate per-call MCP telemetry (calls, tokens, latency).",
@@ -528,6 +729,10 @@ def _build_parser() -> argparse.ArgumentParser:
     p_stats.add_argument(
         "--by", default="tool", choices=("tool", "hour", "empty"),
         help="Group buckets by (default tool).",
+    )
+    p_stats.add_argument(
+        "--quality", action="store_true",
+        help="Add Phase-2 quality findings (wasteful pairs, hot rereads, empty streaks).",
     )
     p_stats.set_defaults(handler=cmd_stats)
 
