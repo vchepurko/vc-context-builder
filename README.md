@@ -354,6 +354,36 @@ Same answer. Different cost per look-up.
 
 ---
 
+## Evidence-based answers — fact tools
+
+Three Tier-1 tools support claims with AST-derived evidence so the
+agent can stop guessing and start citing:
+
+```jsonc
+// "What does this function call?" — sorted, deduped, no source read.
+get_callees("do_work")
+→ ["fetch", "log_event", "validate"]
+
+// "What does this raise?" — class names from `raise X(...)`.
+get_raised_exceptions("do_work")
+→ ["ValueError", "HTTPError"]
+
+// Cite the proof — a bounded slice (≤200 lines / 8KB), no shell.
+read_slice("pkg/work.py", start=42, end=58)
+→ {"file": "pkg/work.py", "start": 42, "end": 58,
+   "content": "def do_work():\n    fetch()\n    ...",
+   "truncated": false}
+```
+
+`callees` and `raises` are excluded from the default `find_symbol`
+response (they can be long); pass `fields=["callees","raises"]` to
+opt back in, or use the dedicated tools above. Pair `read_slice`
+with `find_symbol(..., fields=["file","line","end_line"])` for the
+"jump to evidence" pattern: one round-trip to find, one to read the
+exact range that proves the claim.
+
+---
+
 ## Wiring an MCP host
 
 See [`MCP_SETUP.md`](MCP_SETUP.md) — copy-paste blocks for Claude Code,

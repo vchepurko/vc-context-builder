@@ -1,7 +1,18 @@
 import ast
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, Iterator, List, Optional, Set
 
 from parsers.base_parser import BaseParser
+
+
+def _iter_class_body(cls: ast.ClassDef) -> Iterator[ast.AST]:
+    """Walk every node inside a class body, including nested defs.
+
+    Used by ``_extract_facts`` so a class's callees / raises represent
+    its methods' behaviour, not the class header (decorators, bases,
+    keyword args don't carry runtime meaning agents need).
+    """
+    for stmt in cls.body:
+        yield from ast.walk(stmt)
 
 try:
     # Available when run as a package or with .ai-context on sys.path
@@ -142,6 +153,18 @@ class PythonParser(BaseParser):
             except Exception:
                 pass
 
+        # AST facts (Tier-1: callees + raises). One body walk per
+        # symbol; results are sorted so JSON output is deterministic.
+        # These are public fields — find_symbol hides them from its
+        # default response (HIDE_BY_DEFAULT in query_engine) but
+        # `get_callees` / `get_raised_exceptions` read straight from
+        # the symbol record, no extra artifact.
+        callees, raises = PythonParser._extract_facts(node)
+        if callees:
+            out["callees"] = sorted(callees)
+        if raises:
+            out["raises"] = sorted(raises)
+
         doc = ast.get_docstring(node) or ""
         for line in doc.splitlines():
             line = line.strip()
@@ -186,3 +209,50 @@ class PythonParser(BaseParser):
             out["role"] = role
 
         return out
+
+    @staticmethod
+    def _extract_facts(node: ast.AST) -> tuple:
+        """Walk ``node``'s body once, return ``(callees, raises)``.
+
+        Callees: bare ``foo()`` → ``foo``; attribute calls ``a.b.c()`` →
+        ``c`` (last attribute, the actual method invoked).  We skip
+        ``Call(func=Lambda|Subscript|...)`` — anything that isn't a
+        ``Name`` or ``Attribute`` is unlikely to map back to a symbol
+        the agent can navigate to.
+
+        Raises: ``raise ValueError(...)`` / ``raise pkg.HTTPError(...)``
+        → ``ValueError`` / ``HTTPError``.  Bare ``raise`` (re-raise) and
+        ``raise <Name>`` where Name is a local variable still get the
+        identifier — we don't try to resolve it; consumers can verify
+        with ``find_symbol``.
+
+        Both sets stay deterministic because we sort at the call site.
+        """
+        callees: set = set()
+        raises: set = set()
+        # Skip the node itself when it's a class — we only walk
+        # contained method bodies for facts (the class header has
+        # nothing useful).  For functions we walk the whole body.
+        body_iter = (
+            ast.walk(node)
+            if not isinstance(node, ast.ClassDef)
+            else _iter_class_body(node)
+        )
+        for sub in body_iter:
+            if isinstance(sub, ast.Call):
+                func = sub.func
+                if isinstance(func, ast.Name):
+                    callees.add(func.id)
+                elif isinstance(func, ast.Attribute):
+                    callees.add(func.attr)
+            elif isinstance(sub, ast.Raise):
+                exc = sub.exc
+                if exc is None:
+                    continue  # bare ``raise`` — nothing to record
+                # ``raise SomeExc(...)`` → name of the exception class
+                target = exc.func if isinstance(exc, ast.Call) else exc
+                if isinstance(target, ast.Name):
+                    raises.add(target.id)
+                elif isinstance(target, ast.Attribute):
+                    raises.add(target.attr)
+        return callees, raises
