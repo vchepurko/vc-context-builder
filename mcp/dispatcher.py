@@ -35,6 +35,9 @@ class Dispatcher:
         self._handlers: Dict[str, Callable[[Dict[str, Any]], Any]] = {
             "find_symbol":       self._find_symbol,
             "find_symbols":      self._find_symbols,
+            "get_callees":       self._get_callees,
+            "get_raised_exceptions": self._get_raised_exceptions,
+            "read_slice":        self._read_slice,
             "find_by_role":      self._find_by_role,
             "who_calls":         self._who_calls,
             "summarise_module":  self._summarise_module,
@@ -101,6 +104,25 @@ class Dispatcher:
         if args.get("include_body") is True:
             kw["include_body"] = True
         return kw
+
+    def _get_callees(self, args: Dict[str, Any]) -> Any:
+        return self.engine.get_callees(str(args.get("symbol", "")).strip())
+
+    def _get_raised_exceptions(self, args: Dict[str, Any]) -> Any:
+        return self.engine.get_raised_exceptions(
+            str(args.get("symbol", "")).strip()
+        )
+
+    def _read_slice(self, args: Dict[str, Any]) -> Any:
+        path = str(args.get("file", "")).strip()
+        try:
+            start = int(args.get("start", 0))
+            end = int(args.get("end", 0))
+        except (TypeError, ValueError):
+            return None
+        if not path or start < 1 or end < start:
+            return None
+        return self.engine.read_slice(path, start, end)
 
     def _find_by_role(self, args: Dict[str, Any]) -> Any:
         return self.engine.find_by_role(str(args.get("role", "")))

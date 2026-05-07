@@ -93,6 +93,84 @@ def tool_specs() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": "get_callees",
+            "description": (
+                "Return identifiers this symbol calls in its body — "
+                "the AST-derived 'what does X invoke?' axis "
+                "complementing `who_calls` (which is 'who invokes X?'). "
+                "Sorted, deduplicated. Bare ``foo()`` → ``foo``; "
+                "attribute chains ``a.b.c()`` → rightmost attribute "
+                "(``c``).\n\n"
+                "Use as a fact-check before claiming 'this function "
+                "depends on X' — saves reading the body."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "symbol": {
+                        "type": "string",
+                        "description": "Symbol name (case-sensitive).",
+                    },
+                },
+                "required": ["symbol"],
+            },
+        },
+        {
+            "name": "get_raised_exceptions",
+            "description": (
+                "Return exception class names this symbol raises. "
+                "``raise ValueError(...)`` → ``ValueError``; "
+                "``raise pkg.HTTPError(...)`` → ``HTTPError``. Bare "
+                "re-raise contributes nothing.\n\n"
+                "Use to verify error-handling claims without reading "
+                "the body. Empty list = no `raise` statements at AST "
+                "level (helpers might still propagate; recurse with "
+                "`get_callees` if needed)."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "symbol": {
+                        "type": "string",
+                        "description": "Symbol name (case-sensitive).",
+                    },
+                },
+                "required": ["symbol"],
+            },
+        },
+        {
+            "name": "read_slice",
+            "description": (
+                "Read a small line range of a project file (1-indexed, "
+                "inclusive). Capped at ``SLICE_MAX_LINES`` (200) and "
+                "``SLICE_MAX_BYTES`` (8000); ``truncated: true`` flags "
+                "either limit firing.\n\n"
+                "Pair with `find_symbol(..., fields=['file','line',"
+                "'end_line'])` for evidence-citation patterns: agent "
+                "asserts a fact, then reads exactly the line range "
+                "that proves it. Path is resolved against "
+                "``project_root`` and rejected if it escapes the tree."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "file": {
+                        "type": "string",
+                        "description": "Project-relative file path.",
+                    },
+                    "start": {
+                        "type": "integer",
+                        "description": "First line (1-indexed, inclusive).",
+                    },
+                    "end": {
+                        "type": "integer",
+                        "description": "Last line (1-indexed, inclusive).",
+                    },
+                },
+                "required": ["file", "start", "end"],
+            },
+        },
+        {
             "name": "find_by_role",
             "description": (
                 "Return every symbol name tagged with the given role "

@@ -240,6 +240,12 @@ class QueryEngine:
     # Public API — one method per RPC
     # ------------------------------------------------------------------
 
+    # Fact fields hidden from the default `find_symbol` response so
+    # large lists (callees especially) don't bloat the lean shape.
+    # Always available via explicit ``fields=`` whitelist or via the
+    # dedicated `get_callees` / `get_raised_exceptions` tools.
+    HIDE_BY_DEFAULT = ("callees", "raises")
+
     def find_symbol(
         self,
         name: str,
@@ -255,12 +261,12 @@ class QueryEngine:
             Symbol name (case-sensitive).
         fields:
             Whitelist of keys to keep in the response.  Defaults to the
-            full record (~120 tokens for an aiogram handler with
-            params + doc + test).  Pass ``["file"]`` for a 30-token
-            "where is X?" answer; pass ``["file", "kind"]`` etc. to
-            grow as needed.  Unknown keys are dropped silently.  Set
-            this to bring MCP closer to bash-grep cost on simple
-            lookups.
+            full record minus ``HIDE_BY_DEFAULT`` (the "fact" fields
+            that can balloon — see ``get_callees`` /
+            ``get_raised_exceptions`` for those).  Pass ``["file"]``
+            for a 30-token "where is X?" answer; pass
+            ``["file", "callees"]`` to opt back into a fact field.
+            Unknown keys are dropped silently.
         include_body:
             When ``True``, also embed a ``body`` field with the
             verbatim source slice for the symbol (Python: AST
@@ -290,6 +296,9 @@ class QueryEngine:
         if fields:
             allow = set(fields)
             out = {k: v for k, v in out.items() if k in allow}
+        else:
+            for hide in self.HIDE_BY_DEFAULT:
+                out.pop(hide, None)
         return out
 
     def find_symbols(
@@ -407,6 +416,110 @@ class QueryEngine:
             "catch-all-handler",
         },
     }
+
+    def get_callees(self, symbol: str) -> List[str]:
+        """Return identifiers this symbol calls in its body.
+
+        Sourced from the AST walk during indexing — bare ``foo()``
+        emits ``foo``; attribute chains ``a.b.c()`` emit the rightmost
+        attribute (``c``).  Sorted, deduplicated.  ``[]`` when the
+        symbol is unknown OR has no calls (constants, empty stubs).
+
+        Token economy: stays out of the default `find_symbol` response
+        (see ``HIDE_BY_DEFAULT``) — call this when you actually need
+        the call graph.  Pair with ``find_symbol`` on each name to map
+        a symbol's downstream dependencies in 2 round-trips.
+        """
+        symbols = self._load_symbols()
+        entry = symbols.get(symbol) or {}
+        callees = entry.get("callees") or []
+        return list(callees) if isinstance(callees, list) else []
+
+    def get_raised_exceptions(self, symbol: str) -> List[str]:
+        """Return exception class names this symbol raises.
+
+        ``raise ValueError(...)`` → ``"ValueError"``;
+        ``raise pkg.HTTPError(...)`` → ``"HTTPError"`` (rightmost
+        attribute, no module resolution).  Bare ``raise`` (re-raise)
+        contributes nothing.  Sorted, deduplicated.
+
+        Use as a fact-check: claims like "this handler raises X" are
+        verifiable in one MCP call instead of reading the source.
+        """
+        symbols = self._load_symbols()
+        entry = symbols.get(symbol) or {}
+        raises = entry.get("raises") or []
+        return list(raises) if isinstance(raises, list) else []
+
+    # Defaults for read_slice — small enough to keep responses in the
+    # token-economy band, large enough to fit a typical method body.
+    SLICE_MAX_LINES = 200
+    SLICE_MAX_BYTES = 8000
+
+    def read_slice(
+        self, file_path: str, start: int, end: int,
+    ) -> Optional[Dict[str, Any]]:
+        """Return ``{file, start, end, content, truncated}`` for a
+        small range of a file relative to ``project_root``.
+
+        ``start`` / ``end`` are 1-indexed inclusive line numbers.  The
+        return value's ``content`` is a ``\\n``-joined slice (no line
+        prefixes — the caller already knows the offsets).  Caps at
+        ``SLICE_MAX_LINES`` lines or ``SLICE_MAX_BYTES`` bytes; sets
+        ``truncated`` when either limit fired.
+
+        Returns ``None`` when the path escapes ``project_root`` or
+        when the file doesn't exist.  This is the consistent
+        MCP-channel for source reads — paired with ``find_symbol``'s
+        ``line`` / ``end_line`` it lets an agent jump straight to
+        evidence without shelling out.
+        """
+        if not isinstance(start, int) or not isinstance(end, int):
+            return None
+        if start < 1 or end < start:
+            return None
+        # Resolve & containment-check.  ``os.path.commonpath`` is the
+        # cleanest way to confirm the resolved abspath sits under root
+        # without falling for ``..`` chains or symlink trickery.
+        rel = file_path.replace(os.sep, "/").lstrip("/")
+        abs_path = os.path.abspath(os.path.join(self.project_root, rel))
+        try:
+            common = os.path.commonpath([abs_path, os.path.abspath(self.project_root)])
+        except ValueError:
+            return None
+        if common != os.path.abspath(self.project_root):
+            return None
+        if not os.path.isfile(abs_path):
+            return None
+
+        cap_end = min(end, start + self.SLICE_MAX_LINES - 1)
+        truncated = cap_end < end
+        try:
+            with open(abs_path, "r", encoding="utf-8", errors="replace") as fh:
+                collected: List[str] = []
+                for lineno, raw in enumerate(fh, 1):
+                    if lineno < start:
+                        continue
+                    if lineno > cap_end:
+                        break
+                    collected.append(raw.rstrip("\n"))
+        except OSError:
+            return None
+
+        content = "\n".join(collected)
+        if len(content.encode("utf-8")) > self.SLICE_MAX_BYTES:
+            content = content.encode("utf-8")[: self.SLICE_MAX_BYTES].decode(
+                "utf-8", errors="ignore"
+            )
+            truncated = True
+
+        return {
+            "file": rel,
+            "start": start,
+            "end": cap_end,
+            "content": content,
+            "truncated": truncated,
+        }
 
     def find_by_role(self, role: str) -> List[str]:
         """Return all symbol names tagged with ``role``.
