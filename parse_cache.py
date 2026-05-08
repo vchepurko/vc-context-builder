@@ -41,7 +41,7 @@ from typing import Any, Dict, Optional
 
 CACHE_DIR = ".vc-context"
 CACHE_FILENAME = "_parse_cache.json"
-CACHE_VERSION = 4  # v4: per-export `decorators` (full names from AST)
+CACHE_VERSION = 5  # v5: class `decorators` now also include method-level names
 
 # Files whose mtime contributes to the cache epoch — when any of these
 # changes, the cache is wholesale invalidated.  These are the configs

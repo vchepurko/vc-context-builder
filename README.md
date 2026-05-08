@@ -606,9 +606,10 @@ $ vc-context decorated dataclass
 
 MCP equivalents: `get_symbol_card`, `get_file_card`, `repo_map`,
 `get_changed_symbols`, `get_decorated_with`. `decorators` are
-captured only on top-level declarations (matches the rest of the
-indexer); method-level decorators (`@staticmethod`, `@property`)
-don't appear.
+captured at the top level AND folded in from method-level
+decorators on the enclosing class — so `get_decorated_with(
+"staticmethod")` / `("property")` / `("abstractmethod")` find the
+class even though the indexer only carries top-level symbols.
 
 ---
 

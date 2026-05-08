@@ -9,11 +9,59 @@ bump the minor; fixes bump the patch.
 
 ## [Unreleased]
 
-### Planned
+### Added
+- **`ARCHITECTURE.md`** — text-diagram walk-through of the
+  three-layer design (indexer → engine → surfaces).
+- **`CONTRIBUTING.md`** — dev setup, hooks, conventions, how to
+  add an MCP tool / parser.
+- **`Makefile`** — `make test` / `make lint` / `make ci` /
+  `make demo` / `make install-hooks` / etc.
+- **Targeted JSON parser** (`package.json` / `tsconfig.json` /
+  `composer.json`) — was a 0-byte placeholder.
+- **Method-level decorators** — class `decorators` field now folds
+  in `@staticmethod` / `@property` / `@abstractmethod` from method
+  bodies, so `get_decorated_with("staticmethod")` finds the class.
+- **README "Demo" section** — real CLI output for card / repo-map /
+  slice / stats.
+- **README TL;DR block** — 4-line install + first call.
+- 5 new test files (file_parser, symbols, mypy_inspector,
+  ruff_format_inspector, agent_map integration) — covers ~750 LOC
+  previously untested.
+
+### Changed
+- **`mcp/specs.py` (959 LOC) split** into the `mcp/specs/` package
+  (`symbols.py` / `project.py` / `angular.py`).
+- **`cli.py` (825 LOC) split** into `cli.py` (entry + argparse) +
+  `cli_handlers.py` + `cli_renderers.py`.
+- **`USAGE.md` trimmed** — dropped recipes that overlap with
+  CONTRIBUTING / MCP_SETUP / README.
+- **`bin/vc-context` UX** — friendly nudge to run `vc-context build`
+  when `agent_root.json` is missing, instead of a raw stack trace.
+- `logging.basicConfig` moved from `agent_map.py` module level to
+  the `__main__` block (no library-side root-logger mutation).
+- `parsers/get_parser` typed as `Optional[BaseParser]` (was lying
+  to type-checkers about the missing-parser case).
+- ROADMAP rewritten to reflect actual shipped vs planned vs deferred.
+- `SERVER_VERSION` bumped `0.1.0` → `0.5.0`.
+
+### Fixed
+- 19 pre-existing mypy errors → 0 (annotations, casts, type-guards).
+- 1269 pre-existing ruff baseline → 0 (auto-fix + targeted manual).
+- `assert isinstance` narrowing replaced with `if not isinstance`
+  fallthrough (survives `python -O`).
+
+### Removed
+- Empty `parsers/json_parser.py` placeholder (replaced with
+  the real targeted parser).
+- Empty `tests/test_json_parser.py` placeholder (replaced with
+  real tests).
+- `AGENT_README.md` from git tracking — auto-generated, now
+  in `.gitignore`.
+
+### Planned (next PR)
 - Typed `verify(kind, …)` fact-check primitive
-- Method-level decorator capture
-- TL;DR block at top of README
-- `query_engine.py` split into per-domain modules
+- `query_engine.py` split into per-domain mixins (1800 LOC → 4-5
+  files; deferred to a dedicated session because of risk surface)
 
 See [`ROADMAP.md`](ROADMAP.md) for the full deferred / planned list.
 

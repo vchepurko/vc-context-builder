@@ -142,30 +142,22 @@ class PythonParser(BaseParser):
         # Stash decorator + body text for custom_roles regexes. These
         # are private fields (`_`-prefixed) — agent_map.py strips them
         # before writing JSON to disk.
-        decorator_names: List[str] = []
         try:
             decorators = getattr(node, "decorator_list", []) or []
             dec_text = "\n".join(ast.unparse(d) for d in decorators)
             if dec_text:
                 out["_decorators_text"] = dec_text
-            # Also extract decorator names for `get_decorated_with`.
-            # ``@cached`` → "cached"; ``@app.get("/x")`` → "app.get";
-            # ``@router.message(F.text)`` → "router.message".
-            for dec in decorators:
-                node_for_name = dec.func if isinstance(dec, ast.Call) else dec
-                if isinstance(node_for_name, ast.Name):
-                    decorator_names.append(node_for_name.id)
-                elif isinstance(node_for_name, ast.Attribute):
-                    parts: List[str] = [node_for_name.attr]
-                    cur: ast.AST = node_for_name.value
-                    while isinstance(cur, ast.Attribute):
-                        parts.append(cur.attr)
-                        cur = cur.value
-                    if isinstance(cur, ast.Name):
-                        parts.append(cur.id)
-                    decorator_names.append(".".join(reversed(parts)))
         except Exception:
-            pass
+            decorators = []
+        # Decorator-name extraction. For functions: just our own
+        # decorators. For classes: union of class-level + every
+        # method-level decorator inside the class body — so
+        # `get_decorated_with("staticmethod")` / `("property")` /
+        # `("abstractmethod")` find the enclosing class even though
+        # the indexer only carries top-level symbols.
+        decorator_names = PythonParser._decorator_names(decorators)
+        if isinstance(node, ast.ClassDef):
+            decorator_names.extend(PythonParser._method_decorator_names(node))
         if decorator_names:
             # De-duplicate while preserving order — straight loop avoids
             # the `seen.add(d) returns None` trick that mypy flags.
@@ -239,6 +231,53 @@ class PythonParser(BaseParser):
         if role:
             out["role"] = role
 
+        return out
+
+    @staticmethod
+    def _decorator_names(decorators: List[ast.AST]) -> List[str]:
+        """Resolve each decorator AST node to a dotted name string.
+
+        ``@cached`` → ``"cached"``;
+        ``@app.get("/x")`` → ``"app.get"``;
+        ``@router.message(F.text)`` → ``"router.message"``.
+
+        Lambda / subscript / arbitrary expressions are silently
+        skipped — they don't map back to a name agents query by.
+        """
+        out: List[str] = []
+        for dec in decorators:
+            node_for_name = dec.func if isinstance(dec, ast.Call) else dec
+            if isinstance(node_for_name, ast.Name):
+                out.append(node_for_name.id)
+            elif isinstance(node_for_name, ast.Attribute):
+                parts: List[str] = [node_for_name.attr]
+                cur: ast.AST = node_for_name.value
+                while isinstance(cur, ast.Attribute):
+                    parts.append(cur.attr)
+                    cur = cur.value
+                if isinstance(cur, ast.Name):
+                    parts.append(cur.id)
+                out.append(".".join(reversed(parts)))
+        return out
+
+    @staticmethod
+    def _method_decorator_names(cls: ast.ClassDef) -> List[str]:
+        """Collect decorator names from every method body of ``cls``.
+
+        Only direct children of the class body are walked — nested
+        classes contribute their OWN method decorators when they're
+        eventually summarised (top-level), but we don't recurse here.
+
+        Useful for surfacing common method-level decorators
+        (``@staticmethod`` / ``@property`` / ``@classmethod`` /
+        ``@abstractmethod``) on the enclosing class so
+        ``get_decorated_with("staticmethod")`` finds the class.
+        """
+        out: List[str] = []
+        for stmt in cls.body:
+            if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                method_decorators = getattr(stmt, "decorator_list", []) or []
+                out.extend(PythonParser._decorator_names(method_decorators))
         return out
 
     @staticmethod

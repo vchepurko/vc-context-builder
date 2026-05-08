@@ -78,5 +78,50 @@ async def fetch_data_async():
             self.assertIn(kw, lines[entry["line"] - 1])
 
 
+class MethodDecoratorsTest(unittest.TestCase):
+    """Class-level `decorators` should fold in method-level ones too —
+    so `get_decorated_with("staticmethod")` finds the enclosing class.
+    """
+
+    def setUp(self):
+        self.test_file = "dummy_method_decorators_test.py"
+        self.parser = PythonParser()
+        with open(self.test_file, "w", encoding="utf-8") as f:
+            f.write(
+                "from abc import abstractmethod\n"
+                "\n"
+                "@dataclass\n"
+                "class Foo:\n"
+                "    @staticmethod\n"
+                "    def helper(): pass\n"
+                "    @property\n"
+                "    def name(self): return 'x'\n"
+                "    @abstractmethod\n"
+                "    async def do(self): pass\n"
+                "\n"
+                "class Bare:\n"
+                "    def m(self): pass\n"
+            )
+
+    def tearDown(self):
+        if os.path.exists(self.test_file):
+            os.remove(self.test_file)
+
+    def test_class_collects_method_decorators(self):
+        result = self.parser.extract(self.test_file)
+        by_name = {e["name"]: e for e in result["exports"]}
+        decorators = set(by_name["Foo"].get("decorators") or [])
+        # Class-level dataclass + each method's decorator merged.
+        for expected in ("dataclass", "staticmethod", "property", "abstractmethod"):
+            self.assertIn(expected, decorators, f"missing: {expected}")
+
+    def test_class_without_decorators_emits_nothing(self):
+        result = self.parser.extract(self.test_file)
+        by_name = {e["name"]: e for e in result["exports"]}
+        # `Bare` has no class decorator AND its method has no decorator
+        # → `decorators` field should be absent (empty-list trim).
+        self.assertNotIn("decorators", by_name["Bare"])
+
+
 if __name__ == "__main__":
     unittest.main()
