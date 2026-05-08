@@ -297,7 +297,7 @@ def match_calls_to_routes(
     def _lookup_key(route: Dict[str, Any]) -> str:
         # Prefer plain path; fall back to method-prefixed.
         if route["path"] in table and table[route["path"]]["handler"] == route["handler"]:
-            return route["path"]
+            return str(route["path"])
         return f"{route['method']} {route['path']}"
 
     for call in js_calls:

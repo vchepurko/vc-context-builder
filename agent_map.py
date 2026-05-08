@@ -244,7 +244,7 @@ class ContextBuilder:
             self._touched_files.add(rel_path)
             parser = get_parser(f)
             if parser is None:
-                data = {"exports": [], "dependencies": []}
+                data: Dict[str, Any] = {"exports": [], "dependencies": []}
             else:
                 # Per-file cache lookup — skip parsing when (mtime, size)
                 # match the previous build's record. Custom roles run
@@ -274,7 +274,11 @@ class ContextBuilder:
                         # unconditionally is safe (other parsers ignore it
                         # via their own signature).
                         try:
-                            data = parser.extract(file_path, project_root=self.root_dir)
+                            # Only TsJsParser accepts project_root; others raise
+                            # TypeError which the fallback below handles.
+                            data = parser.extract(  # type: ignore[call-arg]
+                                file_path, project_root=self.root_dir,
+                            )
                         except TypeError:
                             data = parser.extract(file_path)
 
@@ -323,9 +327,9 @@ class ContextBuilder:
 
         module_data = {"directory": dir_path, "files": rendered}
         try:
-            with open(map_file_path, "w", encoding="utf-8") as f:
-                json.dump(module_data, f, indent=2, ensure_ascii=False)
-                f.write("\n")
+            with open(map_file_path, "w", encoding="utf-8") as fh:
+                json.dump(module_data, fh, indent=2, ensure_ascii=False)
+                fh.write("\n")
         except OSError as e:
             logging.error(f"Failed to write {map_file_path}: {e}")
 
@@ -443,8 +447,8 @@ class ContextBuilder:
                     return True
 
             # 2. ФИКС: Проверяем, не удалили ли (или добавили) файлы
-            with open(map_file_path, encoding="utf-8") as f:
-                old_data = json.load(f)
+            with open(map_file_path, encoding="utf-8") as fh:
+                old_data = json.load(fh)
                 old_files = set(old_data.get("files", {}).keys())
                 current_files = set(files)
 
@@ -521,7 +525,7 @@ class ContextBuilder:
         for r in roles:
             roles[r].sort()
 
-        root_data = {
+        root_data: Dict[str, Any] = {
             "project_root": os.path.abspath(self.root_dir),
             "modules": self.processed_modules,
             "entry_instruction": (

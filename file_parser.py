@@ -11,7 +11,7 @@ class FileParser:
 
     @staticmethod
     def parse(file_path: str, ext: str) -> Dict[str, List[str]]:
-        result = {
+        result: Dict[str, List[str]] = {
             "exports": [],  # Classes, functions, interfaces
             "dependencies": [],  # Imports, includes, hooks
         }

@@ -809,7 +809,9 @@ class QueryEngine:
                     r = exp.get("role")
                     if r:
                         roles[r] = roles.get(r, 0) + 1
-            dominant = max(roles, key=roles.get) if roles else None
+            # `roles.get` confuses mypy's overloaded `max`; lambda
+            # makes the key signature unambiguous.
+            dominant = max(roles, key=lambda k: roles[k]) if roles else None
             modules.append(
                 {
                     "path": data.get("directory") or os.path.dirname(self._rel(mp)),

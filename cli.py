@@ -63,8 +63,8 @@ def _print_symbol(name: str, entry: Dict[str, Any]) -> None:
             print(f"    {line}")
     test = entry.get("test")
     if isinstance(test, dict) and test.get("test_file"):
-        line = test.get("line")
-        suffix = f":{line}" if line else ""
+        test_line = test.get("line")
+        suffix = f":{test_line}" if test_line else ""
         print(f"  test: {test.get('test_file')}{suffix}  ({test.get('test_function')})")
     # Fact fields only show when explicitly requested via --fields
     # (HIDE_BY_DEFAULT keeps them off the lean response).
@@ -813,7 +813,8 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
     try:
-        return args.handler(args)
+        # argparse types `args.handler` as `Any`; cast keeps mypy happy.
+        return int(args.handler(args))
     except FileNotFoundError as exc:
         print(f"vc-context: missing artifact — {exc}", file=sys.stderr)
         print("Hint: run `vc-context build` (or python3 .ai-context/agent_map.py)", file=sys.stderr)

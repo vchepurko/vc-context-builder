@@ -1,6 +1,7 @@
 import importlib
 import logging
 import os
+from typing import Optional
 
 from parsers.base_parser import BaseParser
 
@@ -14,7 +15,7 @@ for filename in os.listdir(package_dir):
             logging.error(f"Failed to auto-load parser {module_name}: {e}")
 
 
-def get_parser(filename: str) -> BaseParser:
+def get_parser(filename: str) -> Optional[BaseParser]:
     return BaseParser.get_parser(filename)
 
 
