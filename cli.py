@@ -55,6 +55,7 @@ from cli_handlers import (
     cmd_slice,
     cmd_stats,
     cmd_test,
+    cmd_verify,
 )
 
 # ----------------------------------------------------------------------
@@ -127,6 +128,15 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p_dec.add_argument("decorator")
     p_dec.set_defaults(handler=cmd_decorated)
+
+    p_verify = sub.add_parser(
+        "verify",
+        help="Typed yes/no fact-check (exists | calls | decorated | raises).",
+    )
+    p_verify.add_argument("kind", choices=("exists", "calls", "decorated", "raises"))
+    p_verify.add_argument("subject")
+    p_verify.add_argument("target", nargs="?", default=None)
+    p_verify.set_defaults(handler=cmd_verify)
 
     # Project / file / git subcommands ------------------------------
     p_slice = sub.add_parser(

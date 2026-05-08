@@ -26,7 +26,10 @@ def _pct(numerator: int, denominator: int) -> float:
     return round(100.0 * numerator / denominator, 1)
 
 
-class QueryEngine:
+from _query_inspectors import _InspectorsMixin
+
+
+class QueryEngine(_InspectorsMixin):
     """Lazy-loading reader over the three artifact tiers.
 
     Parameters
@@ -513,6 +516,137 @@ class QueryEngine:
         entry = symbols.get(symbol) or {}
         raises = entry.get("raises") or []
         return list(raises) if isinstance(raises, list) else []
+
+    # Allowed verify() kinds — kept as a class constant so the dispatcher
+    # / spec can validate without re-importing the engine module.
+    VERIFY_KINDS: ClassVar[Tuple[str, ...]] = (
+        "exists",
+        "calls",
+        "decorated",
+        "raises",
+    )
+
+    def verify(
+        self,
+        kind: str,
+        subject: str,
+        target: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Typed fact-check primitive — answer one of four yes/no
+        questions about the symbol index without reading source code.
+
+        Kinds and their semantics::
+
+            verify("exists",    "Foo")            → does symbol Foo exist?
+            verify("calls",     "Foo", "bar")     → does Foo call bar?
+            verify("decorated", "Foo", "cached")  → is Foo decorated @cached?
+            verify("raises",    "Foo", "ValueError") → does Foo raise ValueError?
+
+        Returns ``{kind, subject, target?, result, evidence}`` where
+        ``result`` is a bool and ``evidence`` is a short string the
+        agent can quote when it asserts the fact.
+
+        Unknown ``kind`` returns ``result=False, evidence="unknown
+        verify kind"``. Use as a one-call alternative to
+        ``find_symbol`` + ``get_callees`` + ``in`` checks scattered
+        across the agent's reasoning chain.
+        """
+        if kind not in self.VERIFY_KINDS:
+            return {
+                "kind": kind,
+                "subject": subject,
+                "result": False,
+                "evidence": (f"unknown verify kind: {kind!r} (allowed: {list(self.VERIFY_KINDS)})"),
+            }
+        subject = (subject or "").strip()
+        if not subject:
+            return {
+                "kind": kind,
+                "subject": subject,
+                "result": False,
+                "evidence": "empty subject",
+            }
+
+        if kind == "exists":
+            entry = self._load_symbols().get(subject)
+            ok = entry is not None
+            return {
+                "kind": kind,
+                "subject": subject,
+                "result": ok,
+                "evidence": (
+                    f"{subject} → {entry['file']}:{entry.get('line', '?')}"
+                    if ok and isinstance(entry, dict)
+                    else f"{subject} not in agent_symbols.json"
+                ),
+            }
+
+        target = (target or "").strip()
+        if not target:
+            return {
+                "kind": kind,
+                "subject": subject,
+                "result": False,
+                "evidence": f"{kind!r} requires non-empty target",
+            }
+
+        if kind == "calls":
+            callees = self.get_callees(subject)
+            ok = target in callees
+            return {
+                "kind": kind,
+                "subject": subject,
+                "target": target,
+                "result": ok,
+                "evidence": (
+                    f"{subject}.callees ∋ {target}"
+                    if ok
+                    else f"{subject}.callees has {len(callees)} entries, {target} absent"
+                ),
+            }
+
+        if kind == "raises":
+            raises = self.get_raised_exceptions(subject)
+            ok = target in raises
+            return {
+                "kind": kind,
+                "subject": subject,
+                "target": target,
+                "result": ok,
+                "evidence": (
+                    f"{subject}.raises ∋ {target}"
+                    if ok
+                    else f"{subject}.raises = {raises or '[]'}, {target} absent"
+                ),
+            }
+
+        # kind == "decorated" — leverage suffix-aware match from
+        # get_decorated_with so passing "post" matches "app.post".
+        if kind == "decorated":
+            entry = self._load_symbols().get(subject) or {}
+            decs = entry.get("decorators") or []
+            if not isinstance(decs, list):
+                decs = []
+            ok = any(d == target or d.endswith("." + target) for d in decs)
+            return {
+                "kind": kind,
+                "subject": subject,
+                "target": target,
+                "result": ok,
+                "evidence": (
+                    f"{subject}.decorators ∋ {target} (matched in {decs!r})"
+                    if ok
+                    else f"{subject}.decorators = {decs or '[]'}, {target} absent"
+                ),
+            }
+
+        # Defensive — should be unreachable thanks to the guard above.
+        return {
+            "kind": kind,
+            "subject": subject,
+            "result": False,
+            "evidence": "fall-through (this shouldn't happen)",
+        }
 
     # Defaults for read_slice — small enough to keep responses in the
     # token-economy band, large enough to fit a typical method body.
@@ -1343,46 +1477,6 @@ class QueryEngine:
         return out
 
     # ------------------------------------------------------------------
-    # Telemetry — per-call metrics aggregated for the user
-    # ------------------------------------------------------------------
-
-    def get_session_metrics(
-        self,
-        *,
-        since: Optional[str] = None,
-        group_by: str = "tool",
-        quality: bool = False,
-    ) -> Dict[str, Any]:
-        """Aggregate this project's per-call metrics.
-
-        ``since`` accepts ``"24h"``, ``"7d"``, ``"today"``, ``"all"``.
-        Default = ``"today"``.  ``group_by`` is one of ``"tool"``
-        (default), ``"hour"``, or ``"empty"``.
-
-        When ``quality=True``, also compute Phase-2 quality signals
-        (wasteful round-trips, hot rereads, empty streaks) from the
-        same JSONL stream and embed them under the ``quality`` key.
-        Detectors are conservative — see ``mcp.quality`` for thresholds.
-
-        Returns the shape produced by :func:`mcp.metrics.aggregate`:
-        ``{calls, total_tokens, avg_t_ms, empty_ratio, ok_ratio,
-        by_<group>, quality?}``.  Empty payload when the writer has
-        never run for this project.
-        """
-        from mcp.metrics import aggregate, read_metrics
-
-        entries = read_metrics(
-            self.project_root,
-            since=since if since is not None else "today",
-        )
-        out = aggregate(entries, group_by=group_by)
-        if quality:
-            from mcp.quality import quality_report
-
-            out["quality"] = quality_report(entries)
-        return out
-
-    # ------------------------------------------------------------------
     # Feature J — whitelisted check runner (tests / lint / typecheck)
     # ------------------------------------------------------------------
 
@@ -1424,169 +1518,6 @@ class QueryEngine:
             else {}
         )
         return _inspect(self.project_root, name, symbols=symbols)
-
-    # ------------------------------------------------------------------
-    # Locale keys (Feature I)
-    # ------------------------------------------------------------------
-
-    def list_locale_keys(self, namespace: Optional[str] = None) -> List[str]:
-        """All translation keys (sorted), optionally filtered to one
-        namespace. Empty list when the locale index is missing —
-        graceful degradation for projects without a ``locales/`` tree.
-        """
-        from locale_index import list_keys as _list  # type: ignore[import-not-found]
-
-        return _list(self._load_locale_keys(), namespace=namespace)
-
-    def find_locale_key(self, pattern: str) -> List[str]:
-        """Substring (case-insensitive) match across keys. For "every
-        key starting with ``staff_``" pass ``"staff_"``."""
-        from locale_index import find_keys as _find  # type: ignore[import-not-found]
-
-        return _find(self._load_locale_keys(), pattern)
-
-    def get_locale_key(self, key: str) -> Optional[Dict[str, Any]]:
-        """Full entry for a key — namespace, languages it lives in,
-        per-language values, and the ``missing`` list (languages whose
-        namespace file exists but doesn't carry this key — handy for
-        parity audits)."""
-        from locale_index import get_key as _get  # type: ignore[import-not-found]
-
-        return _get(self._load_locale_keys(), key)
-
-    # ------------------------------------------------------------------
-    # Notification audit log (Feature N)
-    # ------------------------------------------------------------------
-
-    def notify_log_search(
-        self,
-        *,
-        kind: Optional[str] = None,
-        recipient: Optional[int] = None,
-        channel: Optional[str] = None,
-        outcome: Optional[str] = None,
-        since: Optional[str] = None,
-        limit: int = 200,
-    ) -> List[Dict[str, Any]]:
-        """Filtered list of audit records from the rotating JSONL log
-        emitted by the parent project's ``services/notify/log.py``.
-
-        Filters AND-combine. Empty filters return up to ``limit``
-        most-recent records. Projects without a ``logs/notify.jsonl``
-        return ``[]``.
-        """
-        from notify_log_reader import search as _search  # type: ignore[import-not-found]
-
-        return _search(
-            self.project_root,
-            kind=kind,
-            recipient=recipient,
-            channel=channel,
-            outcome=outcome,
-            since=since,
-            limit=limit,
-        )
-
-    def notify_log_stats(
-        self,
-        *,
-        since: Optional[str] = None,
-    ) -> Dict[str, Any]:
-        """Aggregate counters: total deliveries, plus
-        ``by_kind`` / ``by_channel`` outcome breakdowns. Optional
-        ``since`` cuts off records older than the relative window."""
-        from notify_log_reader import stats as _stats  # type: ignore[import-not-found]
-
-        return _stats(self.project_root, since=since)
-
-    # ------------------------------------------------------------------
-    # Ruff violations inspector (Feature O)
-    # ------------------------------------------------------------------
-
-    def ruff_violations(
-        self,
-        *,
-        code: Optional[str] = None,
-        path_prefix: Optional[str] = None,
-        summary: bool = False,
-        limit: int = 50,
-    ) -> Dict[str, Any]:
-        """Run ``ruff check`` in JSON mode and return the structured
-        breakdown ``{total, by_code, by_file, violations?}``.
-
-        Use ``summary=True`` first to triage the shape of failures
-        (which rule codes dominate, which files concentrate them),
-        then drill in with ``code=...`` / ``path_prefix=...`` for the
-        per-violation list. ``limit`` caps the violations list to
-        keep MCP responses bounded.
-        """
-        from ruff_inspector import collect as _collect  # type: ignore[import-not-found]
-
-        return _collect(
-            self.project_root,
-            code=code,
-            path_prefix=path_prefix,
-            summary=summary,
-            limit=limit,
-        )
-
-    def ruff_format(
-        self,
-        *,
-        path_prefix: Optional[str] = None,
-        summary: bool = False,
-        limit: int = 50,
-    ) -> Dict[str, Any]:
-        """Run ``ruff format --check`` and return the list of files
-        that would be reformatted: ``{total, files?}``.
-
-        ``summary=True`` returns just ``{total: N}`` — minimum-token
-        signal for "is the codebase formatted?". Use the default to
-        get the file paths so a follow-up ``ruff format`` knows what
-        will move.
-        """
-        from ruff_format_inspector import collect as _collect  # type: ignore[import-not-found]
-
-        return _collect(
-            self.project_root,
-            path_prefix=path_prefix,
-            summary=summary,
-            limit=limit,
-        )
-
-    # ------------------------------------------------------------------
-    # Mypy violations inspector
-    # ------------------------------------------------------------------
-
-    def mypy_violations(
-        self,
-        *,
-        code: Optional[str] = None,
-        path_prefix: Optional[str] = None,
-        severity: Optional[str] = None,
-        summary: bool = False,
-        limit: int = 50,
-    ) -> Dict[str, Any]:
-        """Run ``mypy --output=json`` and return the structured
-        breakdown ``{total, by_code, by_file, violations?}``.
-
-        Use ``summary=True`` first to triage which error codes /
-        files dominate, then drill in with ``code=...`` /
-        ``path_prefix=...`` / ``severity=...`` for the per-violation
-        list. ``limit`` caps the violations list to keep MCP
-        responses bounded. Auto-skips on non-Python projects or
-        projects without mypy config.
-        """
-        from mypy_inspector import collect as _collect  # type: ignore[import-not-found]
-
-        return _collect(
-            self.project_root,
-            code=code,
-            path_prefix=path_prefix,
-            severity=severity,
-            summary=summary,
-            limit=limit,
-        )
 
     # ------------------------------------------------------------------
     # Internal: reverse-dependency index for who_calls

@@ -154,6 +154,19 @@ def cmd_card(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_verify(args: argparse.Namespace) -> int:
+    engine = _engine(args)
+    out = engine.verify(args.kind, args.subject, target=args.target)
+    if args.json:
+        _emit_json(out)
+        return 0 if out.get("result") else 1
+    mark = "✓" if out.get("result") else "✗"
+    target_part = f" {args.target!r}" if args.target else ""
+    print(f"{mark} verify({args.kind!r}, {args.subject!r}{target_part})")
+    print(f"  evidence: {out.get('evidence', '')}")
+    return 0 if out.get("result") else 1
+
+
 def cmd_decorated(args: argparse.Namespace) -> int:
     engine = _engine(args)
     out = engine.get_decorated_with(args.decorator)
