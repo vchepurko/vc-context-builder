@@ -21,10 +21,9 @@ import unittest
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(_HERE))
 
-from test_linking import (  # noqa: E402
+from test_linking import (
     _candidate_spec_files,
     _imported_names_from_spec,
-    _scan_spec_file_references,
     _spec_blocks,
     _walk_spec_files,
     build_spec_reference_index,
@@ -45,33 +44,42 @@ class SpecFixtureMixin:
         self.addCleanup(shutil.rmtree, tmp, True)
 
         # Source file + co-located spec.
-        _write(os.path.join(tmp, "src/app/cart/cart.service.ts"),
-               "export class CartService {}\n")
-        _write(os.path.join(tmp, "src/app/cart/cart.service.spec.ts"), (
-            "import { CartService } from './cart.service';\n"
-            "import { TestBed } from '@angular/core/testing';\n"
-            "import HttpClient from '@angular/common/http';\n"
-            "import * as Utils from '../shared/utils';\n"
-            "\n"
-            "describe('CartService', () => {\n"
-            "  it('should compute total', () => {});\n"
-            "  it('handles empty cart', () => {});\n"
-            "});\n"
-        ))
+        _write(os.path.join(tmp, "src/app/cart/cart.service.ts"), "export class CartService {}\n")
+        _write(
+            os.path.join(tmp, "src/app/cart/cart.service.spec.ts"),
+            (
+                "import { CartService } from './cart.service';\n"
+                "import { TestBed } from '@angular/core/testing';\n"
+                "import HttpClient from '@angular/common/http';\n"
+                "import * as Utils from '../shared/utils';\n"
+                "\n"
+                "describe('CartService', () => {\n"
+                "  it('should compute total', () => {});\n"
+                "  it('handles empty cart', () => {});\n"
+                "});\n"
+            ),
+        )
 
         # A second pair to test multi-file walk.
-        _write(os.path.join(tmp, "src/app/orders/order-list.component.ts"),
-               "export class OrderListComponent {}\n")
-        _write(os.path.join(tmp, "src/app/orders/order-list.component.spec.ts"), (
-            "import { OrderListComponent } from './order-list.component';\n"
-            "describe('OrderListComponent', () => {\n"
-            "  it('renders rows', () => {});\n"
-            "});\n"
-        ))
+        _write(
+            os.path.join(tmp, "src/app/orders/order-list.component.ts"),
+            "export class OrderListComponent {}\n",
+        )
+        _write(
+            os.path.join(tmp, "src/app/orders/order-list.component.spec.ts"),
+            (
+                "import { OrderListComponent } from './order-list.component';\n"
+                "describe('OrderListComponent', () => {\n"
+                "  it('renders rows', () => {});\n"
+                "});\n"
+            ),
+        )
 
         # node_modules ignore guard — must NOT show up in any walk.
-        _write(os.path.join(tmp, "node_modules/foo/dist/some.spec.ts"),
-               "import {Anything} from 'lib';\ndescribe('x',()=>{it('y',()=>{})});\n")
+        _write(
+            os.path.join(tmp, "node_modules/foo/dist/some.spec.ts"),
+            "import {Anything} from 'lib';\ndescribe('x',()=>{it('y',()=>{})});\n",
+        )
         return tmp
 
 
@@ -80,10 +88,13 @@ class WalkAndIgnoreTests(SpecFixtureMixin, unittest.TestCase):
         root = self._make_ng_project()
         files = _walk_spec_files(root)
         rels = sorted(os.path.relpath(p, root).replace(os.sep, "/") for p in files)
-        self.assertEqual(rels, [
-            "src/app/cart/cart.service.spec.ts",
-            "src/app/orders/order-list.component.spec.ts",
-        ])
+        self.assertEqual(
+            rels,
+            [
+                "src/app/cart/cart.service.spec.ts",
+                "src/app/orders/order-list.component.spec.ts",
+            ],
+        )
 
     def test_node_modules_is_ignored(self) -> None:
         root = self._make_ng_project()
@@ -94,9 +105,7 @@ class WalkAndIgnoreTests(SpecFixtureMixin, unittest.TestCase):
 
 class ImportExtractionTests(unittest.TestCase):
     def test_braced_named_imports(self) -> None:
-        names = _imported_names_from_spec(
-            "import { A, B as C } from './x';\n"
-        )
+        names = _imported_names_from_spec("import { A, B as C } from './x';\n")
         self.assertEqual(names, {"A", "C"})
 
     def test_default_import(self) -> None:
@@ -104,25 +113,18 @@ class ImportExtractionTests(unittest.TestCase):
         self.assertEqual(names, {"D"})
 
     def test_default_with_named(self) -> None:
-        names = _imported_names_from_spec(
-            "import D, { E, F as G } from 'lib';\n"
-        )
+        names = _imported_names_from_spec("import D, { E, F as G } from 'lib';\n")
         self.assertEqual(names, {"D", "E", "G"})
 
     def test_namespace_import(self) -> None:
-        names = _imported_names_from_spec(
-            "import * as Utils from '../utils';\n"
-        )
+        names = _imported_names_from_spec("import * as Utils from '../utils';\n")
         self.assertEqual(names, {"Utils"})
 
 
 class BlockScanTests(unittest.TestCase):
     def test_describe_it_pairing(self) -> None:
         content = (
-            "describe('Outer', () => {\n"
-            "  it('case A', () => {});\n"
-            "  it('case B', () => {});\n"
-            "});\n"
+            "describe('Outer', () => {\n  it('case A', () => {});\n  it('case B', () => {});\n});\n"
         )
         blocks = _spec_blocks(content)
         labels = [b[0] for b in blocks]
@@ -167,13 +169,15 @@ class IndexAndResolveTests(SpecFixtureMixin, unittest.TestCase):
         root = self._make_ng_project()
         idx = build_spec_reference_index(root)
         result = find_test_for_symbol(
-            root, "CartService",
+            root,
+            "CartService",
             "src/app/cart/cart.service.ts",
             reference_index=idx,
         )
         self.assertIsNotNone(result)
         self.assertEqual(
-            result["test_file"], "src/app/cart/cart.service.spec.ts",
+            result["test_file"],
+            "src/app/cart/cart.service.spec.ts",
         )
         # Shortest test_function wins → "CartService :: case A" (first it).
         self.assertTrue(result["test_function"].startswith("CartService"))
@@ -212,13 +216,15 @@ class CoLocationFallbackTests(SpecFixtureMixin, unittest.TestCase):
         # Pretend the reference index didn't find "CartService" — pass
         # an empty dict so only the co-location path runs.
         result = find_test_for_symbol(
-            root, "CartService",
+            root,
+            "CartService",
             "src/app/cart/cart.service.ts",
             reference_index={},
         )
         self.assertIsNotNone(result)
         self.assertEqual(
-            result["test_file"], "src/app/cart/cart.service.spec.ts",
+            result["test_file"],
+            "src/app/cart/cart.service.spec.ts",
         )
 
 

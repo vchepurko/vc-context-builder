@@ -21,16 +21,15 @@ import unittest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from fsm_flow import (  # noqa: E402
+from fsm_flow import (
     FSM_FLOW_FILENAME,
     collect_fsm_flow,
     collect_state_groups,
     trace_fsm_flow,
     write_fsm_flow,
 )
-from mcp_server import _tool_specs  # noqa: E402
-from query_engine import QueryEngine  # noqa: E402
-
+from mcp_server import _tool_specs
+from query_engine import QueryEngine
 
 _HANDLERS_SOURCE = textwrap.dedent("""
     from aiogram import F, Router
@@ -95,19 +94,20 @@ class TestCollectStateGroups(unittest.TestCase):
             groups["AddStaffState.waiting_user_id"]["state_class"]["file"],
             "states.py",
         )
-        self.assertGreater(
-            groups["AddStaffState.waiting_user_id"]["state_class"]["line"], 0
-        )
+        self.assertGreater(groups["AddStaffState.waiting_user_id"]["state_class"]["line"], 0)
 
     def test_skips_private_fields(self) -> None:
         path = os.path.join(self.fx.root, "private_states.py")
-        _write(path, textwrap.dedent("""
+        _write(
+            path,
+            textwrap.dedent("""
             from aiogram.fsm.state import State, StatesGroup
 
             class PrivateGroup(StatesGroup):
                 _internal = State()
                 public_field = State()
-        """))
+        """),
+        )
         groups = collect_state_groups(self.fx.root)
         self.assertNotIn("PrivateGroup._internal", groups)
         self.assertIn("PrivateGroup.public_field", groups)
@@ -153,15 +153,18 @@ class TestTraceLookup(unittest.TestCase):
         self.idx = {
             "AddStaffState.waiting_user_id": {
                 "state_class": {"file": "s.py", "line": 1},
-                "entered_by": [], "consumed_by": [],
+                "entered_by": [],
+                "consumed_by": [],
             },
             "ReportBugState.waiting_message": {
                 "state_class": {"file": "s.py", "line": 5},
-                "entered_by": [], "consumed_by": [],
+                "entered_by": [],
+                "consumed_by": [],
             },
             "OtherState.waiting_user_id": {  # collides on short name
                 "state_class": {"file": "s.py", "line": 9},
-                "entered_by": [], "consumed_by": [],
+                "entered_by": [],
+                "consumed_by": [],
             },
         }
 

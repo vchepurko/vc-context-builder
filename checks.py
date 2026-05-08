@@ -35,10 +35,9 @@ import subprocess
 import time
 from typing import Any, Dict, List, Optional
 
-
 CONFIG_RELATIVE_PATH = os.path.join(".vc-context", "conventions.json")
 
-_TAIL_LINES = 50          # max lines kept from each of stdout / stderr
+_TAIL_LINES = 50  # max lines kept from each of stdout / stderr
 _DEFAULT_TIMEOUT_SEC = 300
 
 
@@ -47,7 +46,7 @@ def _load_config(project_root: str) -> Dict[str, Any]:
     if not os.path.isfile(path):
         return {}
     try:
-        with open(path, "r", encoding="utf-8") as fh:
+        with open(path, encoding="utf-8") as fh:
             data = json.load(fh)
     except (OSError, json.JSONDecodeError):
         return {}
@@ -170,8 +169,12 @@ def run_check(
             "command": cmd,
             "returncode": -1,
             "duration_ms": duration_ms,
-            "stdout_tail": _tail(exc.stdout or "", _TAIL_LINES) if isinstance(exc.stdout, str) else "",
-            "stderr_tail": _tail(exc.stderr or "", _TAIL_LINES) if isinstance(exc.stderr, str) else "",
+            "stdout_tail": _tail(exc.stdout or "", _TAIL_LINES)
+            if isinstance(exc.stdout, str)
+            else "",
+            "stderr_tail": _tail(exc.stderr or "", _TAIL_LINES)
+            if isinstance(exc.stderr, str)
+            else "",
             "summary": None,
             "error": f"timeout after {timeout}s",
         }

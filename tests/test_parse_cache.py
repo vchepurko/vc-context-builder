@@ -13,7 +13,7 @@ import unittest
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(_HERE))
 
-import parse_cache  # noqa: E402
+import parse_cache
 
 
 def _write(path: str, content: str = "") -> None:
@@ -37,7 +37,9 @@ class LoadSaveTests(unittest.TestCase):
     def test_save_and_reload_roundtrip(self) -> None:
         cache = parse_cache.load(self.root)
         cache["entries"]["foo.py"] = {
-            "mtime": 123.0, "size": 42, "result": {"exports": []},
+            "mtime": 123.0,
+            "size": 42,
+            "result": {"exports": []},
         }
         parse_cache.save(self.root, cache)
         # Re-read.
@@ -100,8 +102,9 @@ class GetPutTests(unittest.TestCase):
     def test_put_no_op_when_file_missing(self) -> None:
         # Race: file was deleted between scan and put. put() should
         # silently no-op, not raise.
-        parse_cache.put(self.cache, "ghost.py", os.path.join(self.root, "ghost.py"),
-                        {"exports": []})
+        parse_cache.put(
+            self.cache, "ghost.py", os.path.join(self.root, "ghost.py"), {"exports": []}
+        )
         self.assertNotIn("ghost.py", self.cache.get("entries", {}))
 
 
@@ -144,11 +147,13 @@ class EpochInvalidationTests(unittest.TestCase):
 
 class PruneTests(unittest.TestCase):
     def setUp(self) -> None:
-        self.cache = {"entries": {
-            "live1.py": {"mtime": 1.0, "size": 1, "result": {}},
-            "live2.py": {"mtime": 2.0, "size": 2, "result": {}},
-            "deleted.py": {"mtime": 3.0, "size": 3, "result": {}},
-        }}
+        self.cache = {
+            "entries": {
+                "live1.py": {"mtime": 1.0, "size": 1, "result": {}},
+                "live2.py": {"mtime": 2.0, "size": 2, "result": {}},
+                "deleted.py": {"mtime": 3.0, "size": 3, "result": {}},
+            }
+        }
 
     def test_prune_keeps_live_drops_stale(self) -> None:
         parse_cache.prune(self.cache, {"live1.py", "live2.py"})

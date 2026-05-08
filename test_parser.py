@@ -1,22 +1,23 @@
-import unittest
 import os
+import unittest
+
 from file_parser import FileParser
 
-class TestFileParser(unittest.TestCase):
 
+class TestFileParser(unittest.TestCase):
     def setUp(self):
         # Create temporary dummy files for testing
-        self.php_file = 'dummy_test.php'
-        with open(self.php_file, 'w', encoding='utf-8') as f:
+        self.php_file = "dummy_test.php"
+        with open(self.php_file, "w", encoding="utf-8") as f:
             f.write("""
             <?php
             use App\\Controllers\\QuizController;
             require_once 'helpers.php';
-            
+
             class MyQuizEngine {
                 public function calculate_score() {}
             }
-            
+
             add_action('woocommerce_init', 'my_custom_init');
             """)
 
@@ -26,15 +27,16 @@ class TestFileParser(unittest.TestCase):
             os.remove(self.php_file)
 
     def test_php_parsing(self):
-        result = FileParser.parse(self.php_file, '.php')
+        result = FileParser.parse(self.php_file, ".php")
 
         # Check exports
-        self.assertIn('MyQuizEngine', result['exports'])
+        self.assertIn("MyQuizEngine", result["exports"])
 
         # Check dependencies and hooks
-        self.assertIn('App\\Controllers\\QuizController', result['dependencies'])
-        self.assertIn('helpers.php', result['dependencies'])
-        self.assertIn('woocommerce_init', result['dependencies'])
+        self.assertIn("App\\Controllers\\QuizController", result["dependencies"])
+        self.assertIn("helpers.php", result["dependencies"])
+        self.assertIn("woocommerce_init", result["dependencies"])
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

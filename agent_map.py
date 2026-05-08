@@ -1,7 +1,7 @@
-import os
-import sys
 import json
 import logging
+import os
+import sys
 from typing import Any, Dict, List, Set
 
 # Ensure sibling modules (`symbols`, `parsers`) resolve when this script is
@@ -11,46 +11,47 @@ if _HERE not in sys.path:
     sys.path.insert(0, _HERE)
 
 # Import our custom heuristic parser
-from parsers import get_parser, get_supported_extensions, get_supported_filenames
-from parsers.python_parser import PythonParser
-from symbols import extract_scheduler_jobs_from_codebase
-from custom_roles import (
-    apply_custom_roles,
-    load_custom_roles,
-    should_override_builtin,
-)
-
-# Feature artifacts — built after the symbol index in `run()`.
-from test_linking import build_test_index, write_test_index, TESTS_FILENAME
-from route_bridge import build_route_index, write_route_index, ROUTES_FILENAME
-from ng_route_bridge import (
-    NG_ROUTES_FILENAME,
-    build_ng_route_index,
-    write_ng_route_index,
-)
+import parse_cache
 from callback_index import (
     CALLBACKS_FILENAME,
     collect_callbacks,
     write_callback_index,
+)
+from custom_roles import (
+    apply_custom_roles,
+    load_custom_roles,
+    should_override_builtin,
 )
 from fsm_flow import (
     FSM_FLOW_FILENAME,
     collect_fsm_flow,
     write_fsm_flow,
 )
-from test_classifier import (
-    TEST_CATEGORIES_FILENAME,
-    collect_test_categories,
-    write_test_categories,
-)
 from locale_index import (
     LOCALES_FILENAME,
     build_locale_index,
     write_locale_index,
 )
-import parse_cache
+from ng_route_bridge import (
+    NG_ROUTES_FILENAME,
+    build_ng_route_index,
+    write_ng_route_index,
+)
+from parsers import get_parser, get_supported_extensions, get_supported_filenames
+from parsers.python_parser import PythonParser
+from route_bridge import ROUTES_FILENAME, build_route_index, write_route_index
+from symbols import extract_scheduler_jobs_from_codebase
+from test_classifier import (
+    TEST_CATEGORIES_FILENAME,
+    collect_test_categories,
+    write_test_categories,
+)
 
-logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+# Feature artifacts — built after the symbol index in `run()`.
+from test_linking import TESTS_FILENAME, build_test_index, write_test_index
+
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+
 
 class ContextBuilder:
     """
@@ -65,29 +66,40 @@ class ContextBuilder:
     #
     # Replaces the default set entirely (use the keyword "+" prefix on any
     # entry to ADD instead of replace, e.g. {"ignore_dirs": ["+coverage"]}).
-    DEFAULT_IGNORE_DIRS = frozenset({
-        '.git', 'node_modules', 'vendor', '__pycache__',
-        'dist', 'dist_webpack', 'build', '.venv', 'venv',
-        '.idea', '.vscode',
-        # Self-skip: when this script runs from a parent project, the
-        # submodule itself ('.ai-context') and its config ('.vc-context')
-        # mustn't be re-indexed under the parent — they're a separate
-        # project. When the script runs INSIDE the submodule (self-index),
-        # those directories don't exist at the cwd, so the rule is a
-        # silent no-op.
-        '.ai-context', '.vc-context',
-    })
+    DEFAULT_IGNORE_DIRS = frozenset(
+        {
+            ".git",
+            "node_modules",
+            "vendor",
+            "__pycache__",
+            "dist",
+            "dist_webpack",
+            "build",
+            ".venv",
+            "venv",
+            ".idea",
+            ".vscode",
+            # Self-skip: when this script runs from a parent project, the
+            # submodule itself ('.ai-context') and its config ('.vc-context')
+            # mustn't be re-indexed under the parent — they're a separate
+            # project. When the script runs INSIDE the submodule (self-index),
+            # those directories don't exist at the cwd, so the rule is a
+            # silent no-op.
+            ".ai-context",
+            ".vc-context",
+        }
+    )
 
-    def __init__(self, root_dir: str = '.'):
+    def __init__(self, root_dir: str = "."):
         self.root_dir = root_dir
         self.ignore_dirs = self._resolve_ignore_dirs(root_dir)
         # The core dynamically queries parsers for supported formats
         self.allowed_exts = get_supported_extensions()
         self.allowed_filenames = get_supported_filenames()
 
-        self.map_filename = '_module_map.json'
-        self.root_map_filename = 'agent_root.json'
-        self.symbols_filename = 'agent_symbols.json'
+        self.map_filename = "_module_map.json"
+        self.root_map_filename = "agent_root.json"
+        self.symbols_filename = "agent_symbols.json"
         self.tests_filename = TESTS_FILENAME
         self.routes_filename = ROUTES_FILENAME
         self.ng_routes_filename = NG_ROUTES_FILENAME
@@ -95,7 +107,7 @@ class ContextBuilder:
         self.fsm_flow_filename = FSM_FLOW_FILENAME
         self.test_categories_filename = TEST_CATEGORIES_FILENAME
         self.locales_filename = LOCALES_FILENAME
-        self.readme_filename = 'AGENT_README.md'
+        self.readme_filename = "AGENT_README.md"
         self.processed_modules: List[str] = []
 
         # File-level parse cache (Feature S — incremental builds).
@@ -120,9 +132,7 @@ class ContextBuilder:
             self.root_dir, self.ignore_dirs
         )
         if self.scheduler_jobs:
-            logging.info(
-                "Detected %d scheduler-job callable(s).", len(self.scheduler_jobs)
-            )
+            logging.info("Detected %d scheduler-job callable(s).", len(self.scheduler_jobs))
 
         # Project-declared custom roles via .vc-context/roles.json. Empty
         # list when the file is absent — opt-in, no error path.
@@ -149,7 +159,7 @@ class ContextBuilder:
         if not os.path.isfile(conv_path):
             return defaults
         try:
-            with open(conv_path, "r", encoding="utf-8") as fh:
+            with open(conv_path, encoding="utf-8") as fh:
                 conv = json.load(fh)
         except (OSError, json.JSONDecodeError):
             return defaults
@@ -183,7 +193,7 @@ class ContextBuilder:
         own = set()
         try:
             for entry in os.listdir(self.root_dir):
-                if entry in self.ignore_dirs or entry.startswith('.'):
+                if entry in self.ignore_dirs or entry.startswith("."):
                     continue
                 path = os.path.join(self.root_dir, entry)
                 if not os.path.isdir(path):
@@ -192,7 +202,7 @@ class ContextBuilder:
                     contents = os.listdir(path)
                 except OSError:
                     continue
-                if '__init__.py' in contents or any(c.endswith('.py') for c in contents):
+                if "__init__.py" in contents or any(c.endswith(".py") for c in contents):
                     own.add(entry)
         except OSError:
             pass
@@ -284,8 +294,7 @@ class ContextBuilder:
                 for exp in data.get("exports", []) or []:
                     if not isinstance(exp, dict):
                         continue
-                    for hidden in ("_body", "_anchor", "_register_call",
-                                   "_decorators_text"):
+                    for hidden in ("_body", "_anchor", "_register_call", "_decorators_text"):
                         exp.pop(hidden, None)
 
                 # Cache the finalised payload — same shape that ends up
@@ -314,10 +323,10 @@ class ContextBuilder:
 
         module_data = {"directory": dir_path, "files": rendered}
         try:
-            with open(map_file_path, 'w', encoding='utf-8') as f:
+            with open(map_file_path, "w", encoding="utf-8") as f:
                 json.dump(module_data, f, indent=2, ensure_ascii=False)
                 f.write("\n")
-        except IOError as e:
+        except OSError as e:
             logging.error(f"Failed to write {map_file_path}: {e}")
 
     def _apply_custom_roles_to_exports(self, data: Dict, file_path: str) -> None:
@@ -342,7 +351,7 @@ class ContextBuilder:
         # for the body-level matchers when the parser didn't stash a
         # private `_body` field.
         try:
-            with open(file_path, "r", encoding="utf-8") as fh:
+            with open(file_path, encoding="utf-8") as fh:
                 source_text = fh.read()
         except OSError:
             source_text = ""
@@ -411,7 +420,10 @@ class ContextBuilder:
             pct = round(100.0 * self._cache_hits / total, 1)
             logging.info(
                 "Parse cache: %d/%d hits (%.1f%%), %d miss%s.",
-                self._cache_hits, total, pct, self._cache_misses,
+                self._cache_hits,
+                total,
+                pct,
+                self._cache_misses,
                 "" if self._cache_misses == 1 else "es",
             )
 
@@ -431,17 +443,17 @@ class ContextBuilder:
                     return True
 
             # 2. ФИКС: Проверяем, не удалили ли (или добавили) файлы
-            with open(map_file_path, 'r', encoding='utf-8') as f:
+            with open(map_file_path, encoding="utf-8") as f:
                 old_data = json.load(f)
                 old_files = set(old_data.get("files", {}).keys())
                 current_files = set(files)
 
                 if old_files != current_files:
-                    return True # Состав файлов изменился, нужно обновить
+                    return True  # Состав файлов изменился, нужно обновить
 
         except (OSError, json.JSONDecodeError) as e:
             logging.warning(f"Error reading metadata in {dir_path}: {e}")
-            return True # Если что-то сломалось, надежнее просто обновить
+            return True  # Если что-то сломалось, надежнее просто обновить
 
         return False
 
@@ -462,7 +474,7 @@ class ContextBuilder:
                 continue
             mp = os.path.join(cur, self.map_filename)
             try:
-                with open(mp, 'r', encoding='utf-8') as fh:
+                with open(mp, encoding="utf-8") as fh:
                     yield mp, json.load(fh)
             except (OSError, json.JSONDecodeError) as e:
                 logging.warning(f"Skipping unreadable map {mp}: {e}")
@@ -474,8 +486,8 @@ class ContextBuilder:
             rel = os.path.relpath(file_path, root_dir)
         except ValueError:
             rel = file_path
-        rel = rel.replace(os.sep, '/')
-        while rel.startswith('./'):
+        rel = rel.replace(os.sep, "/")
+        while rel.startswith("./"):
             rel = rel[2:]
         return rel
 
@@ -513,8 +525,7 @@ class ContextBuilder:
             "project_root": os.path.abspath(self.root_dir),
             "modules": self.processed_modules,
             "entry_instruction": (
-                f"Read {self.readme_filename} first, then navigate modules "
-                f"via {self.map_filename}."
+                f"Read {self.readme_filename} first, then navigate modules via {self.map_filename}."
             ),
             # Lets agents know which extra artifacts the builder
             # produced — they're free to ignore the ones they don't
@@ -533,10 +544,10 @@ class ContextBuilder:
             root_data["roles"] = {k: roles[k] for k in sorted(roles)}
 
         try:
-            with open(root_map_path, 'w', encoding='utf-8') as f:
+            with open(root_map_path, "w", encoding="utf-8") as f:
                 json.dump(root_data, f, indent=2)
                 f.write("\n")
-        except IOError as e:
+        except OSError as e:
             logging.error(f"Failed to write root map: {e}")
 
     def _build_symbol_index(self) -> None:
@@ -558,9 +569,7 @@ class ContextBuilder:
                 # (Dockerfile / docker-compose) — those aren't symbols.
                 if not isinstance(fdata, dict):
                     continue
-                file_rel = self._rel_norm(
-                    os.path.join(directory, fname), self.root_dir
-                )
+                file_rel = self._rel_norm(os.path.join(directory, fname), self.root_dir)
                 exports = fdata.get("exports", []) or []
                 for exp in exports:
                     if not isinstance(exp, dict):
@@ -570,9 +579,19 @@ class ContextBuilder:
                         continue
 
                     candidate: Dict[str, Any] = {"file": file_rel}
-                    for k in ("kind", "params", "doc", "role", "inputs",
-                              "outputs", "line", "end_line",
-                              "callees", "raises", "decorators"):
+                    for k in (
+                        "kind",
+                        "params",
+                        "doc",
+                        "role",
+                        "inputs",
+                        "outputs",
+                        "line",
+                        "end_line",
+                        "callees",
+                        "raises",
+                        "decorators",
+                    ):
                         v = exp.get(k)
                         if v:
                             candidate[k] = v
@@ -595,13 +614,13 @@ class ContextBuilder:
         ordered = {k: index[k] for k in sorted(index)}
         out_path = os.path.join(self.root_dir, self.symbols_filename)
         try:
-            with open(out_path, 'w', encoding='utf-8') as f:
+            with open(out_path, "w", encoding="utf-8") as f:
                 json.dump(ordered, f, indent=2, ensure_ascii=False)
                 f.write("\n")
             logging.info(
                 "Wrote symbol index: %s (%d symbols).", self.symbols_filename, len(ordered)
             )
-        except IOError as e:
+        except OSError as e:
             logging.error(f"Failed to write symbol index: {e}")
 
     # ------------------------------------------------------------------
@@ -615,7 +634,7 @@ class ContextBuilder:
         """
         symbols_path = os.path.join(self.root_dir, self.symbols_filename)
         try:
-            with open(symbols_path, 'r', encoding='utf-8') as fh:
+            with open(symbols_path, encoding="utf-8") as fh:
                 symbols = json.load(fh)
         except (OSError, json.JSONDecodeError) as e:
             logging.warning(f"Skipping test index: {e}")
@@ -626,7 +645,9 @@ class ContextBuilder:
             with_test = sum(1 for v in index.values() if v)
             logging.info(
                 "Wrote test index: %s (%d/%d symbols linked).",
-                self.tests_filename, with_test, len(index),
+                self.tests_filename,
+                with_test,
+                len(index),
             )
         except OSError as e:
             logging.error(f"Failed to write test index: {e}")
@@ -641,7 +662,8 @@ class ContextBuilder:
             write_route_index(self.root_dir, index)
             logging.info(
                 "Wrote route index: %s (%d route(s)).",
-                self.routes_filename, len(index),
+                self.routes_filename,
+                len(index),
             )
         except OSError as e:
             logging.error(f"Failed to write route index: {e}")
@@ -660,7 +682,8 @@ class ContextBuilder:
             write_ng_route_index(self.root_dir, routes)
             logging.info(
                 "Wrote Angular route index: %s (%d route(s)).",
-                self.ng_routes_filename, len(routes),
+                self.ng_routes_filename,
+                len(routes),
             )
         except OSError as e:
             logging.error(f"Failed to write Angular route index: {e}")
@@ -675,7 +698,8 @@ class ContextBuilder:
             write_callback_index(self.root_dir, index)
             logging.info(
                 "Wrote callback index: %s (%d entries).",
-                self.callbacks_filename, len(index),
+                self.callbacks_filename,
+                len(index),
             )
         except OSError as e:
             logging.error(f"Failed to write callback index: {e}")
@@ -690,7 +714,8 @@ class ContextBuilder:
             write_fsm_flow(self.root_dir, index)
             logging.info(
                 "Wrote FSM flow index: %s (%d state(s)).",
-                self.fsm_flow_filename, len(index),
+                self.fsm_flow_filename,
+                len(index),
             )
         except OSError as e:
             logging.error(f"Failed to write FSM flow index: {e}")
@@ -706,11 +731,14 @@ class ContextBuilder:
             # Inline summary so the build log shows the unit/integration
             # split without requiring a follow-up CLI call.
             from test_classifier import category_summary  # type: ignore[import-not-found]
+
             summary = category_summary(index)
             summary_text = ", ".join(f"{k}={v}" for k, v in sorted(summary.items()))
             logging.info(
                 "Wrote test categories: %s (%d files; %s).",
-                self.test_categories_filename, len(index), summary_text or "empty",
+                self.test_categories_filename,
+                len(index),
+                summary_text or "empty",
             )
         except OSError as e:
             logging.error(f"Failed to write test categories: {e}")
@@ -726,11 +754,10 @@ class ContextBuilder:
             conv_path = os.path.join(self.root_dir, ".vc-context", "conventions.json")
             if os.path.exists(conv_path):
                 try:
-                    with open(conv_path, "r", encoding="utf-8") as fh:
+                    with open(conv_path, encoding="utf-8") as fh:
                         conv = json.load(fh)
                     override = (
-                        conv.get("locales", {}).get("path")
-                        if isinstance(conv, dict) else None
+                        conv.get("locales", {}).get("path") if isinstance(conv, dict) else None
                     )
                     if isinstance(override, str) and override:
                         locales_dir = override
@@ -747,7 +774,9 @@ class ContextBuilder:
             missing_total = sum(len(v.get("missing", [])) for v in index.values())
             logging.info(
                 "Wrote locale index: %s (%d keys; %d missing translations).",
-                self.locales_filename, len(index), missing_total,
+                self.locales_filename,
+                len(index),
+                missing_total,
             )
         except OSError as e:
             logging.error(f"Failed to write locale index: {e}")
@@ -766,11 +795,11 @@ class ContextBuilder:
             "## Cardinal rule: read narrowly, write fully\n\n"
             f"**Five artifacts, five purposes — pick the right one first.**\n\n"
             f"- `{self.root_map_filename}` — directory list + `roles` aggregator\n"
-            "  + `artifacts` listing (\"all routes / migrations / scheduler\n"
-            "  jobs / webhooks\").\n"
+            '  + `artifacts` listing ("all routes / migrations / scheduler\n'
+            '  jobs / webhooks").\n'
             f"- `{self.symbols_filename}` — flat `{{name → {{file, kind, params,\n"
-            "  doc, role, test}}}}` index. **O(1) lookup** for \"where is\n"
-            "  symbol X?\"\n"
+            '  doc, role, test}}}}` index. **O(1) lookup** for "where is\n'
+            '  symbol X?"\n'
             f"- `{self.tests_filename}` — `{{symbol → {{test_file,\n"
             "  test_function, line} | null}}` map. Use to find the nearest\n"
             "  existing test for a symbol you're about to change.\n"
@@ -780,17 +809,17 @@ class ContextBuilder:
             "  shape.\n"
             f"- `<dir>/{self.map_filename}` — per-folder zoom-in: every export\n"
             "  in every file with shape and own-package deps.\n\n"
-            f"### Step 0 — \"show me all <role>\" queries\n"
-            f"   If the user asks \"list all routes / migrations / scheduler\n"
-            f"   jobs / repositories / services / api-clients / webhooks\", read\n"
+            f'### Step 0 — "show me all <role>" queries\n'
+            f'   If the user asks "list all routes / migrations / scheduler\n'
+            f'   jobs / repositories / services / api-clients / webhooks", read\n'
             f"   `{self.root_map_filename}` and use its `roles` section.\n"
             f"   No folder iteration needed.\n\n"
             f"1. **Start tiny.** Read `{self.root_map_filename}` (one short JSON,\n"
             "   ~few hundred tokens). It lists every module folder + the\n"
             "   `roles` aggregator. **Stop here if the question is structural**\n"
-            "   (\"where is X handled?\", \"what modules exist?\"). Don't fetch\n"
+            '   ("where is X handled?", "what modules exist?"). Don\'t fetch\n'
             "   maps preemptively.\n\n"
-            f"### Step 1.5 — \"where is symbol X defined?\"\n"
+            f'### Step 1.5 — "where is symbol X defined?"\n'
             f"   Before opening any module map, check `{self.symbols_filename}`.\n"
             "   It's a single flat dict — one read, one lookup. The value\n"
             "   tells you the file, kind, signature, docstring summary, and\n"
@@ -800,8 +829,8 @@ class ContextBuilder:
             f"   `<that-folder>/{self.map_filename}` — and only that one. Each map\n"
             "   lists every file's public exports (name + kind + signature +\n"
             "   docstring summary + optional `role`) and its own-package\n"
-            "   dependencies. That is usually enough to answer \"is there\n"
-            "   already a function for X?\" or \"what does file Y expose?\".\n\n"
+            '   dependencies. That is usually enough to answer "is there\n'
+            '   already a function for X?" or "what does file Y expose?".\n\n'
             "3. **Open source only when editing or when summary is insufficient.**\n"
             "   The map shows shapes; the file holds the body. Don't open a\n"
             "   `.py` file just to check what it imports — the map already says.\n\n"
@@ -828,16 +857,16 @@ class ContextBuilder:
             "- The full live vocabulary lives in `agent_root.json.roles` —\n"
             "  read those keys, not this list, when in doubt.\n\n"
             "## Action-tier queries (need to *do* something, not just look up)\n"
-            "- \"Did I break a project rule?\" →\n"
+            '- "Did I break a project rule?" →\n'
             "  MCP `lint_violations` or CLI `vc-context lint`. Reads\n"
             "  `.vc-context/conventions.json` at the parent project root.\n"
             "  Empty list when the file is absent — opt-in.\n"
-            "- \"Where should I add a test for symbol X?\" →\n"
+            '- "Where should I add a test for symbol X?" →\n'
             "  MCP `find_test(symbol=X)` or CLI `vc-context test X`. Returns\n"
             "  the nearest existing test so you can colocate the new case.\n"
             f"  See `{self.tests_filename}` for the prebuilt map; the live\n"
             "  fallback handles fresh symbols.\n"
-            "- \"What JS code calls this backend route?\" →\n"
+            '- "What JS code calls this backend route?" →\n'
             "  MCP `route_callers(path)` or CLI\n"
             "  `vc-context route-callers /api/foo`. Lists every JS/TS call-\n"
             "  site that hits the route. Use BEFORE changing a route's\n"
@@ -856,11 +885,12 @@ class ContextBuilder:
             "your changes. The symbol index is auto-generated.\n"
         )
         try:
-            with open(readme_path, 'w', encoding='utf-8') as f:
+            with open(readme_path, "w", encoding="utf-8") as f:
                 f.write(content)
             logging.info(f"Generated Agent SOP: {self.readme_filename}")
-        except IOError as e:
+        except OSError as e:
             logging.error(f"Failed to write {self.readme_filename}: {e}")
+
 
 if __name__ == "__main__":
     builder = ContextBuilder()

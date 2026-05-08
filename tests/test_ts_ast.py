@@ -26,7 +26,7 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _SUBMODULE = os.path.dirname(_HERE)
 sys.path.insert(0, _SUBMODULE)
 
-from parsers import _ts_ast  # noqa: E402
+from parsers import _ts_ast
 
 
 def _has_node_with_typescript() -> bool:
@@ -36,7 +36,9 @@ def _has_node_with_typescript() -> bool:
     try:
         proc = subprocess.run(
             ["node", "-e", "require('typescript')"],
-            capture_output=True, text=True, timeout=3.0,
+            capture_output=True,
+            text=True,
+            timeout=3.0,
         )
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return False

@@ -9,6 +9,7 @@ Covers:
   vue-composable.
 - Imports normalised to their top-level package name.
 """
+
 import os
 import shutil
 import sys
@@ -40,12 +41,15 @@ class TsJsParserTests(unittest.TestCase):
     # ------------------------------------------------------------------
 
     def test_top_level_only_skips_nested(self):
-        path = self._write("a.js", """
+        path = self._write(
+            "a.js",
+            """
 function outer() {
   function inner() { return 1; }
   return inner();
 }
-""")
+""",
+        )
         result = self.parser.extract(path)
         names = [e["name"] for e in result["exports"]]
         self.assertIn("outer", names)
@@ -69,7 +73,9 @@ function outer() {
         self.assertEqual(mul["params"], "(a, b)")
 
     def test_async_function_kind(self):
-        path = self._write("a.ts", "export async function fetchUser(id: number) {\n  return null;\n}\n")
+        path = self._write(
+            "a.ts", "export async function fetchUser(id: number) {\n  return null;\n}\n"
+        )
         result = self.parser.extract(path)
         fu = next(e for e in result["exports"] if e["name"] == "fetchUser")
         self.assertEqual(fu["kind"], "async-func")
@@ -79,38 +85,47 @@ function outer() {
     # ------------------------------------------------------------------
 
     def test_jsdoc_first_line_used(self):
-        path = self._write("a.js", """
+        path = self._write(
+            "a.js",
+            """
 /**
  * Multiplies two numbers.
  * @param a
  * @param b
  */
 function mul(a, b) { return a * b; }
-""")
+""",
+        )
         result = self.parser.extract(path)
         mul = next(e for e in result["exports"] if e["name"] == "mul")
         self.assertEqual(mul.get("doc"), "Multiplies two numbers.")
 
     def test_jsdoc_skipped_if_only_tags(self):
-        path = self._write("a.js", """
+        path = self._write(
+            "a.js",
+            """
 /**
  * @param a
  * @returns void
  */
 function noop(a) {}
-""")
+""",
+        )
         result = self.parser.extract(path)
         noop = next(e for e in result["exports"] if e["name"] == "noop")
         self.assertNotIn("doc", noop)
 
     def test_jsdoc_capped_at_120_chars(self):
         long_line = "X" * 200
-        path = self._write("a.js", f"""
+        path = self._write(
+            "a.js",
+            f"""
 /**
  * {long_line}
  */
 function huge() {{}}
-""")
+""",
+        )
         result = self.parser.extract(path)
         huge = next(e for e in result["exports"] if e["name"] == "huge")
         self.assertEqual(len(huge["doc"]), 120)
@@ -120,12 +135,15 @@ function huge() {{}}
     # ------------------------------------------------------------------
 
     def test_react_component_role_in_jsx(self):
-        path = self._write("Button.jsx", """
+        path = self._write(
+            "Button.jsx",
+            """
 import React from 'react';
 function Button(props) {
   return <button>{props.label}</button>;
 }
-""")
+""",
+        )
         result = self.parser.extract(path)
         btn = next(e for e in result["exports"] if e["name"] == "Button")
         self.assertEqual(btn.get("role"), "react-component")
@@ -133,55 +151,70 @@ function Button(props) {
     def test_react_component_only_jsx_tsx(self):
         # `.js` file with JSX-shaped name but no JSX file extension —
         # should NOT get tagged.
-        path = self._write("Button.js", """
+        path = self._write(
+            "Button.js",
+            """
 function Button(props) {
   return <button>{props.label}</button>;
 }
-""")
+""",
+        )
         result = self.parser.extract(path)
         btn = next(e for e in result["exports"] if e["name"] == "Button")
         self.assertNotEqual(btn.get("role"), "react-component")
 
     def test_react_hook_role(self):
-        path = self._write("hooks.ts", """
+        path = self._write(
+            "hooks.ts",
+            """
 import { useState } from 'react';
 function useCounter() {
   const [n, setN] = useState(0);
   return n;
 }
-""")
+""",
+        )
         result = self.parser.extract(path)
         hook = next(e for e in result["exports"] if e["name"] == "useCounter")
         self.assertEqual(hook.get("role"), "react-hook")
 
     def test_express_route_role(self):
-        path = self._write("routes.js", """
+        path = self._write(
+            "routes.js",
+            """
 const express = require('express');
 const router = express.Router();
 function listUsers(req, res) { res.json([]); }
 router.get('/users', listUsers);
-""")
+""",
+        )
         result = self.parser.extract(path)
         lu = next(e for e in result["exports"] if e["name"] == "listUsers")
         self.assertEqual(lu.get("role"), "express-route")
 
     def test_express_route_app_form(self):
-        path = self._write("server.js", """
+        path = self._write(
+            "server.js",
+            """
 const app = express();
 function rootHandler(req, res) { res.send('ok'); }
 app.post('/api/foo', rootHandler);
-""")
+""",
+        )
         result = self.parser.extract(path)
         rh = next(e for e in result["exports"] if e["name"] == "rootHandler")
         self.assertEqual(rh.get("role"), "express-route")
 
     def test_vue_composable_role(self):
-        path = self._write("src/composables/useUser.ts", """
+        path = self._write(
+            "src/composables/useUser.ts",
+            """
 import { ref } from 'vue';
 export function useUser() {
   return ref(null);
 }
-""")
+""",
+        )
         result = self.parser.extract(path)
         uu = next(e for e in result["exports"] if e["name"] == "useUser")
         self.assertEqual(uu.get("role"), "vue-composable")
@@ -197,12 +230,15 @@ export function useUser() {
     # ------------------------------------------------------------------
 
     def test_imports_top_level_pkg(self):
-        path = self._write("a.js", """
+        path = self._write(
+            "a.js",
+            """
 import React from 'react';
 import { something } from 'lodash/fp';
 import * as path from 'path';
 const fs = require('fs/promises');
-""")
+""",
+        )
         result = self.parser.extract(path)
         deps = set(result["dependencies"])
         self.assertIn("react", deps)
@@ -211,10 +247,13 @@ const fs = require('fs/promises');
         self.assertIn("fs", deps)
 
     def test_relative_imports_dropped(self):
-        path = self._write("a.js", """
+        path = self._write(
+            "a.js",
+            """
 import x from './local';
 import y from '../sibling';
-""")
+""",
+        )
         result = self.parser.extract(path)
         self.assertEqual(result["dependencies"], [])
 

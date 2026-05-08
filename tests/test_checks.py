@@ -10,9 +10,9 @@ import unittest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from checks import list_checks, load_checks, run_check  # noqa: E402
-from mcp_server import _tool_specs  # noqa: E402
-from query_engine import QueryEngine  # noqa: E402
+from checks import list_checks, load_checks, run_check
+from mcp_server import _tool_specs
+from query_engine import QueryEngine
 
 
 def _write_config(root: str, payload: dict) -> None:
@@ -38,14 +38,16 @@ class _Fixture:
 
 class TestLoadChecks(unittest.TestCase):
     def test_returns_argv_lists_only(self) -> None:
-        fx = _Fixture({
-            "checks": {
-                "test": ["python", "-m", "pytest", "-q"],
-                "broken": "python -m pytest",            # str → ignored
-                "empty": [],                             # empty → ignored
-                "non-string-token": ["sh", 1],           # bad token → ignored
+        fx = _Fixture(
+            {
+                "checks": {
+                    "test": ["python", "-m", "pytest", "-q"],
+                    "broken": "python -m pytest",  # str → ignored
+                    "empty": [],  # empty → ignored
+                    "non-string-token": ["sh", 1],  # bad token → ignored
+                }
             }
-        })
+        )
         try:
             checks = load_checks(fx.root)
             self.assertEqual(set(checks), {"test"})
@@ -74,9 +76,7 @@ class TestRunCheck(unittest.TestCase):
             fx.cleanup()
 
     def test_runs_simple_command_and_captures_output(self) -> None:
-        fx = _Fixture({
-            "checks": {"echo": ["python3", "-c", "print('hello')"]}
-        })
+        fx = _Fixture({"checks": {"echo": ["python3", "-c", "print('hello')"]}})
         try:
             out = run_check(fx.root, "echo")
             self.assertEqual(out["returncode"], 0)
@@ -86,9 +86,7 @@ class TestRunCheck(unittest.TestCase):
             fx.cleanup()
 
     def test_failing_command_returns_nonzero(self) -> None:
-        fx = _Fixture({
-            "checks": {"fail": ["python3", "-c", "import sys; sys.exit(7)"]}
-        })
+        fx = _Fixture({"checks": {"fail": ["python3", "-c", "import sys; sys.exit(7)"]}})
         try:
             out = run_check(fx.root, "fail")
             self.assertEqual(out["returncode"], 7)
@@ -96,9 +94,7 @@ class TestRunCheck(unittest.TestCase):
             fx.cleanup()
 
     def test_timeout_returns_minus_one(self) -> None:
-        fx = _Fixture({
-            "checks": {"hang": ["python3", "-c", "import time; time.sleep(5)"]}
-        })
+        fx = _Fixture({"checks": {"hang": ["python3", "-c", "import time; time.sleep(5)"]}})
         try:
             out = run_check(fx.root, "hang", timeout_sec=1)
             self.assertEqual(out["returncode"], -1)
@@ -108,14 +104,17 @@ class TestRunCheck(unittest.TestCase):
 
     def test_pytest_summary_extracted(self) -> None:
         # Simulate pytest's typical "X passed in Y.Zs" tail line.
-        fx = _Fixture({
-            "checks": {
-                "fake-pytest": [
-                    "python3", "-c",
-                    "print('....\\n95 passed in 7.50s')",
-                ],
+        fx = _Fixture(
+            {
+                "checks": {
+                    "fake-pytest": [
+                        "python3",
+                        "-c",
+                        "print('....\\n95 passed in 7.50s')",
+                    ],
+                }
             }
-        })
+        )
         try:
             out = run_check(fx.root, "fake-pytest")
             self.assertEqual(out["returncode"], 0)
@@ -124,9 +123,7 @@ class TestRunCheck(unittest.TestCase):
             fx.cleanup()
 
     def test_spawn_failure_when_command_missing(self) -> None:
-        fx = _Fixture({
-            "checks": {"missing": ["__definitely_not_a_command__"]}
-        })
+        fx = _Fixture({"checks": {"missing": ["__definitely_not_a_command__"]}})
         try:
             out = run_check(fx.root, "missing")
             self.assertEqual(out["returncode"], -3)

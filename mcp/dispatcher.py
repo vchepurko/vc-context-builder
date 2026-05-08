@@ -29,10 +29,8 @@ _PARENT = os.path.dirname(_HERE)
 if _PARENT not in sys.path:
     sys.path.insert(0, _PARENT)
 
-from query_engine import QueryEngine  # noqa: E402
-
-from mcp.metrics import MetricsWriter  # noqa: E402
-
+from mcp.metrics import MetricsWriter
+from query_engine import QueryEngine
 
 
 class Dispatcher:
@@ -46,51 +44,51 @@ class Dispatcher:
         self.engine = engine
         self.metrics_writer = metrics_writer
         self._handlers: Dict[str, Callable[[Dict[str, Any]], Any]] = {
-            "find_symbol":       self._find_symbol,
-            "find_symbols":      self._find_symbols,
-            "get_callees":       self._get_callees,
+            "find_symbol": self._find_symbol,
+            "find_symbols": self._find_symbols,
+            "get_callees": self._get_callees,
             "get_raised_exceptions": self._get_raised_exceptions,
             "get_decorated_with": self._get_decorated_with,
-            "get_symbol_card":   self._get_symbol_card,
-            "get_file_card":     self._get_file_card,
+            "get_symbol_card": self._get_symbol_card,
+            "get_file_card": self._get_file_card,
             "get_changed_symbols": self._get_changed_symbols,
-            "repo_map":          self._repo_map,
-            "read_slice":        self._read_slice,
-            "find_by_role":      self._find_by_role,
-            "who_calls":         self._who_calls,
-            "summarise_module":  self._summarise_module,
-            "list_roles":        self._list_roles,
-            "list_modules":      self._list_modules,
-            "lint_violations":   self._lint_violations,
-            "find_test":         self._find_test,
-            "route_callers":     self._route_callers,
+            "repo_map": self._repo_map,
+            "read_slice": self._read_slice,
+            "find_by_role": self._find_by_role,
+            "who_calls": self._who_calls,
+            "summarise_module": self._summarise_module,
+            "list_roles": self._list_roles,
+            "list_modules": self._list_modules,
+            "lint_violations": self._lint_violations,
+            "find_test": self._find_test,
+            "route_callers": self._route_callers,
             "route_for_js_call": self._route_for_js_call,
-            "find_callback":     self._find_callback,
-            "trace_fsm_flow":    self._trace_fsm_flow,
+            "find_callback": self._find_callback,
+            "trace_fsm_flow": self._trace_fsm_flow,
             "coverage_for_role": self._coverage_for_role,
-            "classify_tests":    self._classify_tests,
+            "classify_tests": self._classify_tests,
             "tests_by_category": self._tests_by_category,
-            "find_call_sites":   self._find_call_sites,
+            "find_call_sites": self._find_call_sites,
             "logline_to_symbol": self._logline_to_symbol,
-            "list_checks":       self._list_checks,
-            "run_check":         self._run_check,
+            "list_checks": self._list_checks,
+            "run_check": self._run_check,
             "get_session_metrics": self._get_session_metrics,
-            "inspect_class":     self._inspect_class,
-            "list_locale_keys":  self._list_locale_keys,
-            "find_locale_key":   self._find_locale_key,
-            "get_locale_key":    self._get_locale_key,
+            "inspect_class": self._inspect_class,
+            "list_locale_keys": self._list_locale_keys,
+            "find_locale_key": self._find_locale_key,
+            "get_locale_key": self._get_locale_key,
             "notify_log_search": self._notify_log_search,
-            "notify_log_stats":  self._notify_log_stats,
-            "ruff_violations":   self._ruff_violations,
-            "ruff_format":       self._ruff_format,
-            "mypy_violations":      self._mypy_violations,
-            "find_in_templates":    self._find_in_templates,
-            "ng_audit_component":   self._ng_audit_component,
-            "ng_uses_selector":     self._ng_uses_selector,
-            "ng_overview":          self._ng_overview,
-            "ng_inject_graph":      self._ng_inject_graph,
-            "ng_list_routes":       self._ng_list_routes,
-            "ng_route_for_path":    self._ng_route_for_path,
+            "notify_log_stats": self._notify_log_stats,
+            "ruff_violations": self._ruff_violations,
+            "ruff_format": self._ruff_format,
+            "mypy_violations": self._mypy_violations,
+            "find_in_templates": self._find_in_templates,
+            "ng_audit_component": self._ng_audit_component,
+            "ng_uses_selector": self._ng_uses_selector,
+            "ng_overview": self._ng_overview,
+            "ng_inject_graph": self._ng_inject_graph,
+            "ng_list_routes": self._ng_list_routes,
+            "ng_route_for_path": self._ng_route_for_path,
             "ng_routes_for_component": self._ng_routes_for_component,
         }
 
@@ -148,32 +146,20 @@ class Dispatcher:
         return self.engine.get_callees(str(args.get("symbol", "")).strip())
 
     def _get_raised_exceptions(self, args: Dict[str, Any]) -> Any:
-        return self.engine.get_raised_exceptions(
-            str(args.get("symbol", "")).strip()
-        )
+        return self.engine.get_raised_exceptions(str(args.get("symbol", "")).strip())
 
     def _get_decorated_with(self, args: Dict[str, Any]) -> Any:
-        return self.engine.get_decorated_with(
-            str(args.get("decorator", "")).strip()
-        )
+        return self.engine.get_decorated_with(str(args.get("decorator", "")).strip())
 
     def _get_symbol_card(self, args: Dict[str, Any]) -> Any:
-        return self.engine.get_symbol_card(
-            str(args.get("symbol", "")).strip()
-        )
+        return self.engine.get_symbol_card(str(args.get("symbol", "")).strip())
 
     def _get_file_card(self, args: Dict[str, Any]) -> Any:
-        return self.engine.get_file_card(
-            str(args.get("path", "")).strip()
-        )
+        return self.engine.get_file_card(str(args.get("path", "")).strip())
 
     def _get_changed_symbols(self, args: Dict[str, Any]) -> Any:
         base = args.get("base")
-        base_arg = (
-            str(base).strip()
-            if isinstance(base, str) and base.strip()
-            else None
-        )
+        base_arg = str(base).strip() if isinstance(base, str) and base.strip() else None
         return self.engine.get_changed_symbols(base=base_arg)
 
     def _repo_map(self, args: Dict[str, Any]) -> Any:
@@ -256,9 +242,7 @@ class Dispatcher:
         name = str(args.get("name", "")).strip()
         timeout_raw = args.get("timeout_sec")
         timeout_sec = (
-            int(timeout_raw)
-            if isinstance(timeout_raw, (int, float)) and timeout_raw > 0
-            else None
+            int(timeout_raw) if isinstance(timeout_raw, (int, float)) and timeout_raw > 0 else None
         )
         return self.engine.run_check(name, timeout_sec=timeout_sec)
 
@@ -392,4 +376,3 @@ class Dispatcher:
     def _ng_routes_for_component(self, args: Dict[str, Any]) -> Any:
         name = str(args.get("name", "")).strip()
         return self.engine.ng_routes_for_component(name) if name else []
-

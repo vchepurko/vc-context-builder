@@ -1,19 +1,20 @@
-import unittest
 import os
 import sys
+import unittest
 
 # Add the root directory to sys.path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from parsers.php_parser import PhpParser
 
+
 class TestPhpParser(unittest.TestCase):
     def setUp(self):
-        self.test_file = 'dummy_test.php'
+        self.test_file = "dummy_test.php"
         self.parser = PhpParser()
 
         # Create a complex dummy PHP file mimicking a WordPress/WooCommerce plugin
-        with open(self.test_file, 'w', encoding='utf-8') as f:
+        with open(self.test_file, "w", encoding="utf-8") as f:
             f.write("""<?php
 namespace App\\Controllers;
 
@@ -59,21 +60,22 @@ function vc_quiz_global_helper() {}
         result = self.parser.extract(self.test_file)
 
         # Verify Exports
-        self.assertIn('QuizInterface', result['exports'])
-        self.assertIn('Loggable', result['exports'])
-        self.assertIn('QuizController', result['exports'])
-        self.assertIn('vc_quiz_global_helper', result['exports'])
+        self.assertIn("QuizInterface", result["exports"])
+        self.assertIn("Loggable", result["exports"])
+        self.assertIn("QuizController", result["exports"])
+        self.assertIn("vc_quiz_global_helper", result["exports"])
 
         # Verify Comments are Ignored
-        self.assertNotIn('IgnoredCommentClass', result['exports'])
-        self.assertNotIn('ignored_hash_function', result['exports'])
-        self.assertNotIn('ignored_block_action', result['dependencies'])
+        self.assertNotIn("IgnoredCommentClass", result["exports"])
+        self.assertNotIn("ignored_hash_function", result["exports"])
+        self.assertNotIn("ignored_block_action", result["dependencies"])
 
         # Verify Dependencies (Uses, Requires, and WordPress Hooks)
-        self.assertIn('App\\Models\\QuizModel', result['dependencies'])
-        self.assertIn('vendor/autoload.php', result['dependencies'])
-        self.assertIn('woocommerce_before_cart', result['dependencies'])
-        self.assertIn('vc_quiz_custom_filter', result['dependencies'])
+        self.assertIn("App\\Models\\QuizModel", result["dependencies"])
+        self.assertIn("vendor/autoload.php", result["dependencies"])
+        self.assertIn("woocommerce_before_cart", result["dependencies"])
+        self.assertIn("vc_quiz_custom_filter", result["dependencies"])
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     unittest.main()

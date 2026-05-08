@@ -42,7 +42,6 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-
 CONFIG_RELATIVE_PATH = os.path.join(".vc-context", "roles.json")
 
 # Built-in roles default to priority 0; custom roles default to 5 if the
@@ -75,6 +74,7 @@ class CustomRole:
 # Config loading
 # ----------------------------------------------------------------------
 
+
 def load_custom_roles(project_root: str) -> List[CustomRole]:
     """Return the list of declared custom roles.
 
@@ -85,7 +85,7 @@ def load_custom_roles(project_root: str) -> List[CustomRole]:
     if not os.path.isfile(config_path):
         return []
     try:
-        with open(config_path, "r", encoding="utf-8") as fh:
+        with open(config_path, encoding="utf-8") as fh:
             data = json.load(fh)
     except (OSError, json.JSONDecodeError):
         return []
@@ -161,6 +161,7 @@ def _compile(pattern: Any) -> Optional[re.Pattern]:
 # Glob helper — supports ``**`` and ``{a,b}`` brace alternation
 # ----------------------------------------------------------------------
 
+
 def _expand_braces(pattern: str) -> List[str]:
     """Expand ``{a,b,c}`` alternations into a list of fnmatch globs.
 
@@ -174,8 +175,8 @@ def _expand_braces(pattern: str) -> List[str]:
     if end == -1:
         return [pattern]
     head = pattern[:start]
-    tail = pattern[end + 1:]
-    body = pattern[start + 1:end]
+    tail = pattern[end + 1 :]
+    body = pattern[start + 1 : end]
     parts = [p for p in body.split(",") if p]
     if not parts:
         return [pattern]
@@ -205,7 +206,7 @@ def _glob_one(rel: str, pat: str) -> bool:
 
     idx = pat.find("**")
     before = pat[:idx]
-    after = pat[idx + 2:]
+    after = pat[idx + 2 :]
 
     if before.endswith("/") and after.startswith("/"):
         zero = before[:-1] + after
@@ -232,6 +233,7 @@ def _glob_one(rel: str, pat: str) -> bool:
 # ----------------------------------------------------------------------
 # Per-export application
 # ----------------------------------------------------------------------
+
 
 def apply_custom_roles(
     export: Dict[str, Any],
@@ -325,9 +327,10 @@ def _project_rel(file_path: str, project_root: Optional[str]) -> str:
 # Built-in priority comparator
 # ----------------------------------------------------------------------
 
-def should_override_builtin(custom_role_id: Optional[str],
-                            custom_priority: int,
-                            builtin_role: Optional[str]) -> bool:
+
+def should_override_builtin(
+    custom_role_id: Optional[str], custom_priority: int, builtin_role: Optional[str]
+) -> bool:
     """Decide whether the custom role replaces the built-in tag.
 
     Built-in roles always have priority 0. Custom roles win iff their

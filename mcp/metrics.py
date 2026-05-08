@@ -29,12 +29,13 @@ import hashlib
 import json
 import os
 import re
-from typing import Any, Dict, Iterable, List, Optional, Tuple
-
+from collections.abc import Iterable
+from typing import Any, Dict, List, Optional, Tuple
 
 # ---------------------------------------------------------------------------
 # Path / filename helpers
 # ---------------------------------------------------------------------------
+
 
 def _default_base_dir() -> str:
     """``~/.vc-context/metrics`` — overridable via ``VC_CONTEXT_METRICS_DIR``
@@ -60,6 +61,7 @@ def _today_filename(project_root: str, base_dir: str) -> str:
 # ---------------------------------------------------------------------------
 # Writer
 # ---------------------------------------------------------------------------
+
 
 def _is_empty(result: Any) -> bool:
     """Is this dispatcher result "empty" / "no useful information"?
@@ -88,8 +90,16 @@ def _approx_tokens(payload_bytes: int) -> int:
 # the quality detectors can match repeated/related calls (same symbol,
 # same file) without bloating the log with arbitrary user input.
 _ARG_VALUE_KEYS = (
-    "name", "symbol", "file", "file_path", "path",
-    "role", "pattern", "decorator", "selector", "match_path",
+    "name",
+    "symbol",
+    "file",
+    "file_path",
+    "path",
+    "role",
+    "pattern",
+    "decorator",
+    "selector",
+    "match_path",
 )
 _ARG_VALUE_MAX_CHARS = 100
 
@@ -259,6 +269,7 @@ def read_metrics(
 # Aggregation
 # ---------------------------------------------------------------------------
 
+
 def aggregate(
     entries: List[Dict[str, Any]],
     *,
@@ -277,8 +288,12 @@ def aggregate(
     """
     if not entries:
         return {
-            "calls": 0, "total_tokens": 0, "total_bytes": 0,
-            "avg_t_ms": 0.0, "empty_ratio": 0.0, "ok_ratio": 1.0,
+            "calls": 0,
+            "total_tokens": 0,
+            "total_bytes": 0,
+            "avg_t_ms": 0.0,
+            "empty_ratio": 0.0,
+            "ok_ratio": 1.0,
             f"by_{group_by}": {},
         }
 

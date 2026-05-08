@@ -41,15 +41,24 @@ from __future__ import annotations
 import ast
 import json
 import os
-from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
-
+from collections.abc import Iterable
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 TEST_CATEGORIES_FILENAME = "agent_test_categories.json"
 
 IGNORE_DIRS = {
-    ".git", "node_modules", "vendor", "__pycache__",
-    "dist", "build", ".venv", "venv", ".idea", ".vscode",
-    ".ai-context", ".vc-context",
+    ".git",
+    "node_modules",
+    "vendor",
+    "__pycache__",
+    "dist",
+    "build",
+    ".venv",
+    "venv",
+    ".idea",
+    ".vscode",
+    ".ai-context",
+    ".vc-context",
 }
 
 # Substrings that, when present in any import target, flag the file as
@@ -148,8 +157,10 @@ def _has_integration_marker(tree: ast.AST) -> Optional[str]:
       * ``pytestmark = [pytest.mark.integration, ...]``
       * any function decorated with ``@pytest.mark.integration``
     """
+
     def _is_integration_attr(node: ast.AST) -> bool:
-        # pytest.mark.integration → Attribute(value=Attribute(value=Name('pytest'), attr='mark'), attr='integration')
+        # pytest.mark.integration →
+        #   Attribute(value=Attribute(value=Name('pytest'), attr='mark'), attr='integration')
         return (
             isinstance(node, ast.Attribute)
             and node.attr == "integration"
@@ -186,7 +197,7 @@ def classify_test_file(file_path: str) -> Dict[str, Any]:
     names that fired the classification. Empty list when ``unknown``.
     """
     try:
-        with open(file_path, "r", encoding="utf-8") as fh:
+        with open(file_path, encoding="utf-8") as fh:
             source = fh.read()
     except OSError:
         return {"category": "unknown", "signals": []}
@@ -247,6 +258,7 @@ def write_test_categories(
 # Lookup helpers (used by QueryEngine)
 # ----------------------------------------------------------------------
 
+
 def lookup_tests_by_category(
     index: Dict[str, Dict[str, Any]],
     category: str,
@@ -259,7 +271,8 @@ def lookup_tests_by_category(
     if not category:
         return []
     return sorted(
-        path for path, rec in index.items()
+        path
+        for path, rec in index.items()
         if isinstance(rec, dict) and rec.get("category") == category
     )
 

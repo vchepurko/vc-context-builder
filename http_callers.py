@@ -43,15 +43,24 @@ from __future__ import annotations
 import ast
 import json
 import os
-from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
-
+from collections.abc import Iterable
+from typing import Any, Dict, List, Optional, Set
 
 CONFIG_RELATIVE_PATH = os.path.join(".vc-context", "conventions.json")
 
 IGNORE_DIRS = {
-    ".git", "node_modules", "vendor", "__pycache__",
-    "dist", "build", ".venv", "venv", ".idea", ".vscode",
-    ".ai-context", ".vc-context",
+    ".git",
+    "node_modules",
+    "vendor",
+    "__pycache__",
+    "dist",
+    "build",
+    ".venv",
+    "venv",
+    ".idea",
+    ".vscode",
+    ".ai-context",
+    ".vc-context",
 }
 
 
@@ -59,10 +68,11 @@ IGNORE_DIRS = {
 # Config
 # ----------------------------------------------------------------------
 
+
 class HttpClientSpec:
     """Resolved entry from the ``http_clients`` config block."""
 
-    __slots__ = ("factory_module", "factory_name", "methods", "first_arg_is_path")
+    __slots__ = ("factory_module", "factory_name", "first_arg_is_path", "methods")
 
     def __init__(
         self,
@@ -88,7 +98,7 @@ def load_http_clients(project_root: str) -> List[HttpClientSpec]:
     if not os.path.isfile(config_path):
         return []
     try:
-        with open(config_path, "r", encoding="utf-8") as fh:
+        with open(config_path, encoding="utf-8") as fh:
             data = json.load(fh)
     except (OSError, json.JSONDecodeError):
         return []
@@ -122,6 +132,7 @@ def load_http_clients(project_root: str) -> List[HttpClientSpec]:
 # ----------------------------------------------------------------------
 # AST helpers
 # ----------------------------------------------------------------------
+
 
 def _iter_python_files(project_root: str) -> Iterable[str]:
     for cur, dirs, files in os.walk(project_root):
@@ -226,6 +237,7 @@ def _client_var_assignments(
 # Main collection
 # ----------------------------------------------------------------------
 
+
 def collect_python_calls(
     project_root: str,
     specs: List[HttpClientSpec],
@@ -249,7 +261,7 @@ def collect_python_calls(
     out: List[Dict[str, Any]] = []
     for full in _iter_python_files(project_root):
         try:
-            with open(full, "r", encoding="utf-8") as fh:
+            with open(full, encoding="utf-8") as fh:
                 source = fh.read()
         except OSError:
             continue
@@ -314,6 +326,7 @@ def collect_python_calls(
 # Match python calls to existing route table
 # ----------------------------------------------------------------------
 
+
 def attach_python_callers(
     route_table: Dict[str, Dict[str, Any]],
     py_calls: List[Dict[str, Any]],
@@ -329,6 +342,7 @@ def attach_python_callers(
     # Lazy import to avoid a circular dependency on the consumer side
     # (route_bridge imports us when assembling its index).
     import re
+
     from route_bridge import _route_to_pattern  # type: ignore[import-not-found]
 
     compiled = []
@@ -338,7 +352,7 @@ def attach_python_callers(
     for call in py_calls:
         path = call["path"]
         verb = call.get("verb", "").upper()
-        for key, entry, pat in compiled:
+        for _key, entry, pat in compiled:
             if entry.get("method") and verb and entry["method"] != verb:
                 continue
             if pat.match(path):
@@ -370,12 +384,14 @@ def _path_only(key: str) -> str:
 # Reverse query helper for QueryEngine
 # ----------------------------------------------------------------------
 
+
 def python_callers_for_route(
     index: Dict[str, Dict[str, Any]],
     path: str,
 ) -> List[Dict[str, Any]]:
     """``[{file, line, raw, function}, ...]`` for ``path`` (or empty)."""
     from route_bridge import find_route_for_path  # type: ignore[import-not-found]
+
     entry = find_route_for_path(index, path)
     if entry is None:
         return []

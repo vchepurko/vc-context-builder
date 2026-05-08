@@ -39,10 +39,10 @@ from .server import main, serve
 from .specs import tool_specs
 
 __all__ = [
-    "Dispatcher",
     "PROTOCOL_VERSION",
     "SERVER_NAME",
     "SERVER_VERSION",
+    "Dispatcher",
     "content_text",
     "err",
     "handle_request",

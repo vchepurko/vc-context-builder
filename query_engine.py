@@ -15,7 +15,8 @@ from __future__ import annotations
 import json
 import os
 import re
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+from collections.abc import Iterable
+from typing import Any, ClassVar, Dict, List, Optional, Tuple
 
 
 def _pct(numerator: int, denominator: int) -> float:
@@ -56,10 +57,20 @@ class QueryEngine:
     TEST_CATEGORIES_FILENAME = "agent_test_categories.json"
     LOCALES_FILENAME = "agent_locale_keys.json"
     MAP_FILENAME = "_module_map.json"
-    IGNORE_DIRS = {
-        ".git", "node_modules", "vendor", "__pycache__",
-        "dist", "build", ".venv", "venv", ".idea", ".vscode",
-    }
+    IGNORE_DIRS = frozenset(
+        {
+            ".git",
+            "node_modules",
+            "vendor",
+            "__pycache__",
+            "dist",
+            "build",
+            ".venv",
+            "venv",
+            ".idea",
+            ".vscode",
+        }
+    )
 
     def __init__(self, project_root: str = ".") -> None:
         self.project_root = os.path.abspath(project_root)
@@ -86,14 +97,14 @@ class QueryEngine:
     def _load_root(self) -> Dict[str, Any]:
         if self._root is None:
             path = os.path.join(self.project_root, self.ROOT_FILENAME)
-            with open(path, "r", encoding="utf-8") as fh:
+            with open(path, encoding="utf-8") as fh:
                 self._root = json.load(fh)
         return self._root
 
     def _load_symbols(self) -> Dict[str, Dict[str, Any]]:
         if self._symbols is None:
             path = os.path.join(self.project_root, self.SYMBOLS_FILENAME)
-            with open(path, "r", encoding="utf-8") as fh:
+            with open(path, encoding="utf-8") as fh:
                 self._symbols = json.load(fh)
         return self._symbols
 
@@ -107,7 +118,7 @@ class QueryEngine:
         if self._tests is None:
             path = os.path.join(self.project_root, self.TESTS_FILENAME)
             try:
-                with open(path, "r", encoding="utf-8") as fh:
+                with open(path, encoding="utf-8") as fh:
                     self._tests = json.load(fh)
             except (OSError, json.JSONDecodeError):
                 self._tests = {}
@@ -118,7 +129,7 @@ class QueryEngine:
         if self._routes is None:
             path = os.path.join(self.project_root, self.ROUTES_FILENAME)
             try:
-                with open(path, "r", encoding="utf-8") as fh:
+                with open(path, encoding="utf-8") as fh:
                     self._routes = json.load(fh)
             except (OSError, json.JSONDecodeError):
                 self._routes = {}
@@ -129,7 +140,7 @@ class QueryEngine:
         if self._ng_routes is None:
             path = os.path.join(self.project_root, self.NG_ROUTES_FILENAME)
             try:
-                with open(path, "r", encoding="utf-8") as fh:
+                with open(path, encoding="utf-8") as fh:
                     data = json.load(fh)
                 self._ng_routes = data if isinstance(data, list) else []
             except (OSError, json.JSONDecodeError):
@@ -146,7 +157,7 @@ class QueryEngine:
         if self._callbacks is None:
             path = os.path.join(self.project_root, self.CALLBACKS_FILENAME)
             try:
-                with open(path, "r", encoding="utf-8") as fh:
+                with open(path, encoding="utf-8") as fh:
                     self._callbacks = json.load(fh)
             except (OSError, json.JSONDecodeError):
                 self._callbacks = {}
@@ -157,7 +168,7 @@ class QueryEngine:
         if self._fsm_flows is None:
             path = os.path.join(self.project_root, self.FSM_FLOW_FILENAME)
             try:
-                with open(path, "r", encoding="utf-8") as fh:
+                with open(path, encoding="utf-8") as fh:
                     self._fsm_flows = json.load(fh)
             except (OSError, json.JSONDecodeError):
                 self._fsm_flows = {}
@@ -168,7 +179,7 @@ class QueryEngine:
         if self._test_categories is None:
             path = os.path.join(self.project_root, self.TEST_CATEGORIES_FILENAME)
             try:
-                with open(path, "r", encoding="utf-8") as fh:
+                with open(path, encoding="utf-8") as fh:
                     self._test_categories = json.load(fh)
             except (OSError, json.JSONDecodeError):
                 self._test_categories = {}
@@ -179,7 +190,7 @@ class QueryEngine:
         if self._locale_keys is None:
             path = os.path.join(self.project_root, self.LOCALES_FILENAME)
             try:
-                with open(path, "r", encoding="utf-8") as fh:
+                with open(path, encoding="utf-8") as fh:
                     self._locale_keys = json.load(fh)
             except (OSError, json.JSONDecodeError):
                 self._locale_keys = {}
@@ -197,7 +208,7 @@ class QueryEngine:
                     continue
                 map_path = os.path.join(cur, self.MAP_FILENAME)
                 try:
-                    with open(map_path, "r", encoding="utf-8") as fh:
+                    with open(map_path, encoding="utf-8") as fh:
                         data = json.load(fh)
                 except (OSError, json.JSONDecodeError):
                     # Best-effort: a corrupt cache is not a query-time
@@ -323,7 +334,9 @@ class QueryEngine:
         out: Dict[str, Optional[Dict[str, Any]]] = {}
         for name in names:
             out[name] = self.find_symbol(
-                name, fields=fields, include_body=include_body,
+                name,
+                fields=fields,
+                include_body=include_body,
             )
         return out
 
@@ -334,7 +347,9 @@ class QueryEngine:
     BODY_SNIPPET_MAX_BYTES = 8000
 
     def _extract_body(
-        self, name: str, record: Dict[str, Any],
+        self,
+        name: str,
+        record: Dict[str, Any],
     ) -> Optional[str]:
         """Return the verbatim source slice for a symbol record, or
         ``None`` when the file isn't available.
@@ -353,7 +368,7 @@ class QueryEngine:
             return None
         abs_path = os.path.join(self.project_root, rel)
         try:
-            with open(abs_path, "r", encoding="utf-8", errors="replace") as fh:
+            with open(abs_path, encoding="utf-8", errors="replace") as fh:
                 source = fh.read()
         except OSError:
             return None
@@ -362,13 +377,16 @@ class QueryEngine:
             return None
         if rel.endswith(".py"):
             import ast
+
             try:
                 tree = ast.parse(source)
             except SyntaxError:
                 return None
             for node in ast.walk(tree):
-                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) \
-                        and node.name == target:
+                if (
+                    isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+                    and node.name == target
+                ):
                     seg = ast.get_source_segment(source, node)
                     if seg is None:
                         continue
@@ -384,10 +402,12 @@ class QueryEngine:
         # detects (class / function / const = ).  Cheap; the
         # ``BODY_SNIPPET_LINES`` cap bounds the worst case.
         import re
+
         decl_re = re.compile(
             r"^\s*(?:export\s+(?:default\s+)?)?(?:async\s+)?"
             r"(?:abstract\s+)?(?:class|function|const|let|var|interface|type|enum)\s+"
-            + re.escape(target) + r"\b",
+            + re.escape(target)
+            + r"\b",
             re.M,
         )
         m = decl_re.search(source)
@@ -407,7 +427,7 @@ class QueryEngine:
     # working. Members include the umbrella itself so symbols still
     # tagged with it (e.g. fallback ``aiogram-handler`` for non-message
     # event types) aren't lost.
-    _ROLE_UMBRELLAS: Dict[str, set] = {
+    _ROLE_UMBRELLAS: ClassVar[Dict[str, set]] = {
         "aiogram-handler": {
             "aiogram-handler",
             "callback-handler",
@@ -500,7 +520,10 @@ class QueryEngine:
     SLICE_MAX_BYTES = 8000
 
     def read_slice(
-        self, file_path: str, start: int, end: int,
+        self,
+        file_path: str,
+        start: int,
+        end: int,
     ) -> Optional[Dict[str, Any]]:
         """Return ``{file, start, end, content, truncated}`` for a
         small range of a file relative to ``project_root``.
@@ -538,7 +561,7 @@ class QueryEngine:
         cap_end = min(end, start + self.SLICE_MAX_LINES - 1)
         truncated = cap_end < end
         try:
-            with open(abs_path, "r", encoding="utf-8", errors="replace") as fh:
+            with open(abs_path, encoding="utf-8", errors="replace") as fh:
                 collected: List[str] = []
                 for lineno, raw in enumerate(fh, 1):
                     if lineno < start:
@@ -711,7 +734,7 @@ class QueryEngine:
         if not os.path.exists(map_path):
             return None
         try:
-            with open(map_path, "r", encoding="utf-8") as fh:
+            with open(map_path, encoding="utf-8") as fh:
                 data = json.load(fh)
         except (OSError, json.JSONDecodeError):
             return None
@@ -787,13 +810,15 @@ class QueryEngine:
                     if r:
                         roles[r] = roles.get(r, 0) + 1
             dominant = max(roles, key=roles.get) if roles else None
-            modules.append({
-                "path": data.get("directory") or os.path.dirname(self._rel(mp)),
-                "files": file_count,
-                "exports": exports,
-                "dominant_role": dominant,
-                "roles": roles,
-            })
+            modules.append(
+                {
+                    "path": data.get("directory") or os.path.dirname(self._rel(mp)),
+                    "files": file_count,
+                    "exports": exports,
+                    "dominant_role": dominant,
+                    "roles": roles,
+                }
+            )
             total_files += file_count
             total_exports += exports
         modules.sort(key=lambda m: m["path"])
@@ -906,6 +931,7 @@ class QueryEngine:
         # Local import keeps the engine import-cheap when the linter
         # isn't used.
         from conventions import lint_project  # type: ignore[import-not-found]
+
         return lint_project(self.project_root)
 
     # ------------------------------------------------------------------
@@ -930,8 +956,8 @@ class QueryEngine:
         if symbol_entry is None:
             return None
         from test_linking import find_test_for_symbol  # type: ignore[import-not-found]
-        return find_test_for_symbol(self.project_root, symbol,
-                                    symbol_entry.get("file") or "")
+
+        return find_test_for_symbol(self.project_root, symbol, symbol_entry.get("file") or "")
 
     def coverage_stats(self) -> Dict[str, Dict[str, int]]:
         """Return per-role coverage counts plus an overall total.
@@ -963,9 +989,7 @@ class QueryEngine:
             if _has_test(name):
                 overall["with_test"] += 1
         # Keep the overall bucket last for stable rendering.
-        ordered: Dict[str, Dict[str, int]] = {
-            r: role_buckets[r] for r in sorted(role_buckets)
-        }
+        ordered: Dict[str, Dict[str, int]] = {r: role_buckets[r] for r in sorted(role_buckets)}
         ordered["overall"] = overall
         return ordered
 
@@ -1037,12 +1061,14 @@ class QueryEngine:
             if test is None:
                 missing.append({"name": name, "file": file})
             else:
-                covered.append({
-                    "name": name,
-                    "file": file,
-                    "test_file": test.get("test_file"),
-                    "test_function": test.get("test_function"),
-                })
+                covered.append(
+                    {
+                        "name": name,
+                        "file": file,
+                        "test_file": test.get("test_file"),
+                        "test_function": test.get("test_function"),
+                    }
+                )
         # Stable ordering — alpha by name.
         missing.sort(key=lambda r: r["name"])
         covered.sort(key=lambda r: r["name"])
@@ -1057,7 +1083,7 @@ class QueryEngine:
             "covered": covered,
         }
 
-    def _symbols_get(self, name: str) -> Optional[Dict[str, Any]]:  # noqa: D401
+    def _symbols_get(self, name: str) -> Optional[Dict[str, Any]]:
         symbols = self._load_symbols()
         entry = symbols.get(name)
         return dict(entry) if isinstance(entry, dict) else None
@@ -1073,16 +1099,19 @@ class QueryEngine:
         method-prefixed key (``GET /api/foo``).
         """
         from route_bridge import find_route_for_path  # type: ignore[import-not-found]
+
         return find_route_for_path(self._load_routes(), path)
 
     def route_callers(self, path: str) -> List[Dict[str, Any]]:
         """JS/TS call-sites for the given route path. Empty when none/missing."""
         from route_bridge import callers_for_route  # type: ignore[import-not-found]
+
         return callers_for_route(self._load_routes(), path)
 
     def route_for_js_call(self, file_path: str) -> List[Dict[str, Any]]:
         """Routes whose ``callers_js`` list mentions ``file_path``."""
         from route_bridge import route_for_js_file  # type: ignore[import-not-found]
+
         return route_for_js_file(self._load_routes(), file_path)
 
     # ------------------------------------------------------------------
@@ -1102,6 +1131,7 @@ class QueryEngine:
         leading slash before matching so callers can use either form.
         """
         from ng_route_bridge import route_for_path as _rp  # type: ignore[import-not-found]
+
         if path is None:
             return []
         normalised = path.lstrip("/")
@@ -1110,6 +1140,7 @@ class QueryEngine:
     def ng_routes_for_component(self, name: str) -> List[Dict[str, Any]]:
         """Reverse lookup — every route whose ``component`` is *name*."""
         from ng_route_bridge import routes_for_component as _rfc  # type: ignore[import-not-found]
+
         return _rfc(self._load_ng_routes(), name)
 
     # ------------------------------------------------------------------
@@ -1124,6 +1155,7 @@ class QueryEngine:
         or the index is missing.
         """
         from callback_index import find_callback as _find  # type: ignore[import-not-found]
+
         return _find(self._load_callbacks(), data)
 
     # ------------------------------------------------------------------
@@ -1138,6 +1170,7 @@ class QueryEngine:
         states or when the index is missing.
         """
         from fsm_flow import trace_fsm_flow as _trace  # type: ignore[import-not-found]
+
         return _trace(self._load_fsm_flows(), state)
 
     # ------------------------------------------------------------------
@@ -1152,6 +1185,7 @@ class QueryEngine:
         the artifact is missing.
         """
         from test_classifier import category_summary  # type: ignore[import-not-found]
+
         index = self._load_test_categories()
         return {
             "summary": category_summary(index),
@@ -1161,7 +1195,10 @@ class QueryEngine:
     def tests_by_category(self, category: str) -> List[str]:
         """File paths for ``category`` (``"unit"`` / ``"integration"`` /
         ``"unknown"``). Sorted, deduped, empty list on miss."""
-        from test_classifier import lookup_tests_by_category as _by  # type: ignore[import-not-found]
+        from test_classifier import (
+            lookup_tests_by_category as _by,  # type: ignore[import-not-found]
+        )
+
         return _by(self._load_test_categories(), category)
 
     # ------------------------------------------------------------------
@@ -1180,6 +1217,7 @@ class QueryEngine:
         scan (``"services/**"`` etc.). On-demand — no cached artifact.
         """
         from call_sites import find_call_sites as _find  # type: ignore[import-not-found]
+
         return _find(self.project_root, callable_name, match_path)
 
     def logline_to_symbol(self, line: str) -> Dict[str, Any]:
@@ -1188,12 +1226,15 @@ class QueryEngine:
         record. ``matched=False`` when the line shape isn't recognised.
         """
         from logline_parser import logline_to_symbol as _resolve  # type: ignore[import-not-found]
+
         # Pass loaded symbols (or empty dict if missing) so the parser
         # can fold in symbol info when the message leads with a known
         # identifier. The loader caches.
-        symbols = self._load_symbols() if os.path.isfile(
-            os.path.join(self.project_root, self.SYMBOLS_FILENAME)
-        ) else {}
+        symbols = (
+            self._load_symbols()
+            if os.path.isfile(os.path.join(self.project_root, self.SYMBOLS_FILENAME))
+            else {}
+        )
         return _resolve(self.project_root, line, symbols=symbols)
 
     # ------------------------------------------------------------------
@@ -1228,12 +1269,16 @@ class QueryEngine:
         """
         try:
             import subprocess  # local import — keeps import time low
+
             cmd = ["git", "diff", "--unified=0"]
             if base and base.strip():
                 cmd.append(f"{base.strip()}..HEAD")
             proc = subprocess.run(
-                cmd, cwd=self.project_root, capture_output=True,
-                text=True, timeout=10,
+                cmd,
+                cwd=self.project_root,
+                capture_output=True,
+                text=True,
+                timeout=10,
             )
         except (OSError, subprocess.TimeoutExpired):
             return []
@@ -1281,8 +1326,10 @@ class QueryEngine:
                 if h_end < sym_start or h_start > sym_end:
                     continue
                 rec: Dict[str, Any] = {
-                    "name": name, "file": file_v,
-                    "line": sym_start, "end_line": sym_end,
+                    "name": name,
+                    "file": file_v,
+                    "line": sym_start,
+                    "end_line": sym_end,
                     "kind": entry.get("kind"),
                 }
                 role = entry.get("role")
@@ -1320,7 +1367,7 @@ class QueryEngine:
         by_<group>, quality?}``.  Empty payload when the writer has
         never run for this project.
         """
-        from mcp.metrics import aggregate, read_metrics  # noqa: E402
+        from mcp.metrics import aggregate, read_metrics
 
         entries = read_metrics(
             self.project_root,
@@ -1328,7 +1375,8 @@ class QueryEngine:
         )
         out = aggregate(entries, group_by=group_by)
         if quality:
-            from mcp.quality import quality_report  # noqa: E402
+            from mcp.quality import quality_report
+
             out["quality"] = quality_report(entries)
         return out
 
@@ -1342,6 +1390,7 @@ class QueryEngine:
         the block is missing.
         """
         from checks import list_checks as _list  # type: ignore[import-not-found]
+
         return _list(self.project_root)
 
     def run_check(self, name: str, timeout_sec: Optional[int] = None) -> Dict[str, Any]:
@@ -1351,6 +1400,7 @@ class QueryEngine:
         returncode -2.
         """
         from checks import run_check as _run  # type: ignore[import-not-found]
+
         return _run(self.project_root, name, timeout_sec=timeout_sec)
 
     # ------------------------------------------------------------------
@@ -1365,9 +1415,12 @@ class QueryEngine:
         pydantic schemas, dataclasses, plain classes).
         """
         from class_inspector import inspect_class as _inspect  # type: ignore[import-not-found]
-        symbols = self._load_symbols() if os.path.isfile(
-            os.path.join(self.project_root, self.SYMBOLS_FILENAME)
-        ) else {}
+
+        symbols = (
+            self._load_symbols()
+            if os.path.isfile(os.path.join(self.project_root, self.SYMBOLS_FILENAME))
+            else {}
+        )
         return _inspect(self.project_root, name, symbols=symbols)
 
     # ------------------------------------------------------------------
@@ -1380,12 +1433,14 @@ class QueryEngine:
         graceful degradation for projects without a ``locales/`` tree.
         """
         from locale_index import list_keys as _list  # type: ignore[import-not-found]
+
         return _list(self._load_locale_keys(), namespace=namespace)
 
     def find_locale_key(self, pattern: str) -> List[str]:
         """Substring (case-insensitive) match across keys. For "every
         key starting with ``staff_``" pass ``"staff_"``."""
         from locale_index import find_keys as _find  # type: ignore[import-not-found]
+
         return _find(self._load_locale_keys(), pattern)
 
     def get_locale_key(self, key: str) -> Optional[Dict[str, Any]]:
@@ -1394,6 +1449,7 @@ class QueryEngine:
         namespace file exists but doesn't carry this key — handy for
         parity audits)."""
         from locale_index import get_key as _get  # type: ignore[import-not-found]
+
         return _get(self._load_locale_keys(), key)
 
     # ------------------------------------------------------------------
@@ -1418,18 +1474,27 @@ class QueryEngine:
         return ``[]``.
         """
         from notify_log_reader import search as _search  # type: ignore[import-not-found]
+
         return _search(
-            self.project_root, kind=kind, recipient=recipient,
-            channel=channel, outcome=outcome, since=since, limit=limit,
+            self.project_root,
+            kind=kind,
+            recipient=recipient,
+            channel=channel,
+            outcome=outcome,
+            since=since,
+            limit=limit,
         )
 
     def notify_log_stats(
-        self, *, since: Optional[str] = None,
+        self,
+        *,
+        since: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Aggregate counters: total deliveries, plus
         ``by_kind`` / ``by_channel`` outcome breakdowns. Optional
         ``since`` cuts off records older than the relative window."""
         from notify_log_reader import stats as _stats  # type: ignore[import-not-found]
+
         return _stats(self.project_root, since=since)
 
     # ------------------------------------------------------------------
@@ -1454,10 +1519,13 @@ class QueryEngine:
         keep MCP responses bounded.
         """
         from ruff_inspector import collect as _collect  # type: ignore[import-not-found]
+
         return _collect(
             self.project_root,
-            code=code, path_prefix=path_prefix,
-            summary=summary, limit=limit,
+            code=code,
+            path_prefix=path_prefix,
+            summary=summary,
+            limit=limit,
         )
 
     def ruff_format(
@@ -1476,9 +1544,12 @@ class QueryEngine:
         will move.
         """
         from ruff_format_inspector import collect as _collect  # type: ignore[import-not-found]
+
         return _collect(
             self.project_root,
-            path_prefix=path_prefix, summary=summary, limit=limit,
+            path_prefix=path_prefix,
+            summary=summary,
+            limit=limit,
         )
 
     # ------------------------------------------------------------------
@@ -1505,10 +1576,14 @@ class QueryEngine:
         projects without mypy config.
         """
         from mypy_inspector import collect as _collect  # type: ignore[import-not-found]
+
         return _collect(
             self.project_root,
-            code=code, path_prefix=path_prefix, severity=severity,
-            summary=summary, limit=limit,
+            code=code,
+            path_prefix=path_prefix,
+            severity=severity,
+            summary=summary,
+            limit=limit,
         )
 
     # ------------------------------------------------------------------
@@ -1589,9 +1664,7 @@ class QueryEngine:
 
         for dirpath, dirnames, filenames in os.walk(self.project_root):
             # Prune ignored dirs in-place so os.walk skips them entirely.
-            dirnames[:] = [
-                d for d in dirnames if d not in self.IGNORE_DIRS
-            ]
+            dirnames[:] = [d for d in dirnames if d not in self.IGNORE_DIRS]
             for fname in filenames:
                 if not fname.endswith(".html"):
                     continue
@@ -1600,14 +1673,16 @@ class QueryEngine:
                 if match_path and not fnmatch.fnmatch(rel_path, match_path):
                     continue
                 try:
-                    with open(abs_path, "r", encoding="utf-8", errors="replace") as fh:
+                    with open(abs_path, encoding="utf-8", errors="replace") as fh:
                         for lineno, line in enumerate(fh, 1):
                             if needle in line.lower():
-                                results.append({
-                                    "file": rel_path,
-                                    "line": lineno,
-                                    "text": line.rstrip(),
-                                })
+                                results.append(
+                                    {
+                                        "file": rel_path,
+                                        "line": lineno,
+                                        "text": line.rstrip(),
+                                    }
+                                )
                                 if len(results) >= 100:
                                     return results
                 except OSError:
@@ -1723,12 +1798,8 @@ class QueryEngine:
             return []
         import re as _re
 
-        ctor_re = _re.compile(
-            r":\s*" + _re.escape(service) + r"\b"
-        )
-        inject_re = _re.compile(
-            r"\binject\s*\(\s*" + _re.escape(service) + r"\s*[,\)]"
-        )
+        ctor_re = _re.compile(r":\s*" + _re.escape(service) + r"\b")
+        inject_re = _re.compile(r"\binject\s*\(\s*" + _re.escape(service) + r"\s*[,\)]")
 
         out: List[Dict[str, Any]] = []
         for folder, mmap in self._iter_module_maps():
@@ -1738,20 +1809,24 @@ class QueryEngine:
                 rel = os.path.join(folder, filename).replace("\\", "/")
                 abs_path = os.path.join(self.project_root, rel)
                 try:
-                    with open(abs_path, "r", encoding="utf-8", errors="replace") as fh:
+                    with open(abs_path, encoding="utf-8", errors="replace") as fh:
                         for lineno, raw in enumerate(fh, 1):
                             if ctor_re.search(raw):
-                                out.append({
-                                    "file": rel,
-                                    "line": lineno,
-                                    "kind": "constructor",
-                                })
+                                out.append(
+                                    {
+                                        "file": rel,
+                                        "line": lineno,
+                                        "kind": "constructor",
+                                    }
+                                )
                             elif inject_re.search(raw):
-                                out.append({
-                                    "file": rel,
-                                    "line": lineno,
-                                    "kind": "inject",
-                                })
+                                out.append(
+                                    {
+                                        "file": rel,
+                                        "line": lineno,
+                                        "kind": "inject",
+                                    }
+                                )
                 except OSError:
                     continue
                 if len(out) >= 200:

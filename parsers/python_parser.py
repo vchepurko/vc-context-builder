@@ -1,5 +1,6 @@
 import ast
-from typing import Any, Dict, Iterator, List, Optional, Set
+from collections.abc import Iterator
+from typing import Any, Dict, List, Optional, Set
 
 from parsers.base_parser import BaseParser
 
@@ -13,6 +14,7 @@ def _iter_class_body(cls: ast.ClassDef) -> Iterator[ast.AST]:
     """
     for stmt in cls.body:
         yield from ast.walk(stmt)
+
 
 try:
     # Available when run as a package or with .ai-context on sys.path
@@ -45,7 +47,7 @@ class PythonParser(BaseParser):
     ``service`` / ``api-client``. ``None`` (omitted) when nothing fires.
     """
 
-    extensions = ['.py']
+    extensions = (".py",)
 
     def extract(
         self,
@@ -114,8 +116,10 @@ class PythonParser(BaseParser):
         source: Optional[str] = None,
     ) -> Dict[str, Any]:
         kind = (
-            "class" if isinstance(node, ast.ClassDef)
-            else "async-func" if isinstance(node, ast.AsyncFunctionDef)
+            "class"
+            if isinstance(node, ast.ClassDef)
+            else "async-func"
+            if isinstance(node, ast.AsyncFunctionDef)
             else "func"
         )
         out: Dict[str, Any] = {"name": node.name, "kind": kind}
@@ -255,11 +259,7 @@ class PythonParser(BaseParser):
         # Skip the node itself when it's a class — we only walk
         # contained method bodies for facts (the class header has
         # nothing useful).  For functions we walk the whole body.
-        body_iter = (
-            ast.walk(node)
-            if not isinstance(node, ast.ClassDef)
-            else _iter_class_body(node)
-        )
+        body_iter = ast.walk(node) if not isinstance(node, ast.ClassDef) else _iter_class_body(node)
         for sub in body_iter:
             if isinstance(sub, ast.Call):
                 func = sub.func

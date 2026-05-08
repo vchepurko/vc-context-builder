@@ -14,8 +14,8 @@ import unittest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from mcp_server import _tool_specs  # noqa: E402
-from query_engine import QueryEngine  # noqa: E402
+from mcp_server import _tool_specs
+from query_engine import QueryEngine
 
 
 def _write(path: str, body: str) -> None:
@@ -92,15 +92,30 @@ class TestProjectWide(unittest.TestCase):
     def test_per_role_counts(self) -> None:
         out = self.engine.coverage_for_role()
         roles = out["roles"]
-        self.assertEqual(roles["fsm-message-handler"], {
-            "total": 2, "with_test": 1, "coverage_pct": 50.0,
-        })
-        self.assertEqual(roles["route"], {
-            "total": 2, "with_test": 1, "coverage_pct": 50.0,
-        })
-        self.assertEqual(roles["callback-handler"], {
-            "total": 1, "with_test": 0, "coverage_pct": 0.0,
-        })
+        self.assertEqual(
+            roles["fsm-message-handler"],
+            {
+                "total": 2,
+                "with_test": 1,
+                "coverage_pct": 50.0,
+            },
+        )
+        self.assertEqual(
+            roles["route"],
+            {
+                "total": 2,
+                "with_test": 1,
+                "coverage_pct": 50.0,
+            },
+        )
+        self.assertEqual(
+            roles["callback-handler"],
+            {
+                "total": 1,
+                "with_test": 0,
+                "coverage_pct": 0.0,
+            },
+        )
 
 
 class TestScopedToRole(unittest.TestCase):

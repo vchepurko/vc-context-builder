@@ -279,10 +279,7 @@ def tool_specs() -> List[Dict[str, Any]]:
                 "properties": {
                     "decorator": {
                         "type": "string",
-                        "description": (
-                            "Decorator name (with or without dotted "
-                            "path)."
-                        ),
+                        "description": ("Decorator name (with or without dotted path)."),
                     },
                 },
                 "required": ["decorator"],
@@ -439,10 +436,7 @@ def tool_specs() -> List[Dict[str, Any]]:
                 "properties": {
                     "role": {
                         "type": "string",
-                        "description": (
-                            "Optional role name. Omit for whole-project "
-                            "summary."
-                        ),
+                        "description": ("Optional role name. Omit for whole-project summary."),
                     },
                 },
             },
@@ -672,13 +666,13 @@ def tool_specs() -> List[Dict[str, Any]]:
                     "since": {
                         "type": "string",
                         "description": "Relative window like '7d' / '24h' or an "
-                                       "ISO date / datetime. None = no cutoff.",
+                        "ISO date / datetime. None = no cutoff.",
                     },
                     "limit": {
                         "type": "integer",
                         "minimum": 1,
                         "description": "Cap response size (default 200) so MCP "
-                                       "client doesn't pull megabytes into context.",
+                        "client doesn't pull megabytes into context.",
                     },
                 },
             },
@@ -725,12 +719,12 @@ def tool_specs() -> List[Dict[str, Any]]:
                     "path_prefix": {
                         "type": "string",
                         "description": "Project-relative startswith filter "
-                                       "(e.g. 'services/notify').",
+                        "(e.g. 'services/notify').",
                     },
                     "summary": {
                         "type": "boolean",
                         "description": "When true, drop the per-violation list "
-                                       "and return counts only.",
+                        "and return counts only.",
                     },
                     "limit": {
                         "type": "integer",
@@ -759,12 +753,11 @@ def tool_specs() -> List[Dict[str, Any]]:
                     "path_prefix": {
                         "type": "string",
                         "description": "Project-relative startswith filter "
-                                       "(e.g. 'services/notify').",
+                        "(e.g. 'services/notify').",
                     },
                     "summary": {
                         "type": "boolean",
-                        "description": "When true, drop the file list and "
-                                       "return just {total}.",
+                        "description": "When true, drop the file list and return just {total}.",
                     },
                     "limit": {
                         "type": "integer",
@@ -797,22 +790,20 @@ def tool_specs() -> List[Dict[str, Any]]:
                     "code": {
                         "type": "string",
                         "description": "Filter to one error code "
-                                       "(e.g. 'union-attr', 'assignment').",
+                        "(e.g. 'union-attr', 'assignment').",
                     },
                     "path_prefix": {
                         "type": "string",
-                        "description": "Project-relative startswith filter "
-                                       "(e.g. 'bot/handlers').",
+                        "description": "Project-relative startswith filter (e.g. 'bot/handlers').",
                     },
                     "severity": {
                         "type": "string",
-                        "description": "Filter to severity: 'error', "
-                                       "'note', or 'warning'.",
+                        "description": "Filter to severity: 'error', 'note', or 'warning'.",
                     },
                     "summary": {
                         "type": "boolean",
                         "description": "When true, drop the per-violation "
-                                       "list and return counts only.",
+                        "list and return counts only.",
                     },
                     "limit": {
                         "type": "integer",
@@ -966,4 +957,3 @@ def tool_specs() -> List[Dict[str, Any]]:
             },
         },
     ]
-

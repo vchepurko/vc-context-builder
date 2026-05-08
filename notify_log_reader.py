@@ -22,8 +22,8 @@ import datetime as dt
 import glob
 import json
 import os
-from typing import Any, Dict, Iterable, Iterator, List, Optional
-
+from collections.abc import Iterable, Iterator
+from typing import Any, Dict, List, Optional
 
 DEFAULT_PATH = "logs/notify.jsonl"
 
@@ -42,12 +42,9 @@ def _load_log_path(project_root: str) -> str:
     conv_path = os.path.join(project_root, ".vc-context", "conventions.json")
     if os.path.isfile(conv_path):
         try:
-            with open(conv_path, "r", encoding="utf-8") as fh:
+            with open(conv_path, encoding="utf-8") as fh:
                 conv = json.load(fh)
-            override = (
-                conv.get("notify_log", {}).get("path")
-                if isinstance(conv, dict) else None
-            )
+            override = conv.get("notify_log", {}).get("path") if isinstance(conv, dict) else None
             if isinstance(override, str) and override:
                 return override
         except (OSError, json.JSONDecodeError):
@@ -61,19 +58,13 @@ def _parse_since(value: Optional[str]) -> Optional[float]:
     if not value:
         return None
     if value.endswith("d") and value[:-1].isdigit():
-        return (
-            dt.datetime.now(dt.UTC) - dt.timedelta(days=int(value[:-1]))
-        ).timestamp()
+        return (dt.datetime.now(dt.UTC) - dt.timedelta(days=int(value[:-1]))).timestamp()
     if value.endswith("h") and value[:-1].isdigit():
-        return (
-            dt.datetime.now(dt.UTC) - dt.timedelta(hours=int(value[:-1]))
-        ).timestamp()
+        return (dt.datetime.now(dt.UTC) - dt.timedelta(hours=int(value[:-1]))).timestamp()
     try:
         if "T" in value:
             return dt.datetime.fromisoformat(value).timestamp()
-        return dt.datetime.fromisoformat(value).replace(
-            tzinfo=dt.UTC
-        ).timestamp()
+        return dt.datetime.fromisoformat(value).replace(tzinfo=dt.UTC).timestamp()
     except ValueError:
         return None
 
@@ -86,7 +77,7 @@ def _iter_records(paths: Iterable[str]) -> Iterator[dict]:
     """
     for p in paths:
         try:
-            with open(p, "r", encoding="utf-8") as fh:
+            with open(p, encoding="utf-8") as fh:
                 for line in fh:
                     line = line.strip()
                     if not line:
@@ -141,8 +132,12 @@ def search(
     out: List[Dict[str, Any]] = []
     for rec in _iter_records(paths):
         if _matches(
-            rec, kind=kind, recipient=recipient,
-            channel=channel, outcome=outcome, since_ts=since_ts,
+            rec,
+            kind=kind,
+            recipient=recipient,
+            channel=channel,
+            outcome=outcome,
+            since_ts=since_ts,
         ):
             out.append(rec)
             if limit and len(out) >= limit:

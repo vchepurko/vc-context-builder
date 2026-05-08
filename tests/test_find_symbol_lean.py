@@ -17,7 +17,7 @@ import unittest
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(_HERE))
 
-from query_engine import QueryEngine  # noqa: E402
+from query_engine import QueryEngine
 
 
 def _write(path: str, content: str) -> None:
@@ -31,63 +31,83 @@ class _FixtureMixin:
         tmp = tempfile.mkdtemp(prefix="vc-find-")
         self.addCleanup(shutil.rmtree, tmp, True)
 
-        _write(os.path.join(tmp, "agent_root.json"), json.dumps({
-            "project_root": tmp,
-            "modules": ["./pkg"],
-            "roles": {"webhook": ["my_webhook"]},
-        }))
-        _write(os.path.join(tmp, "agent_symbols.json"), json.dumps({
-            "my_webhook": {
-                "file": "pkg/handlers.py",
-                "line": 4,
-                "end_line": 6,
-                "kind": "async-func",
-                "params": "(request)",
-                "doc": "Handle a webhook callback.",
-                "role": "webhook",
-            },
-            "MyService": {
-                "file": "pkg/service.py",
-                "line": 1,
-                "end_line": 2,
-                "kind": "class",
-                "role": "service",
-            },
-            "FooComponent": {
-                "file": "pkg/foo.component.ts",
-                "line": 4,
-                "kind": "class",
-                "role": "ng-component",
-            },
-        }))
-        _write(os.path.join(tmp, "agent_tests.json"), json.dumps({
-            "my_webhook": {
-                "test_file": "tests/test_handlers.py",
-                "test_function": "test_my_webhook",
-                "line": 12,
-            },
-        }))
+        _write(
+            os.path.join(tmp, "agent_root.json"),
+            json.dumps(
+                {
+                    "project_root": tmp,
+                    "modules": ["./pkg"],
+                    "roles": {"webhook": ["my_webhook"]},
+                }
+            ),
+        )
+        _write(
+            os.path.join(tmp, "agent_symbols.json"),
+            json.dumps(
+                {
+                    "my_webhook": {
+                        "file": "pkg/handlers.py",
+                        "line": 4,
+                        "end_line": 6,
+                        "kind": "async-func",
+                        "params": "(request)",
+                        "doc": "Handle a webhook callback.",
+                        "role": "webhook",
+                    },
+                    "MyService": {
+                        "file": "pkg/service.py",
+                        "line": 1,
+                        "end_line": 2,
+                        "kind": "class",
+                        "role": "service",
+                    },
+                    "FooComponent": {
+                        "file": "pkg/foo.component.ts",
+                        "line": 4,
+                        "kind": "class",
+                        "role": "ng-component",
+                    },
+                }
+            ),
+        )
+        _write(
+            os.path.join(tmp, "agent_tests.json"),
+            json.dumps(
+                {
+                    "my_webhook": {
+                        "test_file": "tests/test_handlers.py",
+                        "test_function": "test_my_webhook",
+                        "line": 12,
+                    },
+                }
+            ),
+        )
         # Synthetic source files used by include_body.
-        _write(os.path.join(tmp, "pkg/handlers.py"), (
-            "import logging\n"
-            "log = logging.getLogger(__name__)\n"
-            "\n"
-            "async def my_webhook(request):\n"
-            "    \"\"\"Handle a webhook callback.\"\"\"\n"
-            "    return 200\n"
-        ))
-        _write(os.path.join(tmp, "pkg/service.py"), (
-            "class MyService:\n"
-            "    def run(self): return 1\n"
-        ))
-        _write(os.path.join(tmp, "pkg/foo.component.ts"), (
-            "import { Component } from '@angular/core';\n"
-            "\n"
-            "@Component({selector: 'app-foo'})\n"
-            "export class FooComponent {\n"
-            "  ngOnInit() {}\n"
-            "}\n"
-        ))
+        _write(
+            os.path.join(tmp, "pkg/handlers.py"),
+            (
+                "import logging\n"
+                "log = logging.getLogger(__name__)\n"
+                "\n"
+                "async def my_webhook(request):\n"
+                '    """Handle a webhook callback."""\n'
+                "    return 200\n"
+            ),
+        )
+        _write(
+            os.path.join(tmp, "pkg/service.py"), ("class MyService:\n    def run(self): return 1\n")
+        )
+        _write(
+            os.path.join(tmp, "pkg/foo.component.ts"),
+            (
+                "import { Component } from '@angular/core';\n"
+                "\n"
+                "@Component({selector: 'app-foo'})\n"
+                "export class FooComponent {\n"
+                "  ngOnInit() {}\n"
+                "}\n"
+            ),
+        )
         return tmp
 
 
@@ -98,9 +118,9 @@ class FieldsWhitelistTests(_FixtureMixin, unittest.TestCase):
 
     def test_default_returns_full_record_with_test(self) -> None:
         out = self.engine.find_symbol("my_webhook")
-        self.assertEqual(set(out.keys()),
-                         {"file", "line", "end_line", "kind", "params",
-                          "doc", "role", "test"})
+        self.assertEqual(
+            set(out.keys()), {"file", "line", "end_line", "kind", "params", "doc", "role", "test"}
+        )
 
     def test_fields_file_and_line(self) -> None:
         # The "where + jump" case — file + 1-indexed start line, ~40 toks.
@@ -159,7 +179,9 @@ class IncludeBodyTests(_FixtureMixin, unittest.TestCase):
 
     def test_body_combined_with_fields_whitelist(self) -> None:
         out = self.engine.find_symbol(
-            "my_webhook", fields=["file", "body"], include_body=True,
+            "my_webhook",
+            fields=["file", "body"],
+            include_body=True,
         )
         self.assertEqual(set(out.keys()), {"file", "body"})
 
@@ -178,7 +200,8 @@ class FindSymbolsBatchTests(_FixtureMixin, unittest.TestCase):
 
     def test_batch_threads_fields_through(self) -> None:
         out = self.engine.find_symbols(
-            ["my_webhook", "MyService"], fields=["file"],
+            ["my_webhook", "MyService"],
+            fields=["file"],
         )
         self.assertEqual(out["my_webhook"], {"file": "pkg/handlers.py"})
         self.assertEqual(out["MyService"], {"file": "pkg/service.py"})

@@ -8,7 +8,6 @@ returning a unified flat list with ``lang`` markers.
 
 from __future__ import annotations
 
-import json
 import os
 import sys
 import tempfile
@@ -17,14 +16,13 @@ import unittest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from http_callers import (  # noqa: E402
-    HttpClientSpec,
+from http_callers import (
     attach_python_callers,
     collect_python_calls,
     load_http_clients,
 )
-from route_bridge import build_route_index, write_route_index  # noqa: E402
-from query_engine import QueryEngine  # noqa: E402
+from query_engine import QueryEngine
+from route_bridge import build_route_index, write_route_index
 
 
 def _write(path: str, body: str) -> None:
@@ -231,6 +229,7 @@ class TestAttachAndQuery(unittest.TestCase):
         before = len(index["/api/admin/staff/admins"].get("callers_python") or [])
         # Re-attach — simulate a manual second pass.
         from http_callers import collect_python_calls as _collect
+
         attach_python_callers(index, _collect(self.fx.root, load_http_clients(self.fx.root)))
         after = len(index["/api/admin/staff/admins"].get("callers_python") or [])
         self.assertEqual(before, after)

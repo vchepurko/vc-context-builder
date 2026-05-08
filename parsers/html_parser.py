@@ -1,11 +1,13 @@
 import re
 from typing import Dict, List
+
 from parsers.base_parser import BaseParser
+
 
 class HtmlParser(BaseParser):
     """Parses HTML files to extract asset links and IDs."""
 
-    extensions = ['.html', '.htm']
+    extensions = (".html", ".htm")
 
     def extract(self, file_path: str) -> Dict[str, List[str]]:
         content = self._read_file(file_path)
@@ -27,7 +29,4 @@ class HtmlParser(BaseParser):
         ids = re.findall(r'id=["\']([^"\']+)["\']', content)
         exports.update(ids)
 
-        return {
-            "exports": list(exports),
-            "dependencies": list(dependencies)
-        }
+        return {"exports": list(exports), "dependencies": list(dependencies)}

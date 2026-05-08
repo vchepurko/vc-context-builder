@@ -12,15 +12,14 @@ import shutil
 import sys
 import tempfile
 import unittest
-from pathlib import Path
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _SUBMODULE = os.path.dirname(_HERE)
 if _SUBMODULE not in sys.path:
     sys.path.insert(0, _SUBMODULE)
 
-import notify_log_reader  # noqa: E402
-from query_engine import QueryEngine  # noqa: E402
+import notify_log_reader
+from query_engine import QueryEngine
 
 
 def _write_jsonl(path: str, records: list) -> None:
@@ -33,20 +32,53 @@ def _write_jsonl(path: str, records: list) -> None:
 def _seed(root: str) -> str:
     """Standard test layout: current file + 2 rotated companions."""
     base = os.path.join(root, "logs", "notify.jsonl")
-    _write_jsonl(base, [
-        {"ts": 1714000000, "kind": "staff.added", "recipient_uid": 1,
-         "channel": "telegram", "outcome": "sent", "keys": ["name"]},
-        {"ts": 1714000010, "kind": "staff.added", "recipient_uid": 1,
-         "channel": "email", "outcome": "failed", "keys": ["name"]},
-    ])
-    _write_jsonl(base + ".2026-04-30", [
-        {"ts": 1700000000, "kind": "order.placed.admin", "recipient_uid": 9,
-         "channel": "telegram", "outcome": "sent", "keys": ["order_id"]},
-    ])
-    _write_jsonl(base + ".2026-04-29", [
-        {"ts": 1690000000, "kind": "auction.outbid", "recipient_uid": 7,
-         "channel": "telegram", "outcome": "skipped", "keys": []},
-    ])
+    _write_jsonl(
+        base,
+        [
+            {
+                "ts": 1714000000,
+                "kind": "staff.added",
+                "recipient_uid": 1,
+                "channel": "telegram",
+                "outcome": "sent",
+                "keys": ["name"],
+            },
+            {
+                "ts": 1714000010,
+                "kind": "staff.added",
+                "recipient_uid": 1,
+                "channel": "email",
+                "outcome": "failed",
+                "keys": ["name"],
+            },
+        ],
+    )
+    _write_jsonl(
+        base + ".2026-04-30",
+        [
+            {
+                "ts": 1700000000,
+                "kind": "order.placed.admin",
+                "recipient_uid": 9,
+                "channel": "telegram",
+                "outcome": "sent",
+                "keys": ["order_id"],
+            },
+        ],
+    )
+    _write_jsonl(
+        base + ".2026-04-29",
+        [
+            {
+                "ts": 1690000000,
+                "kind": "auction.outbid",
+                "recipient_uid": 7,
+                "channel": "telegram",
+                "outcome": "skipped",
+                "keys": [],
+            },
+        ],
+    )
     return base
 
 
@@ -76,7 +108,9 @@ class NotifyLogReaderTests(unittest.TestCase):
     def test_search_combines_recipient_and_channel_filters(self) -> None:
         _seed(self.root)
         out = notify_log_reader.search(
-            self.root, recipient=1, channel="email",
+            self.root,
+            recipient=1,
+            channel="email",
         )
         self.assertEqual(len(out), 1)
         self.assertEqual(out[0]["channel"], "email")
@@ -104,11 +138,15 @@ class NotifyLogReaderTests(unittest.TestCase):
         base = os.path.join(self.root, "logs", "notify.jsonl")
         os.makedirs(os.path.dirname(base), exist_ok=True)
         with open(base, "w", encoding="utf-8") as fh:
-            fh.write('{"ts":1,"kind":"a","recipient_uid":1,'
-                     '"channel":"telegram","outcome":"sent","keys":[]}\n')
+            fh.write(
+                '{"ts":1,"kind":"a","recipient_uid":1,'
+                '"channel":"telegram","outcome":"sent","keys":[]}\n'
+            )
             fh.write("not json\n")
-            fh.write('{"ts":2,"kind":"b","recipient_uid":2,'
-                     '"channel":"email","outcome":"failed","keys":[]}\n')
+            fh.write(
+                '{"ts":2,"kind":"b","recipient_uid":2,'
+                '"channel":"email","outcome":"failed","keys":[]}\n'
+            )
         out = notify_log_reader.search(self.root)
         self.assertEqual(len(out), 2)
 
@@ -120,10 +158,19 @@ class NotifyLogReaderTests(unittest.TestCase):
         with open(os.path.join(conv_dir, "conventions.json"), "w") as fh:
             json.dump({"notify_log": {"path": "var/audit.jsonl"}}, fh)
         custom = os.path.join(self.root, "var", "audit.jsonl")
-        _write_jsonl(custom, [{
-            "ts": 1, "kind": "x", "recipient_uid": 1,
-            "channel": "telegram", "outcome": "sent", "keys": [],
-        }])
+        _write_jsonl(
+            custom,
+            [
+                {
+                    "ts": 1,
+                    "kind": "x",
+                    "recipient_uid": 1,
+                    "channel": "telegram",
+                    "outcome": "sent",
+                    "keys": [],
+                }
+            ],
+        )
         out = notify_log_reader.search(self.root)
         self.assertEqual(len(out), 1)
 

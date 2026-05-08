@@ -44,7 +44,8 @@ def content_text(payload: Any) -> Dict[str, Any]:
 
 
 def handle_request(
-    req: Dict[str, Any], dispatcher: Dispatcher,
+    req: Dict[str, Any],
+    dispatcher: Dispatcher,
 ) -> Optional[Dict[str, Any]]:
     """Translate one JSON-RPC request into a response.
 
@@ -82,8 +83,7 @@ def handle_request(
             result["isError"] = True
             return ok(req_id, result)
         except Exception as exc:  # pragma: no cover — surface as MCP error
-            return err(req_id, -32000, f"Tool failed: {exc}",
-                       traceback.format_exc())
+            return err(req_id, -32000, f"Tool failed: {exc}", traceback.format_exc())
         return ok(req_id, content_text(value))
 
     if method in ("ping",):

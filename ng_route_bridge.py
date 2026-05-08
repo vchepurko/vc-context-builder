@@ -36,12 +36,28 @@ from typing import Any, Optional
 
 NG_ROUTES_FILENAME = "agent_ng_routes.json"
 
-_IGNORE_DIRS = frozenset({
-    ".git", "node_modules", "vendor", "__pycache__",
-    "dist", "dist_webpack", "build", ".venv", "venv",
-    ".idea", ".vscode", ".ai-context", ".vc-context",
-    "coverage", ".angular", ".cache", ".next", ".nuxt",
-})
+_IGNORE_DIRS = frozenset(
+    {
+        ".git",
+        "node_modules",
+        "vendor",
+        "__pycache__",
+        "dist",
+        "dist_webpack",
+        "build",
+        ".venv",
+        "venv",
+        ".idea",
+        ".vscode",
+        ".ai-context",
+        ".vc-context",
+        "coverage",
+        ".angular",
+        ".cache",
+        ".next",
+        ".nuxt",
+    }
+)
 
 # Route-array openers we look for. We don't try to balance braces in
 # the regex itself — instead we scan for one of these markers, then
@@ -64,9 +80,7 @@ _RE_PATH = re.compile(r"path\s*:\s*['\"`]([^'\"`]*)['\"`]")
 _RE_COMPONENT = re.compile(r"component\s*:\s*([A-Za-z_$][A-Za-z0-9_$]*)")
 _RE_LOAD_CHILDREN = re.compile(r"loadChildren\s*:")
 _RE_REDIRECT = re.compile(r"redirectTo\s*:\s*['\"`]([^'\"`]*)['\"`]")
-_RE_GUARDS = re.compile(
-    r"can(?:Activate|ActivateChild|Deactivate|Load|Match)\s*:\s*\[([^\]]+)\]"
-)
+_RE_GUARDS = re.compile(r"can(?:Activate|ActivateChild|Deactivate|Load|Match)\s*:\s*\[([^\]]+)\]")
 _RE_GUARD_NAME = re.compile(r"\b([A-Za-z_$][A-Za-z0-9_$]*)\b")
 
 
@@ -216,12 +230,15 @@ def _routes_in_file(file_path: str, project_root: str) -> list[dict[str, Any]]:
     instead they show up as part of the parent slice.
     """
     try:
-        with open(file_path, "r", encoding="utf-8") as fh:
+        with open(file_path, encoding="utf-8") as fh:
             content = fh.read()
     except OSError:
         return []
-    if "RouterModule" not in content and "provideRouter" not in content \
-            and ": Routes" not in content:
+    if (
+        "RouterModule" not in content
+        and "provideRouter" not in content
+        and ": Routes" not in content
+    ):
         # Fast path: skip the regex+walker work on files that clearly
         # don't host routing config.
         return []
