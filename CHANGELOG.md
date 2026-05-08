@@ -59,11 +59,32 @@ bump the minor; fixes bump the patch.
   in `.gitignore`.
 
 ### Planned (next PR)
-- Typed `verify(kind, …)` fact-check primitive
-- `query_engine.py` split into per-domain mixins (1800 LOC → 4-5
-  files; deferred to a dedicated session because of risk surface)
+- Continue `query_engine.py` split — extract a `_QuerySymbolsMixin`
+  for the remaining symbol-cluster (~600 LOC). Three mixins already
+  landed (inspectors / routes / tests); facade is at 1507 LOC.
 
 See [`ROADMAP.md`](ROADMAP.md) for the full deferred / planned list.
+
+---
+
+### Added (this PR — verify + mixin split)
+- **Typed `verify(kind, subject, target?)`** MCP tool + CLI
+  subcommand. Four kinds: `exists`, `calls`, `decorated` (suffix-
+  aware), `raises`. Returns `{result: bool, evidence: str}` for
+  one-call fact-check without reading the body.
+- 13 new tests covering each kind + edge cases.
+
+### Changed (this PR — verify + mixin split)
+- **`query_engine.py` 1836 LOC → 1507 LOC** via three mixins:
+  - `_query_inspectors.py` (234 LOC) — locales / notify / ruff /
+    mypy / format / telemetry.
+  - `_query_routes.py` (122 LOC) — HTTP routes / Angular routes /
+    aiogram callbacks / FSM flow.
+  - `_query_tests.py` (208 LOC) — find_test / coverage / classify /
+    tests_by_category.
+  - `QueryEngine` is now `class QueryEngine(_InspectorsMixin,
+    _RoutesMixin, _TestsMixin)`. Public API unchanged — every test
+    that imports `QueryEngine` keeps working through MRO.
 
 ---
 

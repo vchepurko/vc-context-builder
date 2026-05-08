@@ -18,12 +18,14 @@ the code — if you spot an inconsistency, file an issue.
 - Self-index mode — index the submodule against itself for contributors
 
 ### Query surface
-- **MCP server** (~40 tools)
+- **MCP server** (~41 tools)
   - Symbol cards (`get_symbol_card`), file cards (`get_file_card`),
     repo map (`repo_map`)
   - Reverse / forward call lookup (`who_calls`, `get_callees`,
     `find_call_sites`)
   - Decorator search (`get_decorated_with`)
+  - Typed fact-check (`verify` — `exists` / `calls` / `decorated` /
+    `raises`)
   - Git-aware: `get_changed_symbols`
   - Bounded source reads (`read_slice` + `find_symbol(include_body=true)`)
   - Lint / type / format / test runners (`run_check`,
@@ -53,18 +55,11 @@ the code — if you spot an inconsistency, file an issue.
 
 ## 🔜 Planned (next 1–3 PRs)
 
-### Bigger query primitives
-- **Typed `verify(kind, …)`** — fact-check primitive over existing
-  indexes: `verify("calls", a, b)` / `verify("decorated", sym, dec)` /
-  `verify("raises", sym, exc)` / `verify("exists", sym)`. Lets agents
-  prove a claim without reading the body.
-
 ### Code quality
-- **Split `query_engine.py` (~1800 LOC)** into per-domain mixins
-  (`_symbols.py` / `_project.py` / `_routes.py` / `_runtime.py`).
-  Mechanical refactor; risk-controlled by the existing 510-test
-  suite. Worth a dedicated PR — a rushed split risks behavioural
-  drift on the central engine.
+- **Continue `query_engine.py` split** — symbols / cards / repo_map
+  / git / checks group still lives in the facade (~1500 LOC after
+  the first three mixins landed). Extract `_QuerySymbolsMixin` next
+  for the biggest remaining cluster.
 - Replace inline `import re` / `import ast` with module-level imports
   where the perf benefit is negligible.
 
