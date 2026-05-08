@@ -20,7 +20,10 @@ from .dispatcher import Dispatcher
 from .specs import tool_specs
 
 SERVER_NAME = "vc-context"
-SERVER_VERSION = "0.1.0"
+# Loose SemVer; bump minor on user-visible MCP / CLI surface changes
+# (new tools, new artefact fields). Major bump reserved for breaking
+# tool removal or artefact-shape changes. Patch for fixes.
+SERVER_VERSION = "0.5.0"
 PROTOCOL_VERSION = "2024-11-05"
 
 

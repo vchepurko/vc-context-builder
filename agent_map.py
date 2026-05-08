@@ -50,8 +50,6 @@ from test_classifier import (
 # Feature artifacts — built after the symbol index in `run()`.
 from test_linking import TESTS_FILENAME, build_test_index, write_test_index
 
-logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
-
 
 class ContextBuilder:
     """
@@ -277,7 +275,8 @@ class ContextBuilder:
                             # Only TsJsParser accepts project_root; others raise
                             # TypeError which the fallback below handles.
                             data = parser.extract(  # type: ignore[call-arg]
-                                file_path, project_root=self.root_dir,
+                                file_path,
+                                project_root=self.root_dir,
                             )
                         except TypeError:
                             data = parser.extract(file_path)
@@ -897,5 +896,10 @@ class ContextBuilder:
 
 
 if __name__ == "__main__":
+    # Configure logging only when run as a script. Importing this
+    # module (e.g. for tests or programmatic use) MUST NOT mutate the
+    # caller's root logger — `logging.basicConfig` is library-side
+    # anti-pattern.
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     builder = ContextBuilder()
     builder.run()
