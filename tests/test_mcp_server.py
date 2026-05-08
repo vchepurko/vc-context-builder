@@ -39,7 +39,10 @@ def _drive(root: str, requests: list) -> list:
     payload = "\n".join(json.dumps(r) for r in requests) + "\n"
     proc = subprocess.run(
         [sys.executable, _SERVER, "--root", root],
-        input=payload, capture_output=True, text=True, timeout=15,
+        input=payload,
+        capture_output=True,
+        text=True,
+        timeout=15,
     )
     if proc.returncode != 0:
         raise AssertionError(f"server exited {proc.returncode}: {proc.stderr}")
@@ -57,9 +60,12 @@ class McpServerTests(FixtureMixin, unittest.TestCase):
         self.root = self._make_fixture()
 
     def test_initialize_returns_server_info(self) -> None:
-        responses = _drive(self.root, [
-            {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
-        ])
+        responses = _drive(
+            self.root,
+            [
+                {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
+            ],
+        )
         self.assertEqual(len(responses), 1)
         result = responses[0]["result"]
         self.assertEqual(result["serverInfo"]["name"], "vc-context")
@@ -71,19 +77,26 @@ class McpServerTests(FixtureMixin, unittest.TestCase):
         updating the snapshot fails here on purpose — run
         ``python3 tests/regen_snapshots.py`` to sync after a
         deliberate change."""
-        responses = _drive(self.root, [
-            {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
-            {"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}},
-        ])
+        responses = _drive(
+            self.root,
+            [
+                {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
+                {"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}},
+            ],
+        )
         self.assertEqual(len(responses), 2)
         names = sorted(t["name"] for t in responses[1]["result"]["tools"])
-        with open(_FIXTURE, "r", encoding="utf-8") as fh:
+        with open(_FIXTURE, encoding="utf-8") as fh:
             expected = json.load(fh)
-        self.assertEqual(names, expected, (
-            "tools/list drifted from snapshot.  "
-            "If the change is intentional, regenerate via:\n"
-            "    python3 tests/regen_snapshots.py"
-        ))
+        self.assertEqual(
+            names,
+            expected,
+            (
+                "tools/list drifted from snapshot.  "
+                "If the change is intentional, regenerate via:\n"
+                "    python3 tests/regen_snapshots.py"
+            ),
+        )
 
     def test_tools_list_spec_dispatcher_parity(self) -> None:
         """Every tool in ``_tool_specs()`` must have a handler in
@@ -100,23 +113,29 @@ class McpServerTests(FixtureMixin, unittest.TestCase):
         spec_names = {t["name"] for t in _tool_specs()}
         dispatcher_names = set(_Dispatcher(QueryEngine(self.root))._handlers.keys())
         self.assertEqual(
-            spec_names, dispatcher_names,
+            spec_names,
+            dispatcher_names,
             "Spec and dispatcher disagree.  "
             f"Only in spec: {sorted(spec_names - dispatcher_names)}.  "
             f"Only in dispatcher: {sorted(dispatcher_names - spec_names)}.",
         )
 
     def test_tools_call_find_symbol(self) -> None:
-        responses = _drive(self.root, [
-            {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
-            {
-                "jsonrpc": "2.0", "id": 2, "method": "tools/call",
-                "params": {
-                    "name": "find_symbol",
-                    "arguments": {"name": "liqpay_callback"},
+        responses = _drive(
+            self.root,
+            [
+                {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {}},
+                {
+                    "jsonrpc": "2.0",
+                    "id": 2,
+                    "method": "tools/call",
+                    "params": {
+                        "name": "find_symbol",
+                        "arguments": {"name": "liqpay_callback"},
+                    },
                 },
-            },
-        ])
+            ],
+        )
         self.assertEqual(len(responses), 2)
         content = responses[1]["result"]["content"]
         self.assertEqual(content[0]["type"], "text")
@@ -124,9 +143,12 @@ class McpServerTests(FixtureMixin, unittest.TestCase):
         self.assertEqual(payload["file"], "pkg_a/webhooks.py")
 
     def test_unknown_method_returns_error(self) -> None:
-        responses = _drive(self.root, [
-            {"jsonrpc": "2.0", "id": 1, "method": "no_such_method", "params": {}},
-        ])
+        responses = _drive(
+            self.root,
+            [
+                {"jsonrpc": "2.0", "id": 1, "method": "no_such_method", "params": {}},
+            ],
+        )
         self.assertEqual(len(responses), 1)
         self.assertEqual(responses[0]["error"]["code"], -32601)
 

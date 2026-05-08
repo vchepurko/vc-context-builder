@@ -10,8 +10,8 @@ import unittest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from call_sites import find_call_sites  # noqa: E402
-from mcp_server import _tool_specs  # noqa: E402
+from call_sites import find_call_sites
+from mcp_server import _tool_specs
 
 
 def _write(path: str, body: str) -> None:
@@ -23,22 +23,31 @@ def _write(path: str, body: str) -> None:
 class _Fixture:
     def __init__(self) -> None:
         self.root = tempfile.mkdtemp(prefix="call_sites_")
-        _write(os.path.join(self.root, "bot", "h.py"), """
+        _write(
+            os.path.join(self.root, "bot", "h.py"),
+            """
             async def reset(state):
                 await state.clear()
                 await state.set_state(None)
 
             async def commit_demo(session):
                 session.commit()
-        """)
-        _write(os.path.join(self.root, "services", "svc.py"), """
+        """,
+        )
+        _write(
+            os.path.join(self.root, "services", "svc.py"),
+            """
             async def soft_reset(state):
                 await state.clear()
-        """)
-        _write(os.path.join(self.root, "lib", "x.py"), """
+        """,
+        )
+        _write(
+            os.path.join(self.root, "lib", "x.py"),
+            """
             def helper(redis):
                 redis.delete('key')
-        """)
+        """,
+        )
         # File with a syntax error — must be skipped, not crash.
         _write(os.path.join(self.root, "broken.py"), "def x(:\n")
 

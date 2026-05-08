@@ -55,7 +55,7 @@ def is_enabled(project_root: str) -> bool:
     if not os.path.isfile(conv_path):
         return False
     try:
-        with open(conv_path, "r", encoding="utf-8") as fh:
+        with open(conv_path, encoding="utf-8") as fh:
             conv = json.load(fh)
     except (OSError, json.JSONDecodeError):
         return False
@@ -85,7 +85,9 @@ def is_available(project_root: str) -> bool:
     try:
         proc = subprocess.run(
             ["node", "-e", "require('typescript')"],
-            capture_output=True, text=True, timeout=2.0,
+            capture_output=True,
+            text=True,
+            timeout=2.0,
         )
     except (FileNotFoundError, subprocess.TimeoutExpired):
         _AVAIL_CACHE[project_root] = False
@@ -111,7 +113,9 @@ def parse(file_path: str, project_root: str) -> Optional[List[Dict[str, Any]]]:
     try:
         proc = subprocess.run(
             ["node", _EXTRACTOR, file_path, project_root],
-            capture_output=True, text=True, timeout=_NODE_TIMEOUT_SEC,
+            capture_output=True,
+            text=True,
+            timeout=_NODE_TIMEOUT_SEC,
         )
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return None

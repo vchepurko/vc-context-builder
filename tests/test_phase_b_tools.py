@@ -24,7 +24,7 @@ import unittest
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(_HERE))
 
-from query_engine import QueryEngine  # noqa: E402
+from query_engine import QueryEngine
 
 
 def _write(path: str, content: str) -> None:
@@ -38,57 +38,84 @@ class _FixtureMixin:
         tmp = tempfile.mkdtemp(prefix="vc-pb-")
         self.addCleanup(shutil.rmtree, tmp, True)
 
-        _write(os.path.join(tmp, "agent_root.json"), json.dumps({
-            "project_root": tmp, "modules": ["./pkg"],
-            "roles": {"webhook": ["my_webhook"]},
-        }))
-        _write(os.path.join(tmp, "agent_symbols.json"), json.dumps({
-            "my_webhook": {
-                "file": "pkg/handlers.py",
-                "line": 4, "end_line": 6,
-                "kind": "async-func",
-                "params": "(request)",
-                "doc": "Handle a webhook callback.",
-                "role": "webhook",
-                "callees": ["log", "validate"],
-                "raises": ["HTTPError"],
-                "decorators": ["app.post", "cached"],
-            },
-            "MyService": {
-                "file": "pkg/service.py",
-                "line": 1, "end_line": 3,
-                "kind": "class",
-                "decorators": ["dataclass"],
-            },
-        }))
-        _write(os.path.join(tmp, "agent_tests.json"), json.dumps({
-            "my_webhook": {
-                "test_file": "tests/test_handlers.py",
-                "test_function": "test_my_webhook",
-                "line": 12,
-            },
-        }))
+        _write(
+            os.path.join(tmp, "agent_root.json"),
+            json.dumps(
+                {
+                    "project_root": tmp,
+                    "modules": ["./pkg"],
+                    "roles": {"webhook": ["my_webhook"]},
+                }
+            ),
+        )
+        _write(
+            os.path.join(tmp, "agent_symbols.json"),
+            json.dumps(
+                {
+                    "my_webhook": {
+                        "file": "pkg/handlers.py",
+                        "line": 4,
+                        "end_line": 6,
+                        "kind": "async-func",
+                        "params": "(request)",
+                        "doc": "Handle a webhook callback.",
+                        "role": "webhook",
+                        "callees": ["log", "validate"],
+                        "raises": ["HTTPError"],
+                        "decorators": ["app.post", "cached"],
+                    },
+                    "MyService": {
+                        "file": "pkg/service.py",
+                        "line": 1,
+                        "end_line": 3,
+                        "kind": "class",
+                        "decorators": ["dataclass"],
+                    },
+                }
+            ),
+        )
+        _write(
+            os.path.join(tmp, "agent_tests.json"),
+            json.dumps(
+                {
+                    "my_webhook": {
+                        "test_file": "tests/test_handlers.py",
+                        "test_function": "test_my_webhook",
+                        "line": 12,
+                    },
+                }
+            ),
+        )
         # _module_map.json for the package — get_file_card needs it.
-        _write(os.path.join(tmp, "pkg", "_module_map.json"), json.dumps({
-            "directory": "./pkg",
-            "files": {
-                "handlers.py": {
-                    "exports": [
-                        {"name": "my_webhook", "kind": "async-func",
-                         "role": "webhook", "line": 4, "end_line": 6,
-                         "doc": "Handle a webhook callback."},
-                    ],
-                    "dependencies": ["fastapi"],
-                },
-                "service.py": {
-                    "exports": [
-                        {"name": "MyService", "kind": "class",
-                         "line": 1, "end_line": 3},
-                    ],
-                    "dependencies": [],
-                },
-            },
-        }))
+        _write(
+            os.path.join(tmp, "pkg", "_module_map.json"),
+            json.dumps(
+                {
+                    "directory": "./pkg",
+                    "files": {
+                        "handlers.py": {
+                            "exports": [
+                                {
+                                    "name": "my_webhook",
+                                    "kind": "async-func",
+                                    "role": "webhook",
+                                    "line": 4,
+                                    "end_line": 6,
+                                    "doc": "Handle a webhook callback.",
+                                },
+                            ],
+                            "dependencies": ["fastapi"],
+                        },
+                        "service.py": {
+                            "exports": [
+                                {"name": "MyService", "kind": "class", "line": 1, "end_line": 3},
+                            ],
+                            "dependencies": [],
+                        },
+                    },
+                }
+            ),
+        )
         return tmp
 
 
@@ -100,8 +127,7 @@ class GetSymbolCardTests(_FixtureMixin, unittest.TestCase):
     def test_bundle_shape(self) -> None:
         card = self.engine.get_symbol_card("my_webhook")
         # Mandatory keys for shape stability.
-        for key in ("name", "file", "line", "end_line", "kind",
-                    "callees", "raises", "callers"):
+        for key in ("name", "file", "line", "end_line", "kind", "callees", "raises", "callers"):
             self.assertIn(key, card, f"missing key: {key}")
         self.assertEqual(card["callees"], ["log", "validate"])
         self.assertEqual(card["raises"], ["HTTPError"])
@@ -212,51 +238,69 @@ class GetChangedSymbolsTests(unittest.TestCase):
         subprocess.run(["git", "init", "-q"], cwd=self.root, check=True)
         subprocess.run(
             ["git", "config", "user.email", "test@example.com"],
-            cwd=self.root, check=True,
+            cwd=self.root,
+            check=True,
         )
         subprocess.run(
             ["git", "config", "user.name", "test"],
-            cwd=self.root, check=True,
+            cwd=self.root,
+            check=True,
         )
         # Initial commit — file with 3 funcs at known line ranges.
-        _write(os.path.join(self.root, "pkg/work.py"), (
-            "def alpha():\n"      # line 1
-            "    return 1\n"      # line 2
-            "\n"
-            "def beta():\n"       # line 4
-            "    return 2\n"      # line 5
-            "\n"
-            "def gamma():\n"      # line 7
-            "    return 3\n"      # line 8
-        ))
-        _write(os.path.join(self.root, "agent_root.json"), json.dumps({
-            "project_root": self.root, "modules": ["./pkg"], "roles": {},
-        }))
-        _write(os.path.join(self.root, "agent_symbols.json"), json.dumps({
-            "alpha": {"file": "pkg/work.py", "line": 1, "end_line": 2,
-                      "kind": "func"},
-            "beta":  {"file": "pkg/work.py", "line": 4, "end_line": 5,
-                      "kind": "func"},
-            "gamma": {"file": "pkg/work.py", "line": 7, "end_line": 8,
-                      "kind": "func"},
-        }))
+        _write(
+            os.path.join(self.root, "pkg/work.py"),
+            (
+                "def alpha():\n"  # line 1
+                "    return 1\n"  # line 2
+                "\n"
+                "def beta():\n"  # line 4
+                "    return 2\n"  # line 5
+                "\n"
+                "def gamma():\n"  # line 7
+                "    return 3\n"  # line 8
+            ),
+        )
+        _write(
+            os.path.join(self.root, "agent_root.json"),
+            json.dumps(
+                {
+                    "project_root": self.root,
+                    "modules": ["./pkg"],
+                    "roles": {},
+                }
+            ),
+        )
+        _write(
+            os.path.join(self.root, "agent_symbols.json"),
+            json.dumps(
+                {
+                    "alpha": {"file": "pkg/work.py", "line": 1, "end_line": 2, "kind": "func"},
+                    "beta": {"file": "pkg/work.py", "line": 4, "end_line": 5, "kind": "func"},
+                    "gamma": {"file": "pkg/work.py", "line": 7, "end_line": 8, "kind": "func"},
+                }
+            ),
+        )
         subprocess.run(["git", "add", "."], cwd=self.root, check=True)
         subprocess.run(
             ["git", "commit", "-q", "-m", "init"],
-            cwd=self.root, check=True,
+            cwd=self.root,
+            check=True,
         )
 
         # Edit beta only — should report only beta.
-        _write(os.path.join(self.root, "pkg/work.py"), (
-            "def alpha():\n"
-            "    return 1\n"
-            "\n"
-            "def beta():\n"
-            "    return 99\n"     # ← changed
-            "\n"
-            "def gamma():\n"
-            "    return 3\n"
-        ))
+        _write(
+            os.path.join(self.root, "pkg/work.py"),
+            (
+                "def alpha():\n"
+                "    return 1\n"
+                "\n"
+                "def beta():\n"
+                "    return 99\n"  # ← changed
+                "\n"
+                "def gamma():\n"
+                "    return 3\n"
+            ),
+        )
 
         self.engine = QueryEngine(self.root)
 
@@ -269,7 +313,8 @@ class GetChangedSymbolsTests(unittest.TestCase):
         # Reset the working tree so diff is empty.
         subprocess.run(
             ["git", "checkout", "--", "pkg/work.py"],
-            cwd=self.root, check=True,
+            cwd=self.root,
+            check=True,
         )
         self.assertEqual(self.engine.get_changed_symbols(), [])
 

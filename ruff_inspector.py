@@ -31,7 +31,6 @@ import os
 import subprocess
 from typing import Any, Dict, List, Optional
 
-
 DEFAULT_COMMAND = ["uv", "run", "ruff", "check", "--output-format=json", "."]
 
 # Files whose presence at the project root indicates a Python project.
@@ -58,7 +57,7 @@ def should_skip_ruff(project_root: str) -> tuple[bool, str]:
     conv_path = os.path.join(project_root, ".vc-context", "conventions.json")
     if os.path.isfile(conv_path):
         try:
-            with open(conv_path, "r", encoding="utf-8") as fh:
+            with open(conv_path, encoding="utf-8") as fh:
                 conv = json.load(fh)
             ruff_cfg = conv.get("ruff") if isinstance(conv, dict) else None
             if isinstance(ruff_cfg, dict):
@@ -87,12 +86,9 @@ def _load_command(project_root: str) -> List[str]:
     conv_path = os.path.join(project_root, ".vc-context", "conventions.json")
     if os.path.isfile(conv_path):
         try:
-            with open(conv_path, "r", encoding="utf-8") as fh:
+            with open(conv_path, encoding="utf-8") as fh:
                 conv = json.load(fh)
-            override = (
-                conv.get("ruff", {}).get("command")
-                if isinstance(conv, dict) else None
-            )
+            override = conv.get("ruff", {}).get("command") if isinstance(conv, dict) else None
             if isinstance(override, list) and all(isinstance(x, str) for x in override):
                 return list(override)
         except (OSError, json.JSONDecodeError):
@@ -101,7 +97,8 @@ def _load_command(project_root: str) -> List[str]:
 
 
 def run_ruff(
-    project_root: str, command: Optional[List[str]] = None,
+    project_root: str,
+    command: Optional[List[str]] = None,
 ) -> List[Dict[str, Any]]:
     """Execute ruff and return the parsed JSON list. Empty list when
     ruff isn't installed or returns non-JSON. ``ruff check`` exits
@@ -110,7 +107,11 @@ def run_ruff(
     cmd = command or _load_command(project_root)
     try:
         result = subprocess.run(
-            cmd, cwd=project_root, capture_output=True, text=True, timeout=120,
+            cmd,
+            cwd=project_root,
+            capture_output=True,
+            text=True,
+            timeout=120,
         )
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return []
@@ -128,7 +129,7 @@ def _norm_file(path: str, project_root: str) -> str:
     project-relative regardless of where ruff was invoked from."""
     abs_root = os.path.abspath(project_root) + os.sep
     if path.startswith(abs_root):
-        return path[len(abs_root):].replace(os.sep, "/")
+        return path[len(abs_root) :].replace(os.sep, "/")
     return path.replace(os.sep, "/")
 
 

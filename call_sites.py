@@ -24,13 +24,22 @@ from __future__ import annotations
 import ast
 import fnmatch
 import os
-from typing import Any, Dict, Iterable, List, Optional
-
+from collections.abc import Iterable
+from typing import Any, Dict, List, Optional
 
 IGNORE_DIRS = {
-    ".git", "node_modules", "vendor", "__pycache__",
-    "dist", "build", ".venv", "venv", ".idea", ".vscode",
-    ".ai-context", ".vc-context",
+    ".git",
+    "node_modules",
+    "vendor",
+    "__pycache__",
+    "dist",
+    "build",
+    ".venv",
+    "venv",
+    ".idea",
+    ".vscode",
+    ".ai-context",
+    ".vc-context",
 }
 
 
@@ -124,7 +133,7 @@ def find_call_sites(
         if match_path and not fnmatch.fnmatch(rel, match_path):
             continue
         try:
-            with open(full, "r", encoding="utf-8") as fh:
+            with open(full, encoding="utf-8") as fh:
                 source = fh.read()
             tree = ast.parse(source)
         except (OSError, SyntaxError):
@@ -143,12 +152,14 @@ def find_call_sites(
             if len(raw) > 120:
                 raw = raw[:117] + "..."
             fn = _enclosing_function(parents, node) or "<module>"
-            out.append({
-                "file": rel,
-                "line": getattr(node, "lineno", 0),
-                "function": fn,
-                "raw": raw,
-            })
+            out.append(
+                {
+                    "file": rel,
+                    "line": getattr(node, "lineno", 0),
+                    "function": fn,
+                    "raw": raw,
+                }
+            )
 
     out.sort(key=lambda r: (r["file"], r["line"]))
     return out

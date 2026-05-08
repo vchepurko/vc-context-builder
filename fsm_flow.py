@@ -33,21 +33,31 @@ from __future__ import annotations
 import ast
 import json
 import os
-from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
-
+from collections.abc import Iterable
+from typing import Any, Dict, List, Optional, Tuple
 
 FSM_FLOW_FILENAME = "agent_fsm_flows.json"
 
 IGNORE_DIRS = {
-    ".git", "node_modules", "vendor", "__pycache__",
-    "dist", "build", ".venv", "venv", ".idea", ".vscode",
-    ".ai-context", ".vc-context",
+    ".git",
+    "node_modules",
+    "vendor",
+    "__pycache__",
+    "dist",
+    "build",
+    ".venv",
+    "venv",
+    ".idea",
+    ".vscode",
+    ".ai-context",
+    ".vc-context",
 }
 
 
 # ----------------------------------------------------------------------
 # AST walkers
 # ----------------------------------------------------------------------
+
 
 def _iter_python_files(project_root: str) -> Iterable[str]:
     for cur, dirs, files in os.walk(project_root):
@@ -82,7 +92,7 @@ def collect_state_groups(
     out: Dict[str, Dict[str, Any]] = {}
     for full in _iter_python_files(project_root):
         try:
-            with open(full, "r", encoding="utf-8") as fh:
+            with open(full, encoding="utf-8") as fh:
                 source = fh.read()
         except OSError:
             continue
@@ -125,6 +135,7 @@ def collect_state_groups(
 # ----------------------------------------------------------------------
 # Decorator inspection
 # ----------------------------------------------------------------------
+
 
 def _aiogram_router_method(dec: ast.AST) -> Optional[str]:
     """Return ``"message"`` / ``"callback_query"`` / etc. when ``dec`` is
@@ -218,6 +229,7 @@ def _decorator_filter_summary(dec: ast.Call) -> Optional[str]:
 # set_state detection
 # ----------------------------------------------------------------------
 
+
 def _set_state_targets(func_body: List[ast.AST]) -> List[str]:
     """Return every ``X.y`` reference passed to a ``state.set_state(...)``
     call inside ``func_body``.
@@ -247,6 +259,7 @@ def _set_state_targets(func_body: List[ast.AST]) -> List[str]:
 # Build
 # ----------------------------------------------------------------------
 
+
 def collect_fsm_flow(project_root: str) -> Dict[str, Dict[str, Any]]:
     """Build the full ``{state_full_name → record}`` index in one pass."""
     flows = collect_state_groups(project_root)
@@ -255,7 +268,7 @@ def collect_fsm_flow(project_root: str) -> Dict[str, Dict[str, Any]]:
 
     for full in _iter_python_files(project_root):
         try:
-            with open(full, "r", encoding="utf-8") as fh:
+            with open(full, encoding="utf-8") as fh:
                 source = fh.read()
         except OSError:
             continue
@@ -346,6 +359,7 @@ def write_fsm_flow(project_root: str, index: Dict[str, Dict[str, Any]]) -> str:
 # Lookup
 # ----------------------------------------------------------------------
 
+
 def trace_fsm_flow(
     index: Dict[str, Dict[str, Any]],
     state: str,
@@ -369,6 +383,5 @@ def trace_fsm_flow(
 
 def _shallow(record: Dict[str, Any], full_name: str) -> Dict[str, Any]:
     out: Dict[str, Any] = {"state": full_name}
-    out.update({k: list(v) if isinstance(v, list) else dict(v)
-                for k, v in record.items()})
+    out.update({k: list(v) if isinstance(v, list) else dict(v) for k, v in record.items()})
     return out

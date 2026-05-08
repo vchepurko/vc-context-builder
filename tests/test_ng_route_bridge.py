@@ -21,7 +21,7 @@ import unittest
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(_HERE))
 
-from ng_route_bridge import (  # noqa: E402
+from ng_route_bridge import (
     _balance_array,
     _extract_route_record,
     _routes_in_file,
@@ -80,16 +80,13 @@ class ExtractRouteRecordTests(unittest.TestCase):
         self.assertTrue(rec["lazy"])
 
     def test_redirect_route(self) -> None:
-        rec = self._record(
-            "{ path: 'old', redirectTo: '/new', pathMatch: 'full' }"
-        )
+        rec = self._record("{ path: 'old', redirectTo: '/new', pathMatch: 'full' }")
         self.assertEqual(rec["redirect_to"], "/new")
         self.assertIsNone(rec["component"])
 
     def test_guards_extracted(self) -> None:
         rec = self._record(
-            "{ path: 'me', component: ProfileComponent, "
-            "canActivate: [AuthGuard, RoleGuard] }"
+            "{ path: 'me', component: ProfileComponent, canActivate: [AuthGuard, RoleGuard] }"
         )
         self.assertEqual(rec["guards"], ["AuthGuard", "RoleGuard"])
 
@@ -126,16 +123,12 @@ class RoutesInFileTests(unittest.TestCase):
         self.assertEqual([r["path"] for r in out], ["", "about"])
 
     def test_for_child_array(self) -> None:
-        out = self._scan(
-            "RouterModule.forChild([{ path: 'inner', component: InnerComponent }])\n"
-        )
+        out = self._scan("RouterModule.forChild([{ path: 'inner', component: InnerComponent }])\n")
         self.assertEqual(len(out), 1)
         self.assertEqual(out[0]["path"], "inner")
 
     def test_provide_router_standalone(self) -> None:
-        out = self._scan(
-            "provideRouter([{ path: 'feed', component: FeedComponent }])\n"
-        )
+        out = self._scan("provideRouter([{ path: 'feed', component: FeedComponent }])\n")
         self.assertEqual(len(out), 1)
         self.assertEqual(out[0]["component"], "FeedComponent")
 
@@ -174,29 +167,36 @@ class BuildIndexTests(unittest.TestCase):
         self.tmp = tempfile.mkdtemp(prefix="vc-ng-routes-build-")
         self.addCleanup(shutil.rmtree, self.tmp, True)
 
-        _write(os.path.join(self.tmp, "src/app/app-routing.module.ts"), (
-            "import { RouterModule, Routes } from '@angular/router';\n"
-            "import { HomeComponent } from './home/home.component';\n"
-            "\n"
-            "const routes: Routes = [\n"
-            "  { path: '', component: HomeComponent },\n"
-            "  { path: 'users/:id', component: UserDetailComponent },\n"
-            "];\n"
-            "\n"
-            "@NgModule({ imports: [RouterModule.forRoot(routes)] })\n"
-            "export class AppRoutingModule {}\n"
-        ))
+        _write(
+            os.path.join(self.tmp, "src/app/app-routing.module.ts"),
+            (
+                "import { RouterModule, Routes } from '@angular/router';\n"
+                "import { HomeComponent } from './home/home.component';\n"
+                "\n"
+                "const routes: Routes = [\n"
+                "  { path: '', component: HomeComponent },\n"
+                "  { path: 'users/:id', component: UserDetailComponent },\n"
+                "];\n"
+                "\n"
+                "@NgModule({ imports: [RouterModule.forRoot(routes)] })\n"
+                "export class AppRoutingModule {}\n"
+            ),
+        )
         # Lazy children registered in a feature module.
-        _write(os.path.join(self.tmp, "src/app/admin/admin-routing.module.ts"), (
-            "RouterModule.forChild([\n"
-            "  { path: '', component: AdminHomeComponent, "
-            "    canActivate: [AuthGuard] },\n"
-            "])\n"
-        ))
+        _write(
+            os.path.join(self.tmp, "src/app/admin/admin-routing.module.ts"),
+            (
+                "RouterModule.forChild([\n"
+                "  { path: '', component: AdminHomeComponent, "
+                "    canActivate: [AuthGuard] },\n"
+                "])\n"
+            ),
+        )
         # node_modules — must be skipped.
-        _write(os.path.join(self.tmp, "node_modules/foo/dist/r.ts"), (
-            "RouterModule.forRoot([{ path: 'noise', component: X }])\n"
-        ))
+        _write(
+            os.path.join(self.tmp, "node_modules/foo/dist/r.ts"),
+            ("RouterModule.forRoot([{ path: 'noise', component: X }])\n"),
+        )
 
     def test_build_collects_from_all_modules(self) -> None:
         out = build_ng_route_index(self.tmp)

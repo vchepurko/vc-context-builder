@@ -36,21 +36,35 @@ import os
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
-
 TESTS_FILENAME = "agent_tests.json"
 DEFAULT_TESTS_DIR = "tests"
 
 # Walk-skip set for the TS spec scanner. Mirrors the agent_map
 # defaults so we don't scan vendored test suites or build outputs.
-_SPEC_IGNORE_DIRS = frozenset({
-    ".git", "node_modules", "vendor", "__pycache__",
-    "dist", "dist_webpack", "build", ".venv", "venv",
-    ".idea", ".vscode", ".ai-context", ".vc-context",
-    "coverage", ".angular", ".cache", ".next", ".nuxt",
-})
+_SPEC_IGNORE_DIRS = frozenset(
+    {
+        ".git",
+        "node_modules",
+        "vendor",
+        "__pycache__",
+        "dist",
+        "dist_webpack",
+        "build",
+        ".venv",
+        "venv",
+        ".idea",
+        ".vscode",
+        ".ai-context",
+        ".vc-context",
+        "coverage",
+        ".angular",
+        ".cache",
+        ".next",
+        ".nuxt",
+    }
+)
 
-_SPEC_EXTENSIONS = (".spec.ts", ".spec.tsx", ".spec.js",
-                    ".spec.jsx", ".spec.mjs", ".spec.cjs")
+_SPEC_EXTENSIONS = (".spec.ts", ".spec.tsx", ".spec.js", ".spec.jsx", ".spec.mjs", ".spec.cjs")
 
 
 def _basename(file_path: str) -> str:
@@ -83,7 +97,7 @@ def _candidate_test_files(project_root: str, basename: str) -> List[str]:
                 # ``test_foo.py`` — but ``test_foo_handler.py`` should
                 # match ``foo``. So allow either an exact match or a
                 # next char that's a separator-ish (``_`` or ``.``).
-                tail = fname[len(prefix):]
+                tail = fname[len(prefix) :]
                 if tail == ".py" or tail.startswith("_") or tail.startswith("."):
                     out.append(os.path.join(cur, fname))
     return out
@@ -96,7 +110,7 @@ def _scan_test_functions(test_path: str) -> List[Tuple[str, int]]:
     or string mentions). Returns an empty list on parse failure.
     """
     try:
-        with open(test_path, "r", encoding="utf-8") as fh:
+        with open(test_path, encoding="utf-8") as fh:
             source = fh.read()
     except OSError:
         return []
@@ -123,10 +137,7 @@ def _best_match(symbol: str, candidates: List[Tuple[str, int]]) -> Optional[Tupl
     sym_lower = symbol.lower()
     if not sym_lower:
         return None
-    matches = [
-        (name, line) for name, line in candidates
-        if sym_lower in name.lower()
-    ]
+    matches = [(name, line) for name, line in candidates if sym_lower in name.lower()]
     if not matches:
         return None
     matches.sort(key=lambda item: (len(item[0]), item[0]))
@@ -162,9 +173,7 @@ def _collect_imported_names(tree: ast.AST) -> set:
     return names
 
 
-def _references_in_function(
-    fn_node: ast.AST, imported: set
-) -> set:
+def _references_in_function(fn_node: ast.AST, imported: set) -> set:
     """Names referenced inside ``fn_node``'s body that match imports.
 
     Three kinds of references count:
@@ -186,14 +195,11 @@ def _references_in_function(
             func = sub.func
             # patch("a.b.symbol", ...) and patch.object(...) — the first
             # form binds the last segment of the dotted path.
-            is_patch_call = (
-                (isinstance(func, ast.Name) and func.id == "patch")
-                or (
-                    isinstance(func, ast.Attribute)
-                    and isinstance(func.value, ast.Name)
-                    and func.value.id == "patch"
-                    and func.attr in {"dict", "object", "multiple"}
-                )
+            is_patch_call = (isinstance(func, ast.Name) and func.id == "patch") or (
+                isinstance(func, ast.Attribute)
+                and isinstance(func.value, ast.Name)
+                and func.value.id == "patch"
+                and func.attr in {"dict", "object", "multiple"}
             )
             if is_patch_call and sub.args:
                 first = sub.args[0]
@@ -217,7 +223,7 @@ def _scan_test_file_references(
     — they all count as candidate links.
     """
     try:
-        with open(test_path, "r", encoding="utf-8") as fh:
+        with open(test_path, encoding="utf-8") as fh:
             source = fh.read()
     except OSError:
         return {}
@@ -230,19 +236,19 @@ def _scan_test_file_references(
     out: Dict[str, List[Tuple[str, int]]] = {}
     for node in ast.iter_child_nodes(tree):
         # Top-level test_* functions.
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) \
-                and node.name.startswith("test_"):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name.startswith(
+            "test_"
+        ):
             for sym in _references_in_function(node, imported):
                 out.setdefault(sym, []).append((node.name, node.lineno))
         # Methods inside class Test*: blocks.
         elif isinstance(node, ast.ClassDef) and node.name.startswith("Test"):
             for member in node.body:
-                if isinstance(member, (ast.FunctionDef, ast.AsyncFunctionDef)) \
-                        and member.name.startswith("test_"):
+                if isinstance(
+                    member, (ast.FunctionDef, ast.AsyncFunctionDef)
+                ) and member.name.startswith("test_"):
                     for sym in _references_in_function(member, imported):
-                        out.setdefault(sym, []).append(
-                            (member.name, member.lineno)
-                        )
+                        out.setdefault(sym, []).append((member.name, member.lineno))
     return out
 
 
@@ -419,7 +425,7 @@ def _scan_spec_file_references(
     tie-breaker keeps the result usable.
     """
     try:
-        with open(spec_path, "r", encoding="utf-8") as fh:
+        with open(spec_path, encoding="utf-8") as fh:
             content = fh.read()
     except OSError:
         return {}
@@ -453,11 +459,13 @@ def build_spec_reference_index(
         per_file = _scan_spec_file_references(spec_path)
         for sym, hits in per_file.items():
             for label, line in hits:
-                index.setdefault(sym, []).append({
-                    "test_file": rel,
-                    "test_function": label,
-                    "line": line,
-                })
+                index.setdefault(sym, []).append(
+                    {
+                        "test_file": rel,
+                        "test_function": label,
+                        "line": line,
+                    }
+                )
     return index
 
 
@@ -475,11 +483,13 @@ def build_reference_index(
         per_file = _scan_test_file_references(test_path)
         for sym, hits in per_file.items():
             for fn_name, line in hits:
-                index.setdefault(sym, []).append({
-                    "test_file": rel,
-                    "test_function": fn_name,
-                    "line": line,
-                })
+                index.setdefault(sym, []).append(
+                    {
+                        "test_file": rel,
+                        "test_function": fn_name,
+                        "line": line,
+                    }
+                )
     return index
 
 
@@ -495,9 +505,11 @@ def _pick_best(
     """
     if not hits:
         return None
+
     def key(h: Dict[str, Any]) -> Tuple[int, int, str]:
         co_located = 0 if (prefer_file and h["test_file"] == prefer_file) else 1
         return (co_located, len(h["test_function"]), h["test_function"])
+
     return sorted(hits, key=key)[0]
 
 
@@ -560,11 +572,11 @@ def find_test_for_symbol(
         # The symbol may not appear in imports — fall back to the first
         # describe/it block as a coarse "this spec exists" signal.
         rel = os.path.relpath(candidate, project_root).replace(os.sep, "/")
-        if symbol in per_file and per_file[symbol]:
+        if per_file.get(symbol):
             label, line = per_file[symbol][0]
             return {"test_file": rel, "test_function": label, "line": line}
         try:
-            with open(candidate, "r", encoding="utf-8") as fh:
+            with open(candidate, encoding="utf-8") as fh:
                 content = fh.read()
         except OSError:
             continue
@@ -580,6 +592,7 @@ def find_test_for_symbol(
 # ----------------------------------------------------------------------
 # Build artifact
 # ----------------------------------------------------------------------
+
 
 def build_test_index(
     project_root: str,
@@ -608,7 +621,10 @@ def build_test_index(
             continue
         file_path = entry.get("file") or ""
         out[name] = find_test_for_symbol(
-            project_root, name, file_path, reference_index=reference_index,
+            project_root,
+            name,
+            file_path,
+            reference_index=reference_index,
         )
     return out
 

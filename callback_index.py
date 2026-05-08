@@ -32,21 +32,31 @@ from __future__ import annotations
 import ast
 import json
 import os
-from typing import Any, Dict, Iterable, List, Optional, Tuple
-
+from collections.abc import Iterable
+from typing import Any, Dict, List, Optional, Tuple
 
 CALLBACKS_FILENAME = "agent_callbacks.json"
 
 IGNORE_DIRS = {
-    ".git", "node_modules", "vendor", "__pycache__",
-    "dist", "build", ".venv", "venv", ".idea", ".vscode",
-    ".ai-context", ".vc-context",
+    ".git",
+    "node_modules",
+    "vendor",
+    "__pycache__",
+    "dist",
+    "build",
+    ".venv",
+    "venv",
+    ".idea",
+    ".vscode",
+    ".ai-context",
+    ".vc-context",
 }
 
 
 # ----------------------------------------------------------------------
 # AST helpers
 # ----------------------------------------------------------------------
+
 
 def _iter_python_files(project_root: str) -> Iterable[str]:
     for cur, dirs, files in os.walk(project_root):
@@ -146,6 +156,7 @@ def _extract_filter_records(arg: ast.AST) -> List[Tuple[str, str]]:
 # Build
 # ----------------------------------------------------------------------
 
+
 def collect_callbacks(project_root: str) -> Dict[str, List[Dict[str, Any]]]:
     """Return ``{callback_data_string → [record, ...]}``.
 
@@ -156,7 +167,7 @@ def collect_callbacks(project_root: str) -> Dict[str, List[Dict[str, Any]]]:
 
     for full in _iter_python_files(project_root):
         try:
-            with open(full, "r", encoding="utf-8") as fh:
+            with open(full, encoding="utf-8") as fh:
                 source = fh.read()
         except OSError:
             continue
@@ -208,6 +219,7 @@ def write_callback_index(project_root: str, index: Dict[str, List[Dict[str, Any]
 # ----------------------------------------------------------------------
 # Lookup
 # ----------------------------------------------------------------------
+
 
 def find_callback(
     index: Dict[str, List[Dict[str, Any]]],

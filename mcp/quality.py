@@ -47,6 +47,7 @@ EMPTY_STREAK_THRESHOLD = 3
 
 # --- Helpers ---------------------------------------------------------------
 
+
 def _ts(entry: Dict[str, Any]) -> Optional[_dt.datetime]:
     raw = entry.get("ts")
     if not isinstance(raw, str):
@@ -74,6 +75,7 @@ def _entry_summary(entry: Dict[str, Any]) -> Dict[str, Any]:
 
 
 # --- Detectors --------------------------------------------------------------
+
 
 def detect_wasteful_pairs(
     entries: List[Dict[str, Any]],
@@ -119,17 +121,19 @@ def detect_wasteful_pairs(
             t_pending = _ts(pending)
             t_now = _ts(e)
             if t_pending and t_now and (t_now - t_pending).total_seconds() <= window_sec:
-                findings.append({
-                    "kind": "wasteful_pair",
-                    "severity": "info",
-                    "message": (
-                        f"find_symbol({pending['args_summary'].get('name')!r}) "
-                        f"→ read_slice within {window_sec}s; could have used "
-                        f"include_body=true"
-                    ),
-                    "symbol": pending["args_summary"].get("name"),
-                    "evidence": [_entry_summary(pending), _entry_summary(e)],
-                })
+                findings.append(
+                    {
+                        "kind": "wasteful_pair",
+                        "severity": "info",
+                        "message": (
+                            f"find_symbol({pending['args_summary'].get('name')!r}) "
+                            f"→ read_slice within {window_sec}s; could have used "
+                            f"include_body=true"
+                        ),
+                        "symbol": pending["args_summary"].get("name"),
+                        "evidence": [_entry_summary(pending), _entry_summary(e)],
+                    }
+                )
             pending = None
             continue
         # Any other tool resets the buffer — we only catch immediate
@@ -173,17 +177,17 @@ def detect_hot_rereads(
             break  # Counter.most_common is sorted desc — once below, done.
         tool, args_tuple = key
         args = dict(args_tuple)
-        findings.append({
-            "kind": "hot_reread",
-            "severity": "warn",
-            "message": (
-                f"{tool}({args}) called {n}× — consider caching"
-            ),
-            "tool": tool,
-            "args_summary": args,
-            "count": n,
-            "evidence": [_entry_summary(e) for e in by_key[key][:3]],
-        })
+        findings.append(
+            {
+                "kind": "hot_reread",
+                "severity": "warn",
+                "message": (f"{tool}({args}) called {n}× — consider caching"),
+                "tool": tool,
+                "args_summary": args,
+                "count": n,
+                "evidence": [_entry_summary(e) for e in by_key[key][:3]],
+            }
+        )
     return findings
 
 
@@ -204,20 +208,22 @@ def detect_empty_streaks(
 
     def _flush() -> None:
         if len(streak) >= threshold:
-            findings.append({
-                "kind": "empty_streak",
-                "severity": "warn",
-                "message": (
-                    f"{streak_tool} returned empty {len(streak)} times "
-                    f"in a row — wrong query or misspelled symbol?"
-                ),
-                "tool": streak_tool,
-                "count": len(streak),
-                "evidence": [
-                    _entry_summary(streak[0]),
-                    _entry_summary(streak[-1]),
-                ],
-            })
+            findings.append(
+                {
+                    "kind": "empty_streak",
+                    "severity": "warn",
+                    "message": (
+                        f"{streak_tool} returned empty {len(streak)} times "
+                        f"in a row — wrong query or misspelled symbol?"
+                    ),
+                    "tool": streak_tool,
+                    "count": len(streak),
+                    "evidence": [
+                        _entry_summary(streak[0]),
+                        _entry_summary(streak[-1]),
+                    ],
+                }
+            )
 
     for e in entries:
         tool = e.get("tool")
@@ -234,6 +240,7 @@ def detect_empty_streaks(
 
 
 # --- Aggregator -------------------------------------------------------------
+
 
 def quality_report(entries: List[Dict[str, Any]]) -> Dict[str, Any]:
     """Bundle every detector's findings + a compact severity summary.

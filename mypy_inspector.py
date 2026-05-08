@@ -31,7 +31,6 @@ import os
 import subprocess
 from typing import Any, Dict, List, Optional
 
-
 DEFAULT_COMMAND = ["uv", "run", "mypy", "--output=json", "--no-color-output", "."]
 
 # Project markers that imply mypy is meaningful to run. Mirrors the
@@ -54,7 +53,7 @@ def _has_tool_mypy_in_pyproject(project_root: str) -> bool:
     if not os.path.isfile(pp):
         return False
     try:
-        with open(pp, "r", encoding="utf-8") as fh:
+        with open(pp, encoding="utf-8") as fh:
             return "[tool.mypy]" in fh.read()
     except OSError:
         return False
@@ -82,7 +81,7 @@ def should_skip_mypy(project_root: str) -> tuple[bool, str]:
     conv_path = os.path.join(project_root, ".vc-context", "conventions.json")
     if os.path.isfile(conv_path):
         try:
-            with open(conv_path, "r", encoding="utf-8") as fh:
+            with open(conv_path, encoding="utf-8") as fh:
                 conv = json.load(fh)
             mypy_cfg = conv.get("mypy") if isinstance(conv, dict) else None
             if isinstance(mypy_cfg, dict):
@@ -110,9 +109,8 @@ def should_skip_mypy(project_root: str) -> tuple[bool, str]:
         return True, "no Python project (no pyproject.toml / setup.py / *.py at root)"
 
     # (3) — mypy specifically configured?
-    has_config = (
-        _has_tool_mypy_in_pyproject(project_root)
-        or any(os.path.isfile(os.path.join(project_root, m)) for m in _MYPY_CONFIG_FILES)
+    has_config = _has_tool_mypy_in_pyproject(project_root) or any(
+        os.path.isfile(os.path.join(project_root, m)) for m in _MYPY_CONFIG_FILES
     )
     if not has_config:
         return True, "no mypy config ([tool.mypy] in pyproject.toml or mypy.ini)"
@@ -125,12 +123,9 @@ def _load_command(project_root: str) -> List[str]:
     conv_path = os.path.join(project_root, ".vc-context", "conventions.json")
     if os.path.isfile(conv_path):
         try:
-            with open(conv_path, "r", encoding="utf-8") as fh:
+            with open(conv_path, encoding="utf-8") as fh:
                 conv = json.load(fh)
-            override = (
-                conv.get("mypy", {}).get("command")
-                if isinstance(conv, dict) else None
-            )
+            override = conv.get("mypy", {}).get("command") if isinstance(conv, dict) else None
             if isinstance(override, list) and all(isinstance(x, str) for x in override):
                 return list(override)
         except (OSError, json.JSONDecodeError):
@@ -139,7 +134,8 @@ def _load_command(project_root: str) -> List[str]:
 
 
 def run_mypy(
-    project_root: str, command: Optional[List[str]] = None,
+    project_root: str,
+    command: Optional[List[str]] = None,
 ) -> List[Dict[str, Any]]:
     """Execute mypy in JSON-line mode and return parsed records. Each
     line of stdout is one JSON object; we skip lines that aren't JSON
@@ -150,7 +146,11 @@ def run_mypy(
     cmd = command or _load_command(project_root)
     try:
         result = subprocess.run(
-            cmd, cwd=project_root, capture_output=True, text=True, timeout=300,
+            cmd,
+            cwd=project_root,
+            capture_output=True,
+            text=True,
+            timeout=300,
         )
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return []
@@ -173,7 +173,7 @@ def _norm_file(path: str, project_root: str) -> str:
     project-relative regardless of where mypy was invoked from."""
     abs_root = os.path.abspath(project_root) + os.sep
     if path.startswith(abs_root):
-        return path[len(abs_root):].replace(os.sep, "/")
+        return path[len(abs_root) :].replace(os.sep, "/")
     return path.replace(os.sep, "/")
 
 

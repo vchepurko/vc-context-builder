@@ -10,7 +10,6 @@ import unittest
 
 from test_query_engine import FixtureMixin  # type: ignore[import-not-found]
 
-
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _SUBMODULE = os.path.dirname(_HERE)
 _CLI = os.path.join(_SUBMODULE, "cli.py")

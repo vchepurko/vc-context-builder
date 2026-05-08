@@ -25,15 +25,15 @@ import unittest
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(_HERE))
 
-from mcp.dispatcher import Dispatcher  # noqa: E402
-from mcp.metrics import (  # noqa: E402
+from mcp.dispatcher import Dispatcher
+from mcp.metrics import (
     MetricsWriter,
     _is_empty,
     _parse_since,
     aggregate,
     read_metrics,
 )
-from query_engine import QueryEngine  # noqa: E402
+from query_engine import QueryEngine
 
 
 def _write(path: str, content: str) -> None:
@@ -44,12 +44,24 @@ def _write(path: str, content: str) -> None:
 
 def _make_root() -> str:
     tmp = tempfile.mkdtemp(prefix="vc-metrics-")
-    _write(os.path.join(tmp, "agent_root.json"), json.dumps({
-        "project_root": tmp, "modules": ["./pkg"], "roles": {},
-    }))
-    _write(os.path.join(tmp, "agent_symbols.json"), json.dumps({
-        "foo": {"file": "pkg/a.py", "line": 1, "kind": "func"},
-    }))
+    _write(
+        os.path.join(tmp, "agent_root.json"),
+        json.dumps(
+            {
+                "project_root": tmp,
+                "modules": ["./pkg"],
+                "roles": {},
+            }
+        ),
+    )
+    _write(
+        os.path.join(tmp, "agent_symbols.json"),
+        json.dumps(
+            {
+                "foo": {"file": "pkg/a.py", "line": 1, "kind": "func"},
+            }
+        ),
+    )
     return tmp
 
 
@@ -137,7 +149,8 @@ class ReadMetricsTests(unittest.TestCase):
 
     def _hand_emit(self, ts: str, tool: str = "x") -> None:
         # Use the real filename helper so reads work the same way.
-        from mcp.metrics import _today_filename  # noqa: E402
+        from mcp.metrics import _today_filename
+
         # Force date in filename to match the date prefix in `ts`.
         # _today_filename uses today's date — for explicit ts we just
         # write into the same file (read_metrics doesn't filter by
@@ -145,24 +158,39 @@ class ReadMetricsTests(unittest.TestCase):
         path = _today_filename(self.root, self.metrics_dir)
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "a", encoding="utf-8") as fh:
-            fh.write(json.dumps({
-                "ts": ts, "tool": tool, "args_keys": [],
-                "result_bytes": 10, "approx_tokens": 2,
-                "t_ms": 1, "ok": True, "empty": False,
-            }) + "\n")
+            fh.write(
+                json.dumps(
+                    {
+                        "ts": ts,
+                        "tool": tool,
+                        "args_keys": [],
+                        "result_bytes": 10,
+                        "approx_tokens": 2,
+                        "t_ms": 1,
+                        "ok": True,
+                        "empty": False,
+                    }
+                )
+                + "\n"
+            )
 
     def test_filters_by_repo_hash(self) -> None:
         # An entry for a *different* project shouldn't surface.
         other = tempfile.mkdtemp(prefix="vc-r-other-")
         self.addCleanup(shutil.rmtree, other, True)
         MetricsWriter(other, base_dir=self.metrics_dir).record(
-            "x", {}, "y", 1, True,
+            "x",
+            {},
+            "y",
+            1,
+            True,
         )
         self.assertEqual(read_metrics(self.root, base_dir=self.metrics_dir), [])
 
     def test_since_window(self) -> None:
-        old = (_dt.datetime.now(_dt.timezone.utc)
-               - _dt.timedelta(days=2)).isoformat(timespec="seconds")
+        old = (_dt.datetime.now(_dt.timezone.utc) - _dt.timedelta(days=2)).isoformat(
+            timespec="seconds"
+        )
         new = _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds")
         self._hand_emit(old, "old")
         self._hand_emit(new, "new")
@@ -171,7 +199,9 @@ class ReadMetricsTests(unittest.TestCase):
         self.assertEqual(len(all_entries), 2)
 
         recent = read_metrics(
-            self.root, since="1h", base_dir=self.metrics_dir,
+            self.root,
+            since="1h",
+            base_dir=self.metrics_dir,
         )
         self.assertEqual([e["tool"] for e in recent], ["new"])
 
@@ -179,9 +209,14 @@ class ReadMetricsTests(unittest.TestCase):
 class AggregateTests(unittest.TestCase):
     def _entry(self, **kw) -> dict:
         base = {
-            "ts": "2026-05-07T10:00:00+00:00", "tool": "find_symbol",
-            "args_keys": [], "result_bytes": 100, "approx_tokens": 25,
-            "t_ms": 5, "ok": True, "empty": False,
+            "ts": "2026-05-07T10:00:00+00:00",
+            "tool": "find_symbol",
+            "args_keys": [],
+            "result_bytes": 100,
+            "approx_tokens": 25,
+            "t_ms": 5,
+            "ok": True,
+            "empty": False,
         }
         base.update(kw)
         return base
@@ -192,11 +227,13 @@ class AggregateTests(unittest.TestCase):
         self.assertEqual(out["by_tool"], {})
 
     def test_by_tool(self) -> None:
-        out = aggregate([
-            self._entry(tool="find_symbol", t_ms=10),
-            self._entry(tool="find_symbol", t_ms=20, empty=True),
-            self._entry(tool="who_calls", t_ms=5),
-        ])
+        out = aggregate(
+            [
+                self._entry(tool="find_symbol", t_ms=10),
+                self._entry(tool="find_symbol", t_ms=20, empty=True),
+                self._entry(tool="who_calls", t_ms=5),
+            ]
+        )
         self.assertEqual(out["calls"], 3)
         self.assertEqual(out["empty_ratio"], round(1 / 3, 3))
         self.assertEqual(out["by_tool"]["find_symbol"]["calls"], 2)
@@ -204,11 +241,14 @@ class AggregateTests(unittest.TestCase):
         self.assertEqual(out["by_tool"]["who_calls"]["calls"], 1)
 
     def test_by_hour(self) -> None:
-        out = aggregate([
-            self._entry(ts="2026-05-07T10:00:00+00:00"),
-            self._entry(ts="2026-05-07T10:30:00+00:00"),
-            self._entry(ts="2026-05-07T11:15:00+00:00"),
-        ], group_by="hour")
+        out = aggregate(
+            [
+                self._entry(ts="2026-05-07T10:00:00+00:00"),
+                self._entry(ts="2026-05-07T10:30:00+00:00"),
+                self._entry(ts="2026-05-07T11:15:00+00:00"),
+            ],
+            group_by="hour",
+        )
         self.assertIn("2026-05-07T10", out["by_hour"])
         self.assertEqual(out["by_hour"]["2026-05-07T10"]["calls"], 2)
 
@@ -245,6 +285,7 @@ class DispatcherIntegrationTests(unittest.TestCase):
         # must still return the call's result.
         def boom(*_a, **_k) -> None:
             raise RuntimeError("disk full")
+
         self.writer.record = boom  # type: ignore[assignment]
         out = self.dispatcher.call("find_symbol", {"name": "foo"})
         self.assertIsNotNone(out)

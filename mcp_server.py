@@ -22,11 +22,11 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 if _HERE not in sys.path:
     sys.path.insert(0, _HERE)
 
-from mcp import (  # noqa: E402
-    Dispatcher,
+from mcp import (
     PROTOCOL_VERSION,
     SERVER_NAME,
     SERVER_VERSION,
+    Dispatcher,
     content_text,
     err,
     handle_request,
@@ -53,10 +53,10 @@ _content_text = content_text
 
 
 __all__ = [
-    "Dispatcher",
     "PROTOCOL_VERSION",
     "SERVER_NAME",
     "SERVER_VERSION",
+    "Dispatcher",
     "_Dispatcher",
     "_content_text",
     "_err",

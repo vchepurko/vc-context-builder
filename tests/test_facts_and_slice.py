@@ -19,8 +19,8 @@ import unittest
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(_HERE))
 
-from parsers.python_parser import PythonParser  # noqa: E402
-from query_engine import QueryEngine  # noqa: E402
+from parsers.python_parser import PythonParser
+from query_engine import QueryEngine
 
 
 def _write(path: str, content: str) -> None:
@@ -38,33 +38,22 @@ class ExtractFactsTests(unittest.TestCase):
         return PythonParser._extract_facts(node)
 
     def test_function_callees_simple(self) -> None:
-        callees, _ = self._facts(
-            "def f():\n    g()\n    h(1, 2)\n    obj.method()\n"
-        )
+        callees, _ = self._facts("def f():\n    g()\n    h(1, 2)\n    obj.method()\n")
         self.assertEqual(callees, {"g", "h", "method"})
 
     def test_function_raises(self) -> None:
         _, raises = self._facts(
-            "def f():\n"
-            "    if x: raise ValueError('bad')\n"
-            "    raise httpx.HTTPError()\n"
+            "def f():\n    if x: raise ValueError('bad')\n    raise httpx.HTTPError()\n"
         )
         self.assertEqual(raises, {"ValueError", "HTTPError"})
 
     def test_bare_raise_ignored(self) -> None:
-        _, raises = self._facts(
-            "def f():\n"
-            "    try: ...\n"
-            "    except Exception: raise\n"
-        )
+        _, raises = self._facts("def f():\n    try: ...\n    except Exception: raise\n")
         self.assertEqual(raises, set())
 
     def test_class_walks_method_bodies(self) -> None:
         callees, raises = self._facts(
-            "class C:\n"
-            "    def m(self):\n"
-            "        helper()\n"
-            "        raise RuntimeError\n"
+            "class C:\n    def m(self):\n        helper()\n        raise RuntimeError\n"
         )
         self.assertIn("helper", callees)
         self.assertIn("RuntimeError", raises)
@@ -80,47 +69,57 @@ class _Fixture(unittest.TestCase):
         self.root = tempfile.mkdtemp(prefix="vc-facts-")
         self.addCleanup(shutil.rmtree, self.root, True)
 
-        _write(os.path.join(self.root, "agent_root.json"), json.dumps({
-            "project_root": self.root,
-            "modules": ["./pkg"],
-            "roles": {},
-        }))
-        _write(os.path.join(self.root, "agent_symbols.json"), json.dumps({
-            "do_work": {
-                "file": "pkg/work.py",
-                "line": 1,
-                "end_line": 6,
-                "kind": "func",
-                "callees": ["fetch", "log_event"],
-                "raises": ["ValueError"],
-            },
-            "DataClass": {
-                "file": "pkg/data.py",
-                "line": 1,
-                "end_line": 3,
-                "kind": "class",
-            },
-        }))
-        _write(os.path.join(self.root, "pkg/work.py"), (
-            "def do_work():\n"
-            "    fetch()\n"
-            "    log_event('start')\n"
-            "    if bad():\n"
-            "        raise ValueError('nope')\n"
-            "    return 1\n"
-        ))
-        _write(os.path.join(self.root, "pkg/data.py"), (
-            "class DataClass:\n"
-            "    x = 1\n"
-            "    y = 2\n"
-        ))
+        _write(
+            os.path.join(self.root, "agent_root.json"),
+            json.dumps(
+                {
+                    "project_root": self.root,
+                    "modules": ["./pkg"],
+                    "roles": {},
+                }
+            ),
+        )
+        _write(
+            os.path.join(self.root, "agent_symbols.json"),
+            json.dumps(
+                {
+                    "do_work": {
+                        "file": "pkg/work.py",
+                        "line": 1,
+                        "end_line": 6,
+                        "kind": "func",
+                        "callees": ["fetch", "log_event"],
+                        "raises": ["ValueError"],
+                    },
+                    "DataClass": {
+                        "file": "pkg/data.py",
+                        "line": 1,
+                        "end_line": 3,
+                        "kind": "class",
+                    },
+                }
+            ),
+        )
+        _write(
+            os.path.join(self.root, "pkg/work.py"),
+            (
+                "def do_work():\n"
+                "    fetch()\n"
+                "    log_event('start')\n"
+                "    if bad():\n"
+                "        raise ValueError('nope')\n"
+                "    return 1\n"
+            ),
+        )
+        _write(os.path.join(self.root, "pkg/data.py"), ("class DataClass:\n    x = 1\n    y = 2\n"))
         self.engine = QueryEngine(self.root)
 
 
 class FactProjectionTests(_Fixture):
     def test_get_callees_returns_list(self) -> None:
         self.assertEqual(
-            self.engine.get_callees("do_work"), ["fetch", "log_event"],
+            self.engine.get_callees("do_work"),
+            ["fetch", "log_event"],
         )
 
     def test_get_callees_unknown_symbol(self) -> None:
@@ -131,7 +130,8 @@ class FactProjectionTests(_Fixture):
 
     def test_get_raised_exceptions(self) -> None:
         self.assertEqual(
-            self.engine.get_raised_exceptions("do_work"), ["ValueError"],
+            self.engine.get_raised_exceptions("do_work"),
+            ["ValueError"],
         )
 
     def test_get_raised_exceptions_unknown(self) -> None:
@@ -149,10 +149,12 @@ class FindSymbolHidesFactsTests(_Fixture):
 
     def test_explicit_fields_brings_facts_back(self) -> None:
         out = self.engine.find_symbol(
-            "do_work", fields=["file", "callees", "raises"],
+            "do_work",
+            fields=["file", "callees", "raises"],
         )
         self.assertEqual(
-            out, {
+            out,
+            {
                 "file": "pkg/work.py",
                 "callees": ["fetch", "log_event"],
                 "raises": ["ValueError"],
@@ -196,7 +198,8 @@ class ReadSliceTests(_Fixture):
         self.assertEqual(out["start"], 1)
         self.assertEqual(out["end"], QueryEngine.SLICE_MAX_LINES)
         self.assertEqual(
-            len(out["content"].splitlines()), QueryEngine.SLICE_MAX_LINES,
+            len(out["content"].splitlines()),
+            QueryEngine.SLICE_MAX_LINES,
         )
 
 

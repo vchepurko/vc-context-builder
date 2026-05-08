@@ -30,7 +30,6 @@ import re
 import subprocess
 from typing import Any, Dict, List, Optional
 
-
 DEFAULT_COMMAND = ["uv", "run", "ruff", "format", "--check", "."]
 
 # Matches a "Would reformat: <path>" line. ruff prints these on stdout
@@ -45,11 +44,10 @@ def _load_command(project_root: str) -> List[str]:
     conv_path = os.path.join(project_root, ".vc-context", "conventions.json")
     if os.path.isfile(conv_path):
         try:
-            with open(conv_path, "r", encoding="utf-8") as fh:
+            with open(conv_path, encoding="utf-8") as fh:
                 conv = json.load(fh)
             override = (
-                conv.get("ruff_format", {}).get("command")
-                if isinstance(conv, dict) else None
+                conv.get("ruff_format", {}).get("command") if isinstance(conv, dict) else None
             )
             if isinstance(override, list) and all(isinstance(x, str) for x in override):
                 return list(override)
@@ -59,7 +57,8 @@ def _load_command(project_root: str) -> List[str]:
 
 
 def run_ruff_format(
-    project_root: str, command: Optional[List[str]] = None,
+    project_root: str,
+    command: Optional[List[str]] = None,
 ) -> List[str]:
     """Execute ruff format --check and return the list of files that
     would be reformatted, project-relative. Empty list when ruff is
@@ -68,7 +67,11 @@ def run_ruff_format(
     cmd = command or _load_command(project_root)
     try:
         result = subprocess.run(
-            cmd, cwd=project_root, capture_output=True, text=True, timeout=120,
+            cmd,
+            cwd=project_root,
+            capture_output=True,
+            text=True,
+            timeout=120,
         )
     except (FileNotFoundError, subprocess.TimeoutExpired):
         return []
@@ -85,7 +88,7 @@ def _norm_file(path: str, project_root: str) -> str:
     project-relative regardless of where ruff was invoked from."""
     abs_root = os.path.abspath(project_root) + os.sep
     if path.startswith(abs_root):
-        return path[len(abs_root):].replace(os.sep, "/")
+        return path[len(abs_root) :].replace(os.sep, "/")
     return path.replace(os.sep, "/")
 
 
@@ -108,6 +111,7 @@ def collect(
     out via ``conventions.json["ruff"]["enabled"] = false``.
     """
     from ruff_inspector import should_skip_ruff  # type: ignore[import-not-found]
+
     skip, reason = should_skip_ruff(project_root)
     if skip:
         return {"total": 0, "skipped": True, "reason": reason}

@@ -27,7 +27,7 @@ _PARENT = os.path.dirname(_HERE)
 if _PARENT not in sys.path:
     sys.path.insert(0, _PARENT)
 
-from query_engine import QueryEngine  # noqa: E402
+from query_engine import QueryEngine
 
 
 def serve(
@@ -65,10 +65,7 @@ def serve(
 
         # Allow batched requests (a JSON array of frames).
         if isinstance(req, list):
-            responses = [
-                handle_request(item, dispatcher) for item in req
-                if isinstance(item, dict)
-            ]
+            responses = [handle_request(item, dispatcher) for item in req if isinstance(item, dict)]
             responses = [r for r in responses if r is not None]
             if responses:
                 stdout.write(json.dumps(responses) + "\n")

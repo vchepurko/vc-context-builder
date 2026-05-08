@@ -36,9 +36,8 @@ import os
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
-from parsers.base_parser import BaseParser
 from parsers import _ts_ast
-
+from parsers.base_parser import BaseParser
 
 # ----------------------------------------------------------------------
 # Regex toolbelt
@@ -51,26 +50,26 @@ from parsers import _ts_ast
 # carve out the body using brace-balancing.
 
 _RE_FUNCTION = re.compile(
-    r'^(?P<lead>(?:export\s+(?:default\s+)?)?(?:async\s+)?)'
-    r'function\s+(?P<name>[A-Za-z_$][A-Za-z0-9_$]*)'
-    r'\s*\((?P<params>[^)]*)\)\s*(?::\s*[^{;]+)?\s*\{',
+    r"^(?P<lead>(?:export\s+(?:default\s+)?)?(?:async\s+)?)"
+    r"function\s+(?P<name>[A-Za-z_$][A-Za-z0-9_$]*)"
+    r"\s*\((?P<params>[^)]*)\)\s*(?::\s*[^{;]+)?\s*\{",
     re.M,
 )
 
 # `export default function NAME?(...) {…}` — name optional, treat the
 # default export as `default` if anonymous (skipped from output then).
 _RE_DEFAULT_FN = re.compile(
-    r'^export\s+default\s+(?:async\s+)?function\s*'
-    r'(?P<name>[A-Za-z_$][A-Za-z0-9_$]*)?'
-    r'\s*\((?P<params>[^)]*)\)\s*(?::\s*[^{;]+)?\s*\{',
+    r"^export\s+default\s+(?:async\s+)?function\s*"
+    r"(?P<name>[A-Za-z_$][A-Za-z0-9_$]*)?"
+    r"\s*\((?P<params>[^)]*)\)\s*(?::\s*[^{;]+)?\s*\{",
     re.M,
 )
 
 # `class Foo extends Bar { ... }`
 _RE_CLASS = re.compile(
-    r'^(?P<lead>(?:export\s+(?:default\s+)?)?(?:abstract\s+)?)'
-    r'class\s+(?P<name>[A-Za-z_$][A-Za-z0-9_$]*)'
-    r'(?:\s+extends\s+[^\s{]+)?(?:\s+implements\s+[^{]+)?\s*\{',
+    r"^(?P<lead>(?:export\s+(?:default\s+)?)?(?:abstract\s+)?)"
+    r"class\s+(?P<name>[A-Za-z_$][A-Za-z0-9_$]*)"
+    r"(?:\s+extends\s+[^\s{]+)?(?:\s+implements\s+[^{]+)?\s*\{",
     re.M,
 )
 
@@ -80,23 +79,23 @@ _RE_CLASS = re.compile(
 # starts with `{` we balance braces, otherwise we read up to the next
 # top-level newline / semicolon.
 _RE_CONST_ARROW = re.compile(
-    r'^(?P<lead>(?:export\s+)?)'
-    r'(?:const|let|var)\s+(?P<name>[A-Za-z_$][A-Za-z0-9_$]*)'
-    r'(?:\s*:\s*[^=]+)?'
-    r'\s*=\s*(?:async\s+)?'
-    r'\((?P<params>[^)]*)\)'
-    r'(?:\s*:\s*[^=]+?)?'
-    r'\s*=>\s*',
+    r"^(?P<lead>(?:export\s+)?)"
+    r"(?:const|let|var)\s+(?P<name>[A-Za-z_$][A-Za-z0-9_$]*)"
+    r"(?:\s*:\s*[^=]+)?"
+    r"\s*=\s*(?:async\s+)?"
+    r"\((?P<params>[^)]*)\)"
+    r"(?:\s*:\s*[^=]+?)?"
+    r"\s*=>\s*",
     re.M,
 )
 
 # `const X = function (...) {…}` — function-expression form.
 _RE_CONST_FUNCEXPR = re.compile(
-    r'^(?P<lead>(?:export\s+)?)'
-    r'(?:const|let|var)\s+(?P<name>[A-Za-z_$][A-Za-z0-9_$]*)'
-    r'(?:\s*:\s*[^=]+)?'
-    r'\s*=\s*(?:async\s+)?function\s*\*?\s*'
-    r'\((?P<params>[^)]*)\)\s*\{',
+    r"^(?P<lead>(?:export\s+)?)"
+    r"(?:const|let|var)\s+(?P<name>[A-Za-z_$][A-Za-z0-9_$]*)"
+    r"(?:\s*:\s*[^=]+)?"
+    r"\s*=\s*(?:async\s+)?function\s*\*?\s*"
+    r"\((?P<params>[^)]*)\)\s*\{",
     re.M,
 )
 
@@ -115,7 +114,7 @@ _RE_REQUIRE = re.compile(
 )
 
 # JSDoc — `/** ... */` block, multi-line.
-_RE_JSDOC = re.compile(r'/\*\*([\s\S]*?)\*/')
+_RE_JSDOC = re.compile(r"/\*\*([\s\S]*?)\*/")
 
 # Express-style registration site:
 #   app.get('/path', handler)
@@ -123,50 +122,40 @@ _RE_JSDOC = re.compile(r'/\*\*([\s\S]*?)\*/')
 # We capture the verb (lowered) and the trailing bare-name handler if
 # present (for the role-tagging cross-reference).
 _RE_EXPRESS_REG = re.compile(
-    r'\b(?P<base>[A-Za-z_$][A-Za-z0-9_$]*)'
-    r'\.(?P<verb>get|post|put|patch|delete|options|head|all|use)'
-    r'\s*\('
+    r"\b(?P<base>[A-Za-z_$][A-Za-z0-9_$]*)"
+    r"\.(?P<verb>get|post|put|patch|delete|options|head|all|use)"
+    r"\s*\("
     r'\s*[`\'"][^`\'"]+[`\'"]\s*,'
-    r'(?P<between>[^)]*?)'
-    r'(?P<handler>[A-Za-z_$][A-Za-z0-9_$]*)'
-    r'\s*\)',
+    r"(?P<between>[^)]*?)"
+    r"(?P<handler>[A-Za-z_$][A-Za-z0-9_$]*)"
+    r"\s*\)",
 )
 
 # Angular @Input / @Output decorators on class members.
 _RE_NG_INPUT = re.compile(
-    r'@Input\s*(?:\([^)]*\))?\s+(\w+)',
+    r"@Input\s*(?:\([^)]*\))?\s+(\w+)",
 )
 _RE_NG_OUTPUT = re.compile(
-    r'@Output\s*(?:\([^)]*\))?\s+(\w+)',
+    r"@Output\s*(?:\([^)]*\))?\s+(\w+)",
 )
 
 # Angular @Component / @Injectable decorator metadata (cheap regex on
 # decorator-arg block — doesn't try to parse a full TS object literal,
 # just pulls the common string fields). Misses dynamic / computed
 # values; that's a known limit, callers fall back to grep.
-_RE_NG_SELECTOR = re.compile(
-    r"selector\s*:\s*['\"`]([^'\"`]+)['\"`]"
-)
-_RE_NG_TEMPLATE_URL = re.compile(
-    r"templateUrl\s*:\s*['\"`]([^'\"`]+)['\"`]"
-)
-_RE_NG_STYLE_URL = re.compile(
-    r"styleUrls?\s*:\s*\[\s*['\"`]([^'\"`]+)['\"`]"
-)
-_RE_NG_PROVIDED_IN = re.compile(
-    r"providedIn\s*:\s*['\"`]?([A-Za-z_$][A-Za-z0-9_$]*)['\"`]?"
-)
-_RE_NG_STANDALONE = re.compile(
-    r"standalone\s*:\s*(true|false)"
-)
+_RE_NG_SELECTOR = re.compile(r"selector\s*:\s*['\"`]([^'\"`]+)['\"`]")
+_RE_NG_TEMPLATE_URL = re.compile(r"templateUrl\s*:\s*['\"`]([^'\"`]+)['\"`]")
+_RE_NG_STYLE_URL = re.compile(r"styleUrls?\s*:\s*\[\s*['\"`]([^'\"`]+)['\"`]")
+_RE_NG_PROVIDED_IN = re.compile(r"providedIn\s*:\s*['\"`]?([A-Za-z_$][A-Za-z0-9_$]*)['\"`]?")
+_RE_NG_STANDALONE = re.compile(r"standalone\s*:\s*(true|false)")
 
 # JSX / React.createElement detection inside a function body.
-_RE_JSX_RETURN = re.compile(r'<[A-Za-z][A-Za-z0-9]*')
-_RE_REACT_CE = re.compile(r'React\.createElement\s*\(')
+_RE_JSX_RETURN = re.compile(r"<[A-Za-z][A-Za-z0-9]*")
+_RE_REACT_CE = re.compile(r"React\.createElement\s*\(")
 
 # React hook usages — any-of these inside body marks a hook.
 _RE_REACT_HOOKS_BODY = re.compile(
-    r'\b(useState|useEffect|useMemo|useCallback|useRef|useContext)\s*\('
+    r"\b(useState|useEffect|useMemo|useCallback|useRef|useContext)\s*\("
 )
 
 
@@ -174,10 +163,11 @@ _RE_REACT_HOOKS_BODY = re.compile(
 # Parser
 # ----------------------------------------------------------------------
 
+
 class TsJsParser(BaseParser):
     """Top-level extractor for JS / TS / JSX / TSX files."""
 
-    extensions = ['.js', '.ts', '.jsx', '.tsx', '.mjs', '.cjs']
+    extensions = (".js", ".ts", ".jsx", ".tsx", ".mjs", ".cjs")
 
     def extract(
         self,
@@ -250,7 +240,7 @@ class TsJsParser(BaseParser):
         # Hand the agent_map layer enough state to run custom_roles
         # against the exports. These hidden fields are stripped before
         # the file is written to disk.
-        for exp in exports:
+        for _exp in exports:
             # Trim helper fields that custom_roles uses but JSON
             # consumers don't. We keep `_body` and `_register_call` if
             # the caller wants them, but agent_map removes them after
@@ -290,7 +280,7 @@ class TsJsParser(BaseParser):
         for m in _RE_DEFAULT_FN.finditer(text):
             name = m.group("name") or "default"
             body, _end = _balance_braces(text, m.end() - 1)
-            kind = "async-func" if "async" in text[m.start():m.end()] else "func"
+            kind = "async-func" if "async" in text[m.start() : m.end()] else "func"
             yield {
                 "name": name,
                 "kind": kind,
@@ -317,7 +307,7 @@ class TsJsParser(BaseParser):
                 body, _end = _balance_braces(text, tail_start)
             else:
                 body = _take_expression(text, tail_start)
-            kind = "async-func" if "async" in text[m.start():m.end()] else "func"
+            kind = "async-func" if "async" in text[m.start() : m.end()] else "func"
             yield {
                 "name": m.group("name"),
                 "kind": kind,
@@ -329,7 +319,7 @@ class TsJsParser(BaseParser):
 
         for m in _RE_CONST_FUNCEXPR.finditer(text):
             body, _end = _balance_braces(text, m.end() - 1)
-            kind = "async-func" if "async" in text[m.start():m.end()] else "func"
+            kind = "async-func" if "async" in text[m.start() : m.end()] else "func"
             yield {
                 "name": m.group("name"),
                 "kind": kind,
@@ -343,6 +333,7 @@ class TsJsParser(BaseParser):
 # ----------------------------------------------------------------------
 # Built-in role detection
 # ----------------------------------------------------------------------
+
 
 def _detect_role(
     exp: Dict[str, Any],
@@ -370,7 +361,7 @@ def _detect_role(
 
     # 3. React hook — any extension; name starts with `use[A-Z]`, body
     # references one of the standard hook builders.
-    if kind in ("func", "async-func") and re.match(r'^use[A-Z]', name):
+    if kind in ("func", "async-func") and re.match(r"^use[A-Z]", name):
         if _RE_REACT_HOOKS_BODY.search(body):
             return "react-hook"
 
@@ -392,14 +383,14 @@ def _detect_role(
             preceding = full_text[max(0, class_pos - 2000) : class_pos]
             m = re.search(r"@(Component|Injectable|NgModule|Pipe|Directive)\s*[\(\{]", preceding)
             if m:
-                _NG_ROLE = {
+                ng_role_map = {
                     "Component": "ng-component",
                     "Injectable": "ng-service",
                     "NgModule": "ng-module",
                     "Pipe": "ng-pipe",
                     "Directive": "ng-directive",
                 }
-                role = _NG_ROLE.get(m.group(1))
+                role = ng_role_map.get(m.group(1))
                 # Pull decorator-arg metadata after the matched `@X(`
                 # opener. We bound the slice to the decorator block via
                 # `class_pos` so we don't bleed into the class body.
@@ -449,6 +440,7 @@ def _detect_role(
 # Imports
 # ----------------------------------------------------------------------
 
+
 def _extract_dependencies(text: str) -> set:
     """Return the set of top-level package names imported by ``text``.
 
@@ -459,9 +451,7 @@ def _extract_dependencies(text: str) -> set:
     """
     deps: set = set()
     for source in (
-        _RE_IMPORT_FROM.findall(text)
-        + _RE_IMPORT_BARE.findall(text)
-        + _RE_REQUIRE.findall(text)
+        _RE_IMPORT_FROM.findall(text) + _RE_IMPORT_BARE.findall(text) + _RE_REQUIRE.findall(text)
     ):
         head = _top_level_pkg(source)
         if head:
@@ -487,6 +477,7 @@ def _top_level_pkg(spec: str) -> Optional[str]:
 # ----------------------------------------------------------------------
 # Comments / JSDoc handling
 # ----------------------------------------------------------------------
+
 
 def _strip_comments(text: str) -> str:
     """Replace `//` and `/* … */` comments with same-length whitespace.
@@ -596,6 +587,7 @@ def _clean_jsdoc(body: str) -> Optional[str]:
 # Brace / expression scanning
 # ----------------------------------------------------------------------
 
+
 def _balance_braces(text: str, start: int) -> Tuple[str, int]:
     """``text[start]`` must be ``{``. Return ``(body, end_index)`` where
     ``body`` is the slice between the opening ``{`` and the matching
@@ -627,9 +619,9 @@ def _balance_braces(text: str, start: int) -> Tuple[str, int]:
         elif ch == "}":
             depth -= 1
             if depth == 0:
-                return text[start + 1:i], i + 1
+                return text[start + 1 : i], i + 1
         i += 1
-    return text[start + 1:], n
+    return text[start + 1 :], n
 
 
 def _take_expression(text: str, start: int) -> str:
@@ -676,8 +668,11 @@ def _line_start(text: str, offset: int) -> int:
 # Optional AST upgrade (Feature Q)
 # ----------------------------------------------------------------------
 
+
 def _maybe_upgrade_with_ast(
-    exports: List[Dict[str, Any]], file_path: str, project_root: str,
+    exports: List[Dict[str, Any]],
+    file_path: str,
+    project_root: str,
 ) -> None:
     """Replace regex-based Angular metadata with AST-derived values
     when the project opts into ``typescript_ast`` and Node + the

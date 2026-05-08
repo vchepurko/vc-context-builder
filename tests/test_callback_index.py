@@ -10,7 +10,6 @@ Covers:
 
 from __future__ import annotations
 
-import json
 import os
 import sys
 import tempfile
@@ -19,15 +18,14 @@ import unittest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from callback_index import (  # noqa: E402
+from callback_index import (
     CALLBACKS_FILENAME,
     collect_callbacks,
     find_callback,
     write_callback_index,
 )
-from mcp_server import _tool_specs  # noqa: E402
-from query_engine import QueryEngine  # noqa: E402
-
+from mcp_server import _tool_specs
+from query_engine import QueryEngine
 
 _FIXTURE_SOURCE = textwrap.dedent("""
     from aiogram import F, Router
@@ -94,9 +92,7 @@ class TestCallbackIndexExtraction(unittest.TestCase):
 class TestFindCallbackLookup(unittest.TestCase):
     def setUp(self) -> None:
         self.idx = {
-            "adm:staff_add": [
-                {"kind": "exact", "handler": "h_add", "file": "x.py", "line": 1}
-            ],
+            "adm:staff_add": [{"kind": "exact", "handler": "h_add", "file": "x.py", "line": 1}],
             "adm:staff_detail:": [
                 {"kind": "prefix", "handler": "h_detail", "file": "x.py", "line": 2}
             ],

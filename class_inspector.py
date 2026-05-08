@@ -132,7 +132,7 @@ def inspect_class(
         return None
     full = os.path.join(project_root, file_rel)
     try:
-        with open(full, "r", encoding="utf-8") as fh:
+        with open(full, encoding="utf-8") as fh:
             source = fh.read()
         tree = ast.parse(source)
     except (OSError, SyntaxError):

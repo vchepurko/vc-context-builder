@@ -11,9 +11,9 @@ import unittest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from class_inspector import inspect_class  # noqa: E402
-from mcp_server import _tool_specs  # noqa: E402
-from query_engine import QueryEngine  # noqa: E402
+from class_inspector import inspect_class
+from mcp_server import _tool_specs
+from query_engine import QueryEngine
 
 
 def _write(path: str, body: str) -> None:
@@ -26,7 +26,9 @@ class _Fixture:
     def __init__(self) -> None:
         self.root = tempfile.mkdtemp(prefix="cls_inspector_")
         # SQLAlchemy-style class with annotated columns + helper method.
-        _write(os.path.join(self.root, "models.py"), '''
+        _write(
+            os.path.join(self.root, "models.py"),
+            '''
             from typing import Optional
 
 
@@ -53,7 +55,8 @@ class _Fixture:
 
             class Empty:
                 pass
-        ''')
+        ''',
+        )
         # Symbols file pointing at models.py — emulating the
         # agent_symbols.json that the parser would write at scan time.
         symbols = {

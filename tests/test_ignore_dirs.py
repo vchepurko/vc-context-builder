@@ -21,7 +21,7 @@ import unittest
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(_HERE))
 
-from agent_map import ContextBuilder  # noqa: E402
+from agent_map import ContextBuilder
 
 
 def _write_conventions(root: str, payload: dict) -> None:
@@ -72,9 +72,12 @@ class IgnoreDirsTests(unittest.TestCase):
         self.assertIn("node_modules", result)
 
     def test_mixed_replace_with_add(self) -> None:
-        _write_conventions(self.root, {
-            "ignore_dirs": ["custom", "+extra"],
-        })
+        _write_conventions(
+            self.root,
+            {
+                "ignore_dirs": ["custom", "+extra"],
+            },
+        )
         result = ContextBuilder._resolve_ignore_dirs(self.root)
         # Replacement set, with additive entry layered on.
         self.assertEqual(result, {"custom", "extra"})

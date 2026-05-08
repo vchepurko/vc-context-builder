@@ -11,3 +11,7 @@ agent_test_categories.json
 .vc-context/_parse_cache.json
 __pycache__/
 .idea/
+# uv lockfile — created on the fly by `uv run --with <tool>`, but with
+# no `[project]` table in pyproject.toml the resolved set is empty and
+# committing it adds noise without value.
+uv.lock

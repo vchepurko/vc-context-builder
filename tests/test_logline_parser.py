@@ -9,8 +9,8 @@ import unittest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from logline_parser import logline_to_symbol  # noqa: E402
-from mcp_server import _tool_specs  # noqa: E402
+from logline_parser import logline_to_symbol
+from mcp_server import _tool_specs
 
 
 def _write(path: str, body: str = "") -> None:
@@ -24,8 +24,10 @@ class _Fixture:
         self.root = tempfile.mkdtemp(prefix="logline_")
         # Create a fake project module that the dotted logger name
         # in our test lines should map to.
-        _write(os.path.join(self.root, "myproj", "bot", "handlers", "admin_staff.py"),
-               "def adm_staff_add():\n    pass\n")
+        _write(
+            os.path.join(self.root, "myproj", "bot", "handlers", "admin_staff.py"),
+            "def adm_staff_add():\n    pass\n",
+        )
 
     def cleanup(self) -> None:
         for cur, dirs, files in os.walk(self.root, topdown=False):

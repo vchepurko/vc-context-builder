@@ -31,8 +31,8 @@ import fnmatch
 import json
 import os
 import re
-from typing import Any, Dict, Iterable, List, Optional
-
+from collections.abc import Iterable
+from typing import Any, Dict, List, Optional
 
 CONFIG_RELATIVE_PATH = os.path.join(".vc-context", "conventions.json")
 
@@ -41,15 +41,25 @@ VALID_RULE_KEYS = ("forbid_import", "forbid_call", "forbid_decorator_regex")
 
 # Project subtrees we never walk.
 IGNORE_DIRS = {
-    ".git", "node_modules", "vendor", "__pycache__",
-    "dist", "build", ".venv", "venv", ".idea", ".vscode",
-    ".ai-context", ".vc-context",
+    ".git",
+    "node_modules",
+    "vendor",
+    "__pycache__",
+    "dist",
+    "build",
+    ".venv",
+    "venv",
+    ".idea",
+    ".vscode",
+    ".ai-context",
+    ".vc-context",
 }
 
 
 # ----------------------------------------------------------------------
 # Config loading
 # ----------------------------------------------------------------------
+
 
 def load_rules(project_root: str) -> List[Dict[str, Any]]:
     """Return the rule list from ``.vc-context/conventions.json``.
@@ -62,7 +72,7 @@ def load_rules(project_root: str) -> List[Dict[str, Any]]:
     if not os.path.isfile(config_path):
         return []
     try:
-        with open(config_path, "r", encoding="utf-8") as fh:
+        with open(config_path, encoding="utf-8") as fh:
             data = json.load(fh)
     except (OSError, json.JSONDecodeError):
         return []
@@ -98,22 +108,25 @@ def load_rules(project_root: str) -> List[Dict[str, Any]]:
                 if not any(r.get(k) for k in ("forbid_import", "forbid_call")):
                     continue
 
-        cleaned.append({
-            "id": rule_id,
-            "description": r.get("description") or "",
-            "match_path": match_path,
-            "severity": severity,
-            "forbid_import": r.get("forbid_import"),
-            "forbid_call": r.get("forbid_call"),
-            "forbid_decorator_regex": forbid_decorator_regex_raw,
-            "_decorator_pattern": forbid_decorator_pattern,
-        })
+        cleaned.append(
+            {
+                "id": rule_id,
+                "description": r.get("description") or "",
+                "match_path": match_path,
+                "severity": severity,
+                "forbid_import": r.get("forbid_import"),
+                "forbid_call": r.get("forbid_call"),
+                "forbid_decorator_regex": forbid_decorator_regex_raw,
+                "_decorator_pattern": forbid_decorator_pattern,
+            }
+        )
     return cleaned
 
 
 # ----------------------------------------------------------------------
 # Glob matching
 # ----------------------------------------------------------------------
+
 
 def _glob_match(rel_path: str, pattern: str) -> bool:
     """``fnmatch`` extended to support ``**`` segments.
@@ -139,7 +152,7 @@ def _glob_match(rel_path: str, pattern: str) -> bool:
     # leftmost ``**`` and recurse so nested cases work too.
     idx = pat.find("**")
     before = pat[:idx]
-    after = pat[idx + 2:]
+    after = pat[idx + 2 :]
 
     # Variant 1: ``**`` is zero segments. Adjacent slashes collapse —
     # ``a/**/b`` becomes ``a/b``, ``**/b`` becomes ``b``.
@@ -172,6 +185,7 @@ def _glob_match(rel_path: str, pattern: str) -> bool:
 # Per-file scanning
 # ----------------------------------------------------------------------
 
+
 def _iter_python_files(project_root: str) -> Iterable[str]:
     for cur, dirs, files in os.walk(project_root):
         dirs[:] = [d for d in dirs if d not in IGNORE_DIRS]
@@ -188,8 +202,9 @@ def _rel(path: str, project_root: str) -> str:
     return rel.replace(os.sep, "/")
 
 
-def _scan_file(file_path: str, source: str, applicable: List[Dict[str, Any]],
-               rel_path: str) -> List[Dict[str, Any]]:
+def _scan_file(
+    file_path: str, source: str, applicable: List[Dict[str, Any]], rel_path: str
+) -> List[Dict[str, Any]]:
     """Return violation records for one file.
 
     ``applicable`` is the subset of rules whose ``match_path`` already
@@ -220,10 +235,14 @@ def _scan_file(file_path: str, source: str, applicable: List[Dict[str, Any]],
                 for rule in forbid_decorators:
                     pat = rule["_decorator_pattern"]
                     if pat.search(dec_text):
-                        out.append(_record(
-                            rule, rel_path, getattr(dec, "lineno", node.lineno),
-                            f"forbidden decorator pattern: {dec_text}",
-                        ))
+                        out.append(
+                            _record(
+                                rule,
+                                rel_path,
+                                getattr(dec, "lineno", node.lineno),
+                                f"forbidden decorator pattern: {dec_text}",
+                            )
+                        )
 
     if forbid_imports:
         for node in ast.walk(tree):
@@ -232,17 +251,25 @@ def _scan_file(file_path: str, source: str, applicable: List[Dict[str, Any]],
                     head = alias.name.split(".", 1)[0]
                     for rule in forbid_imports:
                         target = rule["forbid_import"]
-                        if head == target or alias.name == target or alias.name.startswith(target + "."):
-                            out.append(_record(rule, rel_path, node.lineno,
-                                               f"forbidden import: {alias.name}"))
+                        if (
+                            head == target
+                            or alias.name == target
+                            or alias.name.startswith(target + ".")
+                        ):
+                            out.append(
+                                _record(
+                                    rule, rel_path, node.lineno, f"forbidden import: {alias.name}"
+                                )
+                            )
             elif isinstance(node, ast.ImportFrom):
                 mod = node.module or ""
                 head = mod.split(".", 1)[0] if mod else ""
                 for rule in forbid_imports:
                     target = rule["forbid_import"]
                     if mod and (head == target or mod == target or mod.startswith(target + ".")):
-                        out.append(_record(rule, rel_path, node.lineno,
-                                           f"forbidden import: from {mod}"))
+                        out.append(
+                            _record(rule, rel_path, node.lineno, f"forbidden import: from {mod}")
+                        )
 
     if forbid_calls:
         for node in ast.walk(tree):
@@ -254,8 +281,9 @@ def _scan_file(file_path: str, source: str, applicable: List[Dict[str, Any]],
             for rule in forbid_calls:
                 target = rule["forbid_call"]
                 if called == target:
-                    out.append(_record(rule, rel_path, node.lineno,
-                                       f"forbidden call: {target}(...)"))
+                    out.append(
+                        _record(rule, rel_path, node.lineno, f"forbidden call: {target}(...)")
+                    )
 
     return out
 
@@ -290,6 +318,7 @@ def _record(rule: Dict[str, Any], file_path: str, line: int, message: str) -> Di
 # Entry point
 # ----------------------------------------------------------------------
 
+
 def lint_project(project_root: str) -> List[Dict[str, Any]]:
     """Run all rules across every Python file under ``project_root``.
 
@@ -307,7 +336,7 @@ def lint_project(project_root: str) -> List[Dict[str, Any]]:
         if not applicable:
             continue
         try:
-            with open(full, "r", encoding="utf-8") as fh:
+            with open(full, encoding="utf-8") as fh:
                 source = fh.read()
         except OSError:
             continue

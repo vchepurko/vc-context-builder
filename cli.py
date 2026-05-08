@@ -29,12 +29,12 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 if _HERE not in sys.path:
     sys.path.insert(0, _HERE)
 
-from query_engine import QueryEngine  # noqa: E402
-
+from query_engine import QueryEngine
 
 # ----------------------------------------------------------------------
 # Output helpers
 # ----------------------------------------------------------------------
+
 
 def _emit_json(payload: Any) -> None:
     json.dump(payload, sys.stdout, indent=2, ensure_ascii=False, sort_keys=False)
@@ -70,8 +70,10 @@ def _print_symbol(name: str, entry: Dict[str, Any]) -> None:
     # (HIDE_BY_DEFAULT keeps them off the lean response).
     callees = entry.get("callees")
     if callees:
-        print(f"  callees ({len(callees)}): {', '.join(callees[:8])}"
-              + (" ..." if len(callees) > 8 else ""))
+        print(
+            f"  callees ({len(callees)}): {', '.join(callees[:8])}"
+            + (" ..." if len(callees) > 8 else "")
+        )
     raises = entry.get("raises")
     if raises:
         print(f"  raises: {', '.join(raises)}")
@@ -146,6 +148,7 @@ def _print_modules(modules: List[str]) -> None:
 # Subcommand handlers
 # ----------------------------------------------------------------------
 
+
 def _engine(args: argparse.Namespace) -> QueryEngine:
     return QueryEngine(args.root)
 
@@ -154,7 +157,8 @@ def cmd_find(args: argparse.Namespace) -> int:
     engine = _engine(args)
     fields = (
         [f.strip() for f in args.fields.split(",") if f.strip()]
-        if getattr(args, "fields", None) else None
+        if getattr(args, "fields", None)
+        else None
     )
     entry = engine.find_symbol(
         args.symbol,
@@ -233,8 +237,10 @@ def cmd_card(args: argparse.Namespace) -> int:
         print(f"  doc: {card['doc']}")
     callees = card.get("callees") or []
     if callees:
-        print(f"  callees ({len(callees)}): {', '.join(callees[:8])}"
-              + (" ..." if len(callees) > 8 else ""))
+        print(
+            f"  callees ({len(callees)}): {', '.join(callees[:8])}"
+            + (" ..." if len(callees) > 8 else "")
+        )
     raises = card.get("raises") or []
     if raises:
         print(f"  raises: {', '.join(raises)}")
@@ -344,17 +350,15 @@ def cmd_repo_map(args: argparse.Namespace) -> int:
     width = max(len(m["path"]) for m in modules)
     for m in modules:
         dom = f"  [{m['dominant_role']}]" if m.get("dominant_role") else ""
-        print(
-            f"  {m['path'].ljust(width)}  "
-            f"{m['files']:>3} files  {m['exports']:>3} exports{dom}"
-        )
+        print(f"  {m['path'].ljust(width)}  {m['files']:>3} files  {m['exports']:>3} exports{dom}")
     return 0
 
 
 def cmd_stats(args: argparse.Namespace) -> int:
     engine = _engine(args)
     out = engine.get_session_metrics(
-        since=args.since, group_by=args.by,
+        since=args.since,
+        group_by=args.by,
         quality=bool(getattr(args, "quality", False)),
     )
     if args.json:
@@ -377,7 +381,9 @@ def cmd_stats(args: argparse.Namespace) -> int:
         width = max(len(k) for k in buckets)
         # Sort by call count descending — top consumers first.
         rows = sorted(
-            buckets.items(), key=lambda kv: kv[1].get("calls", 0), reverse=True,
+            buckets.items(),
+            key=lambda kv: kv[1].get("calls", 0),
+            reverse=True,
         )
         for key, stats in rows:
             n = stats.get("calls", 0)
@@ -393,9 +399,7 @@ def cmd_stats(args: argparse.Namespace) -> int:
     quality = out.get("quality")
     if quality:
         print()
-        print(
-            f"--- quality: {quality.get('total_findings', 0)} finding(s) ---"
-        )
+        print(f"--- quality: {quality.get('total_findings', 0)} finding(s) ---")
         for kind in ("wasteful_pairs", "hot_rereads", "empty_streaks"):
             findings = quality.get(kind) or []
             if not findings:
@@ -499,6 +503,7 @@ def cmd_build(args: argparse.Namespace) -> int:
 # Feature A — convention linter
 # ----------------------------------------------------------------------
 
+
 def _print_violations(violations: List[Dict[str, Any]]) -> None:
     if not violations:
         print("No violations.")
@@ -525,12 +530,14 @@ def cmd_lint(args: argparse.Namespace) -> int:
     # Exit 1 on any error-severity hit, 0 otherwise (warn/info don't
     # break CI by default).
     from conventions import has_error  # type: ignore[import-not-found]
+
     return 1 if has_error(violations) else 0
 
 
 # ----------------------------------------------------------------------
 # Feature B — test linking
 # ----------------------------------------------------------------------
+
 
 def cmd_test(args: argparse.Namespace) -> int:
     engine = _engine(args)
@@ -574,6 +581,7 @@ def cmd_coverage(args: argparse.Namespace) -> int:
 # ----------------------------------------------------------------------
 # Feature C — route bridge
 # ----------------------------------------------------------------------
+
 
 def _print_route(entry: Dict[str, Any]) -> None:
     print(f"  path:    {entry.get('path')}")
@@ -624,18 +632,21 @@ def cmd_route_callers(args: argparse.Namespace) -> int:
 # Argparse wiring
 # ----------------------------------------------------------------------
 
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="vc-context",
         description="Query the vc-context-builder artifacts without "
-                    "loading the JSON into your context window.",
+        "loading the JSON into your context window.",
     )
     parser.add_argument(
-        "--root", default=os.getcwd(),
+        "--root",
+        default=os.getcwd(),
         help="Project root that contains agent_root.json (default: cwd).",
     )
     parser.add_argument(
-        "--json", action="store_true",
+        "--json",
+        action="store_true",
         help="Emit raw JSON instead of a human-readable rendering.",
     )
 
@@ -646,10 +657,11 @@ def _build_parser() -> argparse.ArgumentParser:
     p_find.add_argument(
         "--fields",
         help="Comma-separated whitelist (e.g. file,line,kind). "
-             "Default = full record minus fact fields.",
+        "Default = full record minus fact fields.",
     )
     p_find.add_argument(
-        "--body", action="store_true",
+        "--body",
+        action="store_true",
         help="Embed verbatim source body in the response.",
     )
     p_find.set_defaults(handler=cmd_find)
@@ -700,7 +712,8 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Symbols touched by `git diff <base>..HEAD` (default: working tree).",
     )
     p_changed.add_argument(
-        "--base", default=None,
+        "--base",
+        default=None,
         help="Git ref to diff against (e.g. main, origin/main). Default: working tree.",
     )
     p_changed.set_defaults(handler=cmd_changed)
@@ -723,15 +736,19 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Aggregate per-call MCP telemetry (calls, tokens, latency).",
     )
     p_stats.add_argument(
-        "--since", default="today",
+        "--since",
+        default="today",
         help="24h | 7d | today | all (default today).",
     )
     p_stats.add_argument(
-        "--by", default="tool", choices=("tool", "hour", "empty"),
+        "--by",
+        default="tool",
+        choices=("tool", "hour", "empty"),
         help="Group buckets by (default tool).",
     )
     p_stats.add_argument(
-        "--quality", action="store_true",
+        "--quality",
+        action="store_true",
         help="Add Phase-2 quality findings (wasteful pairs, hot rereads, empty streaks).",
     )
     p_stats.set_defaults(handler=cmd_stats)
@@ -799,8 +816,7 @@ def main(argv: Optional[List[str]] = None) -> int:
         return args.handler(args)
     except FileNotFoundError as exc:
         print(f"vc-context: missing artifact — {exc}", file=sys.stderr)
-        print("Hint: run `vc-context build` (or python3 .ai-context/agent_map.py)",
-              file=sys.stderr)
+        print("Hint: run `vc-context build` (or python3 .ai-context/agent_map.py)", file=sys.stderr)
         return 2
 
 

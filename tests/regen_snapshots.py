@@ -25,7 +25,7 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _SUBMODULE = os.path.dirname(_HERE)
 sys.path.insert(0, _SUBMODULE)
 
-from mcp_server import _tool_specs  # noqa: E402
+from mcp_server import _tool_specs
 
 
 def _tools_list_snapshot() -> list[str]:
@@ -45,7 +45,7 @@ def _write(name: str, payload: object) -> None:
 
 
 def _read(name: str) -> object:
-    with open(_path(name), "r", encoding="utf-8") as fh:
+    with open(_path(name), encoding="utf-8") as fh:
         return json.load(fh)
 
 

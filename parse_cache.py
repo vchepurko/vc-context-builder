@@ -87,7 +87,7 @@ def load(project_root: str) -> Dict[str, Any]:
     if not os.path.isfile(path):
         return empty
     try:
-        with open(path, "r", encoding="utf-8") as fh:
+        with open(path, encoding="utf-8") as fh:
             data = json.load(fh)
     except (OSError, json.JSONDecodeError):
         return empty
@@ -120,7 +120,9 @@ def save(project_root: str, cache: Dict[str, Any]) -> None:
 
 
 def get(
-    cache: Dict[str, Any], rel_path: str, abs_path: str,
+    cache: Dict[str, Any],
+    rel_path: str,
+    abs_path: str,
 ) -> Optional[Dict[str, Any]]:
     """Look up the cached ``{exports, dependencies}`` payload for a file.
 
@@ -144,7 +146,10 @@ def get(
 
 
 def put(
-    cache: Dict[str, Any], rel_path: str, abs_path: str, result: Dict[str, Any],
+    cache: Dict[str, Any],
+    rel_path: str,
+    abs_path: str,
+    result: Dict[str, Any],
 ) -> None:
     """Store the parsed payload for a file under its current
     ``(mtime, size)``.  No-op when the file no longer exists at the

@@ -33,26 +33,35 @@ import ast
 import json
 import os
 import re
-from typing import Any, Dict, Iterable, List, Optional, Tuple
-
+from collections.abc import Iterable
+from typing import Any, Dict, List, Optional, Tuple
 
 ROUTES_FILENAME = "agent_routes.json"
 
 IGNORE_DIRS = {
-    ".git", "node_modules", "vendor", "__pycache__",
-    "dist", "build", ".venv", "venv", ".idea", ".vscode",
-    ".ai-context", ".vc-context",
+    ".git",
+    "node_modules",
+    "vendor",
+    "__pycache__",
+    "dist",
+    "build",
+    ".venv",
+    "venv",
+    ".idea",
+    ".vscode",
+    ".ai-context",
+    ".vc-context",
 }
 
 # Decorator method names that mark a FastAPI HTTP route. (Mirrors
 # ``symbols.py`` — kept local to dodge a circular import risk.)
-HTTP_METHODS = {"get", "post", "put", "delete", "patch",
-                "options", "head", "trace", "api_route"}
+HTTP_METHODS = {"get", "post", "put", "delete", "patch", "options", "head", "trace", "api_route"}
 
 
 # ----------------------------------------------------------------------
 # Python side: pull route paths from decorators
 # ----------------------------------------------------------------------
+
 
 def _iter_python_files(project_root: str) -> Iterable[str]:
     for cur, dirs, files in os.walk(project_root):
@@ -92,7 +101,7 @@ def collect_python_routes(project_root: str) -> List[Dict[str, Any]]:
     out: List[Dict[str, Any]] = []
     for full in _iter_python_files(project_root):
         try:
-            with open(full, "r", encoding="utf-8") as fh:
+            with open(full, encoding="utf-8") as fh:
                 source = fh.read()
         except OSError:
             continue
@@ -113,13 +122,15 @@ def collect_python_routes(project_root: str) -> List[Dict[str, Any]]:
                 if not url_path or not url_path.startswith("/"):
                     continue
                 rel = os.path.relpath(full, project_root).replace(os.sep, "/")
-                out.append({
-                    "path": url_path,
-                    "method": method.upper(),
-                    "handler": node.name,
-                    "file": rel,
-                    "line": node.lineno,
-                })
+                out.append(
+                    {
+                        "path": url_path,
+                        "method": method.upper(),
+                        "handler": node.name,
+                        "file": rel,
+                        "line": node.lineno,
+                    }
+                )
     # Stable order so artifacts diff cleanly.
     out.sort(key=lambda r: (r["path"], r["method"], r["file"]))
     return out
@@ -189,7 +200,7 @@ def collect_js_calls(project_root: str) -> List[Dict[str, Any]]:
     out: List[Dict[str, Any]] = []
     for full in _iter_js_files(project_root):
         try:
-            with open(full, "r", encoding="utf-8") as fh:
+            with open(full, encoding="utf-8") as fh:
                 source = fh.read()
         except OSError:
             continue
@@ -199,24 +210,28 @@ def collect_js_calls(project_root: str) -> List[Dict[str, Any]]:
             url = m.group("url")
             if not url.startswith("/"):
                 continue  # absolute URLs don't belong to our backend
-            out.append({
-                "file": rel,
-                "line": _line_for(source, m.start()),
-                "raw": url,
-                "prefix": _strip_templates(url),
-                "verb": "fetch",
-            })
+            out.append(
+                {
+                    "file": rel,
+                    "line": _line_for(source, m.start()),
+                    "raw": url,
+                    "prefix": _strip_templates(url),
+                    "verb": "fetch",
+                }
+            )
         for m in _VERB_RE.finditer(source):
             url = m.group("url")
             if not url.startswith("/"):
                 continue
-            out.append({
-                "file": rel,
-                "line": _line_for(source, m.start()),
-                "raw": url,
-                "prefix": _strip_templates(url),
-                "verb": m.group("verb").lower(),
-            })
+            out.append(
+                {
+                    "file": rel,
+                    "line": _line_for(source, m.start()),
+                    "raw": url,
+                    "prefix": _strip_templates(url),
+                    "verb": m.group("verb").lower(),
+                }
+            )
     out.sort(key=lambda r: (r["file"], r["line"]))
     return out
 
@@ -260,7 +275,7 @@ def match_calls_to_routes(
     verb — bare ``fetch`` matches any verb).
     """
     # Pre-compile route patterns once.
-    compiled: List[Tuple[Dict[str, Any], "re.Pattern[str]"]] = [
+    compiled: List[Tuple[Dict[str, Any], re.Pattern[str]]] = [
         (r, re.compile(_route_to_pattern(r["path"]))) for r in routes
     ]
     # Build initial route entries.
@@ -313,6 +328,7 @@ def match_calls_to_routes(
 # Build entry point
 # ----------------------------------------------------------------------
 
+
 def build_route_index(project_root: str) -> Dict[str, Dict[str, Any]]:
     routes = collect_python_routes(project_root)
     js_calls = collect_js_calls(project_root)
@@ -327,6 +343,7 @@ def build_route_index(project_root: str) -> Dict[str, Dict[str, Any]]:
         collect_python_calls,
         load_http_clients,
     )
+
     specs = load_http_clients(project_root)
     if specs:
         py_calls = collect_python_calls(project_root, specs)
@@ -347,6 +364,7 @@ def write_route_index(project_root: str, index: Dict[str, Any]) -> str:
 # ----------------------------------------------------------------------
 # Reverse query helpers (used by QueryEngine)
 # ----------------------------------------------------------------------
+
 
 def find_route_for_path(index: Dict[str, Dict[str, Any]], path: str) -> Optional[Dict[str, Any]]:
     """Return the route record for a given URL path (or method-prefixed key).

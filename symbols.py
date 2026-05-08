@@ -22,26 +22,41 @@ import os
 import re
 from typing import Optional, Set
 
-
 # ---------------------------------------------------------------------------
 # Decorator-driven roles
 # ---------------------------------------------------------------------------
 
 # Decorator method names that mark a FastAPI HTTP route.
 _FASTAPI_METHODS = {
-    "get", "post", "put", "delete", "patch",
-    "options", "head", "trace", "api_route",
+    "get",
+    "post",
+    "put",
+    "delete",
+    "patch",
+    "options",
+    "head",
+    "trace",
+    "api_route",
 }
 
 # Aiogram v3 router methods.
 _AIOGRAM_METHODS = {
-    "message", "callback_query", "edited_message",
-    "channel_post", "edited_channel_post",
-    "inline_query", "chosen_inline_result",
-    "shipping_query", "pre_checkout_query",
-    "poll", "poll_answer", "my_chat_member",
-    "chat_member", "chat_join_request",
-    "errors", "error",
+    "message",
+    "callback_query",
+    "edited_message",
+    "channel_post",
+    "edited_channel_post",
+    "inline_query",
+    "chosen_inline_result",
+    "shipping_query",
+    "pre_checkout_query",
+    "poll",
+    "poll_answer",
+    "my_chat_member",
+    "chat_member",
+    "chat_join_request",
+    "errors",
+    "error",
 }
 
 # Decorator base names (`<base>.<method>`) that look like a FastAPI router.
@@ -253,6 +268,7 @@ def is_webhook_function(node: ast.AST) -> bool:
 # Path-driven roles (file-path heuristics)
 # ---------------------------------------------------------------------------
 
+
 def _normalise(path: str) -> str:
     """Forward-slash, leading-./ stripped, lowercase."""
     p = path.replace(os.sep, "/")
@@ -281,7 +297,7 @@ def path_role(file_path: str) -> Optional[str]:
 
     # Look for the marker subsequence anywhere in the path.
     for i in range(len(parts) - 1):
-        segment = parts[i:i + 2]
+        segment = parts[i : i + 2]
         if segment == ["alembic", "versions"]:
             return "migration"
         if segment == ["database", "repositories"]:
@@ -304,6 +320,7 @@ def path_role(file_path: str) -> Optional[str]:
 # ---------------------------------------------------------------------------
 # Cross-file scheduler-job scan
 # ---------------------------------------------------------------------------
+
 
 def _is_scheduler_add_job_call(node: ast.AST) -> bool:
     """Match `<anything>.add_job(...)` — generous on the receiver name
@@ -357,8 +374,16 @@ def extract_scheduler_jobs_from_codebase(
     parser can tag those callables with ``role: scheduler-job``.
     """
     ignore = set(ignore_dirs or ()) | {
-        ".git", "node_modules", "vendor", "__pycache__",
-        "dist", "build", ".venv", "venv", ".idea", ".vscode",
+        ".git",
+        "node_modules",
+        "vendor",
+        "__pycache__",
+        "dist",
+        "build",
+        ".venv",
+        "venv",
+        ".idea",
+        ".vscode",
     }
 
     found: Set[str] = set()
@@ -370,7 +395,7 @@ def extract_scheduler_jobs_from_codebase(
                 continue
             full = os.path.join(cur, f)
             try:
-                with open(full, "r", encoding="utf-8") as fp:
+                with open(full, encoding="utf-8") as fp:
                     src = fp.read()
             except OSError:
                 continue

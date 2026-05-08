@@ -20,7 +20,6 @@ import os
 import re
 from typing import Any, Dict, Optional
 
-
 # Common Python logging line shapes we accept. Built-in formatters write:
 #
 #   2026-05-04 19:43:27,979 [INFO] bot.middlewares.diag_message: msg

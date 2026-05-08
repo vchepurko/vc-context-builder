@@ -10,6 +10,7 @@ Synthetic fixture project:
                                   via built-in, but we override)
       handlers.py               — Python file, gets one Python rule
 """
+
 import json
 import os
 import shutil
@@ -20,18 +21,18 @@ import unittest
 # Ensure imports resolve when running via `python3 -m unittest …`.
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+from agent_map import ContextBuilder
 from custom_roles import (
     CustomRole,
     apply_custom_roles,
     load_custom_roles,
     should_override_builtin,
 )
-from agent_map import ContextBuilder
-
 
 # ---------------------------------------------------------------------------
 # Pure-function tests (no fixture project)
 # ---------------------------------------------------------------------------
+
 
 class LoadCustomRolesTests(unittest.TestCase):
     def setUp(self):
@@ -66,59 +67,73 @@ class LoadCustomRolesTests(unittest.TestCase):
         # `(unclosed` is invalid; rule still loads with other matchers
         # but the bad pattern is dropped. We need at least one good
         # matcher to survive.
-        self._write_config({"roles": [{
-            "id": "broken",
-            "match_decorator_or_call": "(unclosed",
-            "match_path": "**/*.py",
-        }]})
+        self._write_config(
+            {
+                "roles": [
+                    {
+                        "id": "broken",
+                        "match_decorator_or_call": "(unclosed",
+                        "match_path": "**/*.py",
+                    }
+                ]
+            }
+        )
         rules = load_custom_roles(self.tmp)
         self.assertEqual(len(rules), 1)
         self.assertIsNone(rules[0].match_decorator_or_call)
         self.assertEqual(rules[0].match_path, "**/*.py")
 
     def test_rules_sorted_by_priority_desc(self):
-        self._write_config({"roles": [
-            {"id": "low", "match_path": "**/*", "priority": 1},
-            {"id": "high", "match_path": "**/*", "priority": 10},
-            {"id": "mid", "match_path": "**/*", "priority": 5},
-        ]})
+        self._write_config(
+            {
+                "roles": [
+                    {"id": "low", "match_path": "**/*", "priority": 1},
+                    {"id": "high", "match_path": "**/*", "priority": 10},
+                    {"id": "mid", "match_path": "**/*", "priority": 5},
+                ]
+            }
+        )
         rules = load_custom_roles(self.tmp)
         self.assertEqual([r.id for r in rules], ["high", "mid", "low"])
 
 
 class ApplyCustomRolesTests(unittest.TestCase):
     def test_returns_none_when_no_rules(self):
-        self.assertIsNone(apply_custom_roles({"name": "x", "kind": "func"},
-                                              "x.py", "", []))
+        self.assertIsNone(apply_custom_roles({"name": "x", "kind": "func"}, "x.py", "", []))
 
     def test_path_glob_with_braces(self):
         rule = CustomRole(id="js-or-ts", match_path="**/*.{js,ts}")
         self.assertEqual(
-            apply_custom_roles({"name": "x", "kind": "func"},
-                               "/abs/src/foo.ts", "", [rule],
-                               project_root="/abs"),
+            apply_custom_roles(
+                {"name": "x", "kind": "func"}, "/abs/src/foo.ts", "", [rule], project_root="/abs"
+            ),
             "js-or-ts",
         )
         self.assertEqual(
-            apply_custom_roles({"name": "x", "kind": "func"},
-                               "/abs/src/foo.js", "", [rule],
-                               project_root="/abs"),
+            apply_custom_roles(
+                {"name": "x", "kind": "func"}, "/abs/src/foo.js", "", [rule], project_root="/abs"
+            ),
             "js-or-ts",
         )
         # `.tsx` shouldn't match the {js,ts} alternation.
-        self.assertIsNone(apply_custom_roles(
-            {"name": "x", "kind": "func"},
-            "/abs/src/foo.tsx", "", [rule], project_root="/abs",
-        ))
+        self.assertIsNone(
+            apply_custom_roles(
+                {"name": "x", "kind": "func"},
+                "/abs/src/foo.tsx",
+                "",
+                [rule],
+                project_root="/abs",
+            )
+        )
 
     def test_priority_resolves_conflict(self):
         import re as _re
+
         low = CustomRole(id="low", priority=1, match_function_name=_re.compile("^foo"))
         high = CustomRole(id="high", priority=9, match_function_name=_re.compile("^foo"))
         # Rules unsorted on purpose — apply_custom_roles must scan all
         # before returning.
-        result = apply_custom_roles({"name": "foo_bar", "kind": "func"},
-                                     "x.py", "", [low, high])
+        result = apply_custom_roles({"name": "foo_bar", "kind": "func"}, "x.py", "", [low, high])
         self.assertEqual(result, "high")
 
     def test_should_override_builtin_priority_rule(self):
@@ -131,6 +146,7 @@ class ApplyCustomRolesTests(unittest.TestCase):
 # ---------------------------------------------------------------------------
 # End-to-end tests via ContextBuilder
 # ---------------------------------------------------------------------------
+
 
 class BuilderWithCustomRolesTests(unittest.TestCase):
     """Spin up a synthetic project and run the full builder."""
@@ -218,13 +234,11 @@ class BuilderWithCustomRolesTests(unittest.TestCase):
         ContextBuilder(self.tmp).run()
         m = self._read_module_map("src")
         # `Button` still gets a role from the built-in detector.
-        button = next(e for e in m["files"]["Button.jsx"]["exports"]
-                      if e["name"] == "Button")
+        button = next(e for e in m["files"]["Button.jsx"]["exports"] if e["name"] == "Button")
         self.assertEqual(button.get("role"), "react-component")
         # `handleHello` gets `express-route` from the built-in detector
         # (registration site).
-        hello = next(e for e in m["files"]["app.js"]["exports"]
-                      if e["name"] == "handleHello")
+        hello = next(e for e in m["files"]["app.js"]["exports"] if e["name"] == "handleHello")
         self.assertEqual(hello.get("role"), "express-route")
 
 

@@ -14,7 +14,7 @@ _SUBMODULE = os.path.dirname(_HERE)
 if _SUBMODULE not in sys.path:
     sys.path.insert(0, _SUBMODULE)
 
-from query_engine import QueryEngine  # noqa: E402
+from query_engine import QueryEngine
 
 
 def _write(path: str, payload) -> None:
@@ -67,50 +67,55 @@ class FixtureMixin:
         _write(os.path.join(tmp, "agent_symbols.json"), agent_symbols)
 
         # Module map for pkg_a
-        _write(os.path.join(tmp, "pkg_a", "_module_map.json"), {
-            "directory": "./pkg_a",
-            "files": {
-                "webhooks.py": {
-                    "exports": [
-                        {
-                            "name": "liqpay_callback",
-                            "kind": "async-func",
-                            "params": "(request)",
-                            "doc": "Handle LiqPay webhook.\nMore detail.",
-                            "role": "webhook",
-                        },
-                        {
-                            "name": "monobank_callback",
-                            "kind": "async-func",
-                            "role": "webhook",
-                        },
-                    ],
-                    "dependencies": ["pkg_b"],
+        _write(
+            os.path.join(tmp, "pkg_a", "_module_map.json"),
+            {
+                "directory": "./pkg_a",
+                "files": {
+                    "webhooks.py": {
+                        "exports": [
+                            {
+                                "name": "liqpay_callback",
+                                "kind": "async-func",
+                                "params": "(request)",
+                                "doc": "Handle LiqPay webhook.\nMore detail.",
+                                "role": "webhook",
+                            },
+                            {
+                                "name": "monobank_callback",
+                                "kind": "async-func",
+                                "role": "webhook",
+                            },
+                        ],
+                        "dependencies": ["pkg_b"],
+                    },
                 },
             },
-        })
+        )
 
         # Module map for pkg_b — pkg_b/routes.py imports pkg_a.
-        _write(os.path.join(tmp, "pkg_b", "_module_map.json"), {
-            "directory": "./pkg_b",
-            "files": {
-                "routes.py": {
-                    "exports": [
-                        {"name": "index_route", "kind": "async-func", "role": "route"}
-                    ],
-                    "dependencies": ["pkg_a", "liqpay_callback"],
-                },
-                "utils.py": {
-                    "exports": [{"name": "helper_lib", "kind": "func"}],
-                    "dependencies": [],
+        _write(
+            os.path.join(tmp, "pkg_b", "_module_map.json"),
+            {
+                "directory": "./pkg_b",
+                "files": {
+                    "routes.py": {
+                        "exports": [{"name": "index_route", "kind": "async-func", "role": "route"}],
+                        "dependencies": ["pkg_a", "liqpay_callback"],
+                    },
+                    "utils.py": {
+                        "exports": [{"name": "helper_lib", "kind": "func"}],
+                        "dependencies": [],
+                    },
                 },
             },
-        })
+        )
 
         return tmp
 
     def _cleanup(self, tmp: str) -> None:
         import shutil
+
         shutil.rmtree(tmp, ignore_errors=True)
 
 

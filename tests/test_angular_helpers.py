@@ -20,7 +20,7 @@ import unittest
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(_HERE))
 
-from query_engine import QueryEngine  # noqa: E402
+from query_engine import QueryEngine
 
 
 def _write(path: str, payload: object) -> None:
@@ -37,94 +37,110 @@ class AngularFixtureMixin:
         tmp = tempfile.mkdtemp(prefix="vc-context-ng-")
         self.addCleanup(self._cleanup, tmp)
 
-        _write(os.path.join(tmp, "agent_root.json"), {
-            "project_root": tmp,
-            "modules": [".", "./src/app"],
-            "entry_instruction": "...",
-            "roles": {
-                "ng-component": ["CartItemComponent", "OrderListComponent"],
-                "ng-service":   ["CartService", "AuthService"],
-                "ng-pipe":      ["MoneyPipe"],
-                "ng-directive": ["AutofocusDirective"],
-                "ng-guard":     ["AuthGuard"],
+        _write(
+            os.path.join(tmp, "agent_root.json"),
+            {
+                "project_root": tmp,
+                "modules": [".", "./src/app"],
+                "entry_instruction": "...",
+                "roles": {
+                    "ng-component": ["CartItemComponent", "OrderListComponent"],
+                    "ng-service": ["CartService", "AuthService"],
+                    "ng-pipe": ["MoneyPipe"],
+                    "ng-directive": ["AutofocusDirective"],
+                    "ng-guard": ["AuthGuard"],
+                },
             },
-        })
+        )
 
-        _write(os.path.join(tmp, "agent_symbols.json"), {
-            "CartItemComponent": {
-                "file": "src/app/cart/cart-item.component.ts",
-                "kind": "class",
-                "role": "ng-component",
-                "ng_selector": "app-cart-item",
-                "ng_template_url": "./cart-item.component.html",
-                "ng_style_urls": ["./cart-item.component.scss"],
-                "ng_standalone": True,
-                "inputs": ["item", "currency"],
-                "outputs": ["removed", "qtyChanged"],
+        _write(
+            os.path.join(tmp, "agent_symbols.json"),
+            {
+                "CartItemComponent": {
+                    "file": "src/app/cart/cart-item.component.ts",
+                    "kind": "class",
+                    "role": "ng-component",
+                    "ng_selector": "app-cart-item",
+                    "ng_template_url": "./cart-item.component.html",
+                    "ng_style_urls": ["./cart-item.component.scss"],
+                    "ng_standalone": True,
+                    "inputs": ["item", "currency"],
+                    "outputs": ["removed", "qtyChanged"],
+                },
+                "OrderListComponent": {
+                    "file": "src/app/orders/order-list.component.ts",
+                    "kind": "class",
+                    "role": "ng-component",
+                    "ng_selector": "app-order-list",
+                    "ng_standalone": False,
+                    "inputs": ["orders"],
+                    "outputs": [],
+                },
+                "CartService": {
+                    "file": "src/app/cart/cart.service.ts",
+                    "kind": "class",
+                    "role": "ng-service",
+                    "ng_provided_in": "root",
+                },
+                "AuthService": {
+                    "file": "src/app/auth/auth.service.ts",
+                    "kind": "class",
+                    "role": "ng-service",
+                    # No providedIn — old-style providers array on a module.
+                },
+                "AuthGuard": {
+                    "file": "src/app/auth/auth.guard.ts",
+                    "kind": "func",
+                    "role": "ng-guard",
+                },
+                "MoneyPipe": {
+                    "file": "src/app/shared/money.pipe.ts",
+                    "kind": "class",
+                    "role": "ng-pipe",
+                    "ng_pipe_name": "money",
+                },
+                "AutofocusDirective": {
+                    "file": "src/app/shared/autofocus.directive.ts",
+                    "kind": "class",
+                    "role": "ng-directive",
+                    "ng_selector": "[appAutofocus]",
+                },
             },
-            "OrderListComponent": {
-                "file": "src/app/orders/order-list.component.ts",
-                "kind": "class",
-                "role": "ng-component",
-                "ng_selector": "app-order-list",
-                "ng_standalone": False,
-                "inputs": ["orders"],
-                "outputs": [],
-            },
-            "CartService": {
-                "file": "src/app/cart/cart.service.ts",
-                "kind": "class",
-                "role": "ng-service",
-                "ng_provided_in": "root",
-            },
-            "AuthService": {
-                "file": "src/app/auth/auth.service.ts",
-                "kind": "class",
-                "role": "ng-service",
-                # No providedIn — old-style providers array on a module.
-            },
-            "AuthGuard": {
-                "file": "src/app/auth/auth.guard.ts",
-                "kind": "func",
-                "role": "ng-guard",
-            },
-            "MoneyPipe": {
-                "file": "src/app/shared/money.pipe.ts",
-                "kind": "class",
-                "role": "ng-pipe",
-                "ng_pipe_name": "money",
-            },
-            "AutofocusDirective": {
-                "file": "src/app/shared/autofocus.directive.ts",
-                "kind": "class",
-                "role": "ng-directive",
-                "ng_selector": "[appAutofocus]",
-            },
-        })
+        )
 
         # Tests index — only the cart-item has a spec.
-        _write(os.path.join(tmp, "agent_tests.json"), {
-            "CartItemComponent": {
-                "test_file": "src/app/cart/cart-item.component.spec.ts",
-                "test_function": "should render item",
-                "line": 12,
+        _write(
+            os.path.join(tmp, "agent_tests.json"),
+            {
+                "CartItemComponent": {
+                    "test_file": "src/app/cart/cart-item.component.spec.ts",
+                    "test_function": "should render item",
+                    "line": 12,
+                },
             },
-        })
+        )
 
         # Module map referenced by ng_inject_graph for file scans.
-        _write(os.path.join(tmp, "src", "app", "_module_map.json"), {
-            "directory": "./src/app",
-            "files": {
-                "cart/cart.component.ts": {
-                    "exports": [{"name": "CartComponent", "kind": "class", "role": "ng-component"}],
-                    "dependencies": [],
-                },
-                "orders/order-list.component.ts": {
-                    "exports": [{"name": "OrderListComponent", "kind": "class", "role": "ng-component"}],
-                    "dependencies": [],
+        _write(
+            os.path.join(tmp, "src", "app", "_module_map.json"),
+            {
+                "directory": "./src/app",
+                "files": {
+                    "cart/cart.component.ts": {
+                        "exports": [
+                            {"name": "CartComponent", "kind": "class", "role": "ng-component"}
+                        ],
+                        "dependencies": [],
+                    },
+                    "orders/order-list.component.ts": {
+                        "exports": [
+                            {"name": "OrderListComponent", "kind": "class", "role": "ng-component"}
+                        ],
+                        "dependencies": [],
+                    },
                 },
             },
-        })
+        )
 
         # Synthetic TS source files for inject-graph scans.
         _write(
@@ -155,8 +171,8 @@ class AngularFixtureMixin:
             os.path.join(tmp, "src", "app", "cart", "cart.component.html"),
             (
                 '<div class="cart">\n'
-                "  <app-cart-item [item]=\"i\" (removed)=\"onRemove(i)\"></app-cart-item>\n"
-                "  <button [appAutofocus]=\"true\">Buy</button>\n"
+                '  <app-cart-item [item]="i" (removed)="onRemove(i)"></app-cart-item>\n'
+                '  <button [appAutofocus]="true">Buy</button>\n'
                 "</div>\n"
             ),
         )
@@ -164,7 +180,7 @@ class AngularFixtureMixin:
             os.path.join(tmp, "src", "app", "orders", "order-list.component.html"),
             (
                 "<section>\n"
-                "  <app-cart-item *ngFor=\"let it of items\" [item]=\"it\"></app-cart-item>\n"
+                '  <app-cart-item *ngFor="let it of items" [item]="it"></app-cart-item>\n'
                 "</section>\n"
             ),
         )
@@ -172,6 +188,7 @@ class AngularFixtureMixin:
 
     def _cleanup(self, tmp: str) -> None:
         import shutil
+
         shutil.rmtree(tmp, ignore_errors=True)
 
 
@@ -212,10 +229,13 @@ class NgUsesSelectorTests(AngularFixtureMixin, unittest.TestCase):
         # 2 templates each with 1 element-form usage.
         self.assertEqual(len(hits), 2)
         files = sorted({h["file"] for h in hits})
-        self.assertEqual(files, [
-            "src/app/cart/cart.component.html",
-            "src/app/orders/order-list.component.html",
-        ])
+        self.assertEqual(
+            files,
+            [
+                "src/app/cart/cart.component.html",
+                "src/app/orders/order-list.component.html",
+            ],
+        )
 
     def test_attribute_directive_form_matches(self) -> None:
         hits = self.engine.ng_uses_selector("appAutofocus")
@@ -254,10 +274,13 @@ class NgInjectGraphTests(AngularFixtureMixin, unittest.TestCase):
         kinds = {h["kind"] for h in hits}
         self.assertEqual(kinds, {"constructor", "inject"})
         files = sorted({h["file"] for h in hits})
-        self.assertEqual(files, [
-            "src/app/cart/cart.component.ts",
-            "src/app/orders/order-list.component.ts",
-        ])
+        self.assertEqual(
+            files,
+            [
+                "src/app/cart/cart.component.ts",
+                "src/app/orders/order-list.component.ts",
+            ],
+        )
 
     def test_unknown_service_returns_empty(self) -> None:
         self.assertEqual(self.engine.ng_inject_graph("UnknownService"), [])

@@ -37,7 +37,6 @@ import json
 import os
 from typing import Any, Dict, List, Optional
 
-
 LOCALES_FILENAME = "agent_locale_keys.json"
 DEFAULT_LOCALES_DIR = "locales"
 
@@ -46,7 +45,7 @@ def _read_json(path: str) -> Optional[Dict[str, Any]]:
     """Read a JSON file. Return None on missing/parse failure — the
     builder should keep going across other files."""
     try:
-        with open(path, "r", encoding="utf-8") as fh:
+        with open(path, encoding="utf-8") as fh:
             data = json.load(fh)
     except (OSError, json.JSONDecodeError):
         return None
@@ -54,7 +53,8 @@ def _read_json(path: str) -> Optional[Dict[str, Any]]:
 
 
 def _scan_layout(
-    project_root: str, locales_dir: str = DEFAULT_LOCALES_DIR,
+    project_root: str,
+    locales_dir: str = DEFAULT_LOCALES_DIR,
 ) -> Dict[str, Dict[str, Dict[str, str]]]:
     """Walk ``<root>/<locales_dir>/<lang>/<ns>.json`` and return
     nested ``{lang: {namespace: {key: value}}}``.
@@ -90,7 +90,8 @@ def _scan_layout(
 
 
 def build_locale_index(
-    project_root: str, locales_dir: str = DEFAULT_LOCALES_DIR,
+    project_root: str,
+    locales_dir: str = DEFAULT_LOCALES_DIR,
 ) -> Dict[str, Dict[str, Any]]:
     """Build the ``{key → entry}`` map for ``agent_locale_keys.json``.
 
@@ -101,7 +102,6 @@ def build_locale_index(
     if not layout:
         return {}
 
-    languages = sorted(layout.keys())
     # Map ns → set of langs that have a file for that namespace.
     # Used to compute the "missing" list correctly: if a language
     # doesn't even have the admin.json file, every admin key is
@@ -115,12 +115,15 @@ def build_locale_index(
     for lang, ns_data in layout.items():
         for ns, kv in ns_data.items():
             for key, value in kv.items():
-                entry = index.setdefault(key, {
-                    "namespace": ns,
-                    "languages": [],
-                    "values": {},
-                    "missing": [],
-                })
+                entry = index.setdefault(
+                    key,
+                    {
+                        "namespace": ns,
+                        "languages": [],
+                        "values": {},
+                        "missing": [],
+                    },
+                )
                 # If the same key appears in multiple namespaces
                 # (unusual but possible), the first-seen one wins
                 # for the canonical 'namespace' field; values still
@@ -131,7 +134,7 @@ def build_locale_index(
 
     # Compute 'missing' per entry: for the entry's namespace, which
     # languages own the namespace file but don't carry this key?
-    for key, entry in index.items():
+    for entry in index.values():
         owners = ns_owners.get(entry["namespace"], set())
         present = set(entry["languages"])
         entry["missing"] = sorted(owners - present)
@@ -175,7 +178,7 @@ def find_keys(
         return []
     needle = pattern.lower() if case_insensitive else pattern
     out = []
-    for key in index.keys():
+    for key in index:
         hay = key.lower() if case_insensitive else key
         if needle in hay:
             out.append(key)
@@ -183,7 +186,8 @@ def find_keys(
 
 
 def get_key(
-    index: Dict[str, Dict[str, Any]], key: str,
+    index: Dict[str, Dict[str, Any]],
+    key: str,
 ) -> Optional[Dict[str, Any]]:
     """Full entry for one key, or None when missing."""
     entry = index.get(key)

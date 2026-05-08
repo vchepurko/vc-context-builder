@@ -20,8 +20,8 @@ _SUBMODULE = os.path.dirname(_HERE)
 if _SUBMODULE not in sys.path:
     sys.path.insert(0, _SUBMODULE)
 
-import ruff_inspector  # noqa: E402
-from query_engine import QueryEngine  # noqa: E402
+import ruff_inspector
+from query_engine import QueryEngine
 
 
 def _fake_record(code: str, file: str, line: int = 1, message: str = "msg") -> dict:
@@ -120,10 +120,7 @@ class CollectTests(unittest.TestCase):
         self.assertNotIn("violations", out)
 
     def test_limit_caps_violations_list(self) -> None:
-        records = [
-            _fake_record("UP006", os.path.join(self.root, f"f{i}.py"))
-            for i in range(10)
-        ]
+        records = [_fake_record("UP006", os.path.join(self.root, f"f{i}.py")) for i in range(10)]
         with _patch_run(records):
             out = ruff_inspector.collect(self.root, limit=3)
         self.assertEqual(out["total"], 10)
@@ -132,10 +129,9 @@ class CollectTests(unittest.TestCase):
         self.assertEqual(out["by_code"]["UP006"], 10)
 
     def test_by_code_sorted_by_count_desc(self) -> None:
-        records = (
-            [_fake_record("UP045", os.path.join(self.root, "a.py"))] * 1
-            + [_fake_record("UP006", os.path.join(self.root, "a.py"))] * 5
-        )
+        records = [_fake_record("UP045", os.path.join(self.root, "a.py"))] * 1 + [
+            _fake_record("UP006", os.path.join(self.root, "a.py"))
+        ] * 5
         with _patch_run(records):
             out = ruff_inspector.collect(self.root)
         self.assertEqual(list(out["by_code"].keys()), ["UP006", "UP045"])
@@ -167,11 +163,15 @@ class CollectTests(unittest.TestCase):
         conv = os.path.join(self.root, ".vc-context")
         os.makedirs(conv, exist_ok=True)
         with open(os.path.join(conv, "conventions.json"), "w") as fh:
-            json.dump({"ruff": {
-                "enabled": True,
-                "command": ["poetry", "run", "ruff", "check",
-                            "--output-format=json", "."],
-            }}, fh)
+            json.dump(
+                {
+                    "ruff": {
+                        "enabled": True,
+                        "command": ["poetry", "run", "ruff", "check", "--output-format=json", "."],
+                    }
+                },
+                fh,
+            )
         cmd = ruff_inspector._load_command(self.root)
         self.assertEqual(cmd[0], "poetry")
 
