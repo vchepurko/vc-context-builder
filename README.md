@@ -50,6 +50,85 @@ Same query engine behind all three. Pick the lightest your agent supports.
 
 ---
 
+## Demo — what an agent actually sees
+
+Real output from the submodule indexing **itself**.  The CLI views
+below mirror byte-for-byte what an MCP host receives over the wire.
+
+### Symbol overview — one call, ~250 tokens
+
+```bash
+$ vc-context card QueryEngine
+QueryEngine
+  file: query_engine.py:60-1869
+  kind: class
+  doc: Lazy-loading reader over the three artifact tiers.
+  callees (102): _build_reverse_index, _by, _collect, _extract_body, ...
+  test: tests/test_class_inspector.py:143  (test_engine_round_trip)
+  callers: (none)
+```
+
+Replaces what would otherwise be `find_symbol` + `get_callees` +
+`get_raised_exceptions` + `find_test` + `who_calls` — five separate
+trips collapsed into one.
+
+### Project shape at a glance
+
+```bash
+$ vc-context repo-map
+=== 7 modules, 87 files, 348 exports ===
+  .                26 files  98 exports
+  ./mcp             6 files  15 exports
+  ./parsers        10 files  18 exports
+  ./tests          37 files 118 exports
+  ...
+```
+
+Cheapest possible "what does this project look like?" — one MCP call
+returning the same map you'd otherwise build by hand from
+`agent_root.json`.
+
+### Bounded source slice as evidence
+
+```bash
+$ vc-context slice query_engine.py 60 67
+query_engine.py:60-67
+     60  class QueryEngine:
+     61      """Lazy-loading reader over the three artifact tiers.
+     62
+     63      Parameters
+     64      ----------
+     65      project_root : str
+     66          Directory that holds ``agent_root.json``.  All other
+     67          artifacts are looked up relative to it.
+```
+
+Pair with `find_symbol(..., fields=["file","line","end_line"])` for
+the cite-the-exact-range pattern playbooks use.
+
+### Telemetry — see how the agent is using the surface
+
+```bash
+$ vc-context stats --since 24h --quality
+=== since 24h: 142 calls, ~3.2k tok, avg 6 ms, empty 9%, ok 100% ===
+  find_symbol     87  (61%)  ~1812 tok   avg 4 ms   empty 4%
+  who_calls       23  (16%)  ~480  tok   avg 7 ms   empty 22%   ← suspect
+  read_slice      18  (13%)  ~720  tok   avg 2 ms   empty 0%
+  ...
+
+--- quality: 3 finding(s) ---
+  [wasteful_pairs] (1)
+    INFO  find_symbol('QueryEngine') → read_slice within 60s; could have used include_body=true
+  [hot_rereads] (1)
+    WARN  find_symbol({'name': 'Dispatcher'}) called 4× — consider caching
+```
+
+JSONL log under `~/.vc-context/metrics/` aggregates per project, per
+day. `--quality` runs the wasteful-pair / hot-reread / empty-streak
+detectors — actual *agent quality* signals derived from real usage.
+
+---
+
 ## What gets indexed
 
 - **Python** — top-level functions / classes via `ast`, with signatures + first-line docstring + decorator-based role detection.
