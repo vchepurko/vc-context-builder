@@ -184,9 +184,11 @@ def collect_callbacks(project_root: str) -> Dict[str, List[Dict[str, Any]]]:
             for dec in node.decorator_list or ():
                 if not _is_callback_query_decorator(dec):
                     continue
-                # _is_callback_query_decorator already required ast.Call;
-                # narrow for mypy so `dec.args` is reachable.
-                assert isinstance(dec, ast.Call)
+                # Defensive narrow — `assert` would be stripped under
+                # `python -O`, but the check above already guaranteed
+                # Call shape so this `if` always falls through at runtime.
+                if not isinstance(dec, ast.Call):
+                    continue
                 # Single positional arg in the common case; iterate
                 # all so combined filters (rare) still register.
                 for arg in dec.args:

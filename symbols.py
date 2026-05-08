@@ -406,9 +406,12 @@ def extract_scheduler_jobs_from_codebase(
             for sub in ast.walk(tree):
                 if not _is_scheduler_add_job_call(sub):
                     continue
-                # _is_scheduler_add_job_call already verified Call shape;
-                # the assert is just to give mypy the narrowing it needs.
-                assert isinstance(sub, ast.Call)
+                # Defensive narrow — survives `python -O` (which strips
+                # `assert`). The check above already guaranteed Call
+                # shape, but `if not isinstance` is the runtime-safe
+                # idiom mypy also accepts as type narrowing.
+                if not isinstance(sub, ast.Call):
+                    continue
                 name = _first_arg_callable_name(sub)
                 if name:
                     found.add(name)

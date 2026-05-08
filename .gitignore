@@ -8,6 +8,10 @@ agent_callbacks.json
 agent_fsm_flows.json
 agent_locale_keys.json
 agent_test_categories.json
+# Auto-generated agent SOP — regenerated on every `agent_map.py` run.
+# Tracked in git only when teams want the SOP committed; default
+# behaviour is to skip, since the file is reproducible from source.
+AGENT_README.md
 .vc-context/_parse_cache.json
 __pycache__/
 .idea/
