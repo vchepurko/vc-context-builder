@@ -84,6 +84,31 @@ def _approx_tokens(payload_bytes: int) -> int:
     return payload_bytes // 4
 
 
+# Argument keys whose *values* we keep in the metrics line.  Picked so
+# the quality detectors can match repeated/related calls (same symbol,
+# same file) without bloating the log with arbitrary user input.
+_ARG_VALUE_KEYS = (
+    "name", "symbol", "file", "file_path", "path",
+    "role", "pattern", "decorator", "selector", "match_path",
+)
+_ARG_VALUE_MAX_CHARS = 100
+
+
+def _args_summary(args: Optional[Dict[str, Any]]) -> Dict[str, str]:
+    """Pick the value-bearing arg keys so quality detectors can match
+    repeated calls.  Strings are clamped to ``_ARG_VALUE_MAX_CHARS``;
+    everything else is ignored.  Returns ``{}`` for non-dict input.
+    """
+    if not isinstance(args, dict):
+        return {}
+    out: Dict[str, str] = {}
+    for k in _ARG_VALUE_KEYS:
+        v = args.get(k)
+        if isinstance(v, str) and v.strip():
+            out[k] = v.strip()[:_ARG_VALUE_MAX_CHARS]
+    return out
+
+
 class MetricsWriter:
     """Append-only JSONL writer scoped to one ``project_root``.
 
@@ -133,6 +158,7 @@ class MetricsWriter:
             "ts": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"),
             "tool": tool,
             "args_keys": sorted(args.keys()) if isinstance(args, dict) else [],
+            "args_summary": _args_summary(args),
             "result_bytes": result_bytes,
             "approx_tokens": _approx_tokens(result_bytes),
             "t_ms": int(t_ms),
