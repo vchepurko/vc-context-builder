@@ -1,14 +1,24 @@
-# Project config — minimal, only ruff settings (no packaging metadata).
-# vc-context-builder is stdlib-only and runs as a script, so we don't
-# declare a build system.  ruff is the only tool that benefits from
-# project-level config; everything else (mypy, unittest) reads its
-# own files.
+# Project config — only `[project]` metadata + tool settings. We
+# don't declare a build system because vc-context-builder is
+# stdlib-only and runs as a script; nothing to install.
+
+[project]
+name = "vc-context-builder"
+version = "0.5.0"
+description = "Zero-dependency code intelligence layer for LLM agents"
+requires-python = ">=3.9"
+license = {text = "MIT"}
 
 [tool.ruff]
-# Lowest supported Python — also what macOS ships system-wide. Keeps
-# auto-fixes from emitting 3.10+ syntax (PEP 604 unions, datetime.UTC
-# alias) that would break local devs without uv.  CI matrix runs
-# 3.11 + 3.13; both are syntactic supersets of py39 so we lose nothing.
+# Lowest supported Python — kept at 3.9 even though CI matrix only
+# tests 3.11 + 3.13 because:
+#   * macOS ships system Python 3.9, and `python3 -m unittest discover`
+#     should keep working out of the box for contributors.
+#   * The codebase doesn't use any 3.10+ syntax in runtime-evaluated
+#     positions (PEP 604 unions are walled off via `keep-runtime-typing`
+#     below). Tests confirm this on every push.
+# If we ever drop 3.9 support, bump to "py311" AND add py39 removal
+# to the CHANGELOG breaking-changes section.
 target-version = "py39"
 line-length = 100
 # Skip the nested ``.ai-context/`` self-index tree — it's a runtime
