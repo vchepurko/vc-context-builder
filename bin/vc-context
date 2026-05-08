@@ -5,4 +5,22 @@
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SUBMODULE="$(cd "$HERE/.." && pwd)"
-exec python3 "$SUBMODULE/cli.py" "$@"
+
+# Friendly nudge — if the index hasn't been built in the current
+# project root, every CLI command would just throw FileNotFoundError.
+# Bail early with a one-liner instead. Skip the check for `build`
+# itself (that IS the recovery command) and `--help`/`-h` so help
+# stays usable on a fresh clone.
+ROOT="${PWD}"
+case "${1:-}" in
+    build|--help|-h|help|"") ;;
+    *)
+        if [ ! -f "${ROOT}/agent_root.json" ]; then
+            echo "vc-context: no agent_root.json in $(pwd)" >&2
+            echo "  run \`vc-context build\` (or \`python3 ${SUBMODULE}/agent_map.py\`) first." >&2
+            exit 2
+        fi
+        ;;
+esac
+
+exec python3 "${SUBMODULE}/cli.py" "$@"

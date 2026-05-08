@@ -2,6 +2,32 @@
 
 Zero-dependency, auto-updating **code intelligence layer for LLM agents**.
 
+## TL;DR
+
+```bash
+# 1. Drop into your project as a submodule (or clone standalone).
+git submodule add https://github.com/<you>/vc-context-builder .ai-context
+
+# 2. Build the index — scans the project, writes agent_*.json artefacts.
+python3 .ai-context/agent_map.py
+
+# 3. Wire the MCP server in your editor (one of):
+#    Claude Code:  see MCP_SETUP.md
+#    Cursor / Continue / Codex CLI / Aider: same file, copy-paste blocks.
+
+# 4. Your agent now has ~40 tools that answer in 50–250 tokens.
+#    Example claim → evidence flow:
+find_symbol("MyClass", fields=["file","line"])  → 40 tokens
+read_slice("path/to/file.py", 42, 58)           → 200 tokens
+# vs. reading the whole file: 5,000+ tokens, no chance to cite the line.
+```
+
+Read the rest of this README for the full surface, or jump to a
+playbook in [`playbooks/`](playbooks/) when you have a concrete task
+type (bug hunt, impact analysis, refactor review).
+
+---
+
 The builder scans your project, parses ASTs + path heuristics, and emits
 three artifacts that let an agent navigate the repo **without loading the
 full source tree into its context window**:
@@ -21,6 +47,85 @@ On top of those, two query surfaces:
 | **JSON files** (fallback) | any text-LLM | reads the whole artifact (~hundreds of KB total) |
 
 Same query engine behind all three. Pick the lightest your agent supports.
+
+---
+
+## Demo — what an agent actually sees
+
+Real output from the submodule indexing **itself**.  The CLI views
+below mirror byte-for-byte what an MCP host receives over the wire.
+
+### Symbol overview — one call, ~250 tokens
+
+```bash
+$ vc-context card QueryEngine
+QueryEngine
+  file: query_engine.py:60-1869
+  kind: class
+  doc: Lazy-loading reader over the three artifact tiers.
+  callees (102): _build_reverse_index, _by, _collect, _extract_body, ...
+  test: tests/test_class_inspector.py:143  (test_engine_round_trip)
+  callers: (none)
+```
+
+Replaces what would otherwise be `find_symbol` + `get_callees` +
+`get_raised_exceptions` + `find_test` + `who_calls` — five separate
+trips collapsed into one.
+
+### Project shape at a glance
+
+```bash
+$ vc-context repo-map
+=== 7 modules, 87 files, 348 exports ===
+  .                26 files  98 exports
+  ./mcp             6 files  15 exports
+  ./parsers        10 files  18 exports
+  ./tests          37 files 118 exports
+  ...
+```
+
+Cheapest possible "what does this project look like?" — one MCP call
+returning the same map you'd otherwise build by hand from
+`agent_root.json`.
+
+### Bounded source slice as evidence
+
+```bash
+$ vc-context slice query_engine.py 60 67
+query_engine.py:60-67
+     60  class QueryEngine:
+     61      """Lazy-loading reader over the three artifact tiers.
+     62
+     63      Parameters
+     64      ----------
+     65      project_root : str
+     66          Directory that holds ``agent_root.json``.  All other
+     67          artifacts are looked up relative to it.
+```
+
+Pair with `find_symbol(..., fields=["file","line","end_line"])` for
+the cite-the-exact-range pattern playbooks use.
+
+### Telemetry — see how the agent is using the surface
+
+```bash
+$ vc-context stats --since 24h --quality
+=== since 24h: 142 calls, ~3.2k tok, avg 6 ms, empty 9%, ok 100% ===
+  find_symbol     87  (61%)  ~1812 tok   avg 4 ms   empty 4%
+  who_calls       23  (16%)  ~480  tok   avg 7 ms   empty 22%   ← suspect
+  read_slice      18  (13%)  ~720  tok   avg 2 ms   empty 0%
+  ...
+
+--- quality: 3 finding(s) ---
+  [wasteful_pairs] (1)
+    INFO  find_symbol('QueryEngine') → read_slice within 60s; could have used include_body=true
+  [hot_rereads] (1)
+    WARN  find_symbol({'name': 'Dispatcher'}) called 4× — consider caching
+```
+
+JSONL log under `~/.vc-context/metrics/` aggregates per project, per
+day. `--quality` runs the wasteful-pair / hot-reread / empty-streak
+detectors — actual *agent quality* signals derived from real usage.
 
 ---
 
@@ -501,9 +606,10 @@ $ vc-context decorated dataclass
 
 MCP equivalents: `get_symbol_card`, `get_file_card`, `repo_map`,
 `get_changed_symbols`, `get_decorated_with`. `decorators` are
-captured only on top-level declarations (matches the rest of the
-indexer); method-level decorators (`@staticmethod`, `@property`)
-don't appear.
+captured at the top level AND folded in from method-level
+decorators on the enclosing class — so `get_decorated_with(
+"staticmethod")` / `("property")` / `("abstractmethod")` find the
+class even though the indexer only carries top-level symbols.
 
 ---
 

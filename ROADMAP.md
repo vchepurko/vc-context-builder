@@ -9,7 +9,7 @@ the code — if you spot an inconsistency, file an issue.
 
 ### Indexing core
 - AST-based Python parser (top-level symbols, callees, raises,
-  decorators, line / end_line)
+  decorators including method-level fold-in, line / end_line)
 - Heuristic JS / TS parser + optional TypeScript-AST upgrade for
   Angular metadata
 - Targeted JSON parser (`package.json`, `tsconfig.json`, `composer.json`)
@@ -58,19 +58,15 @@ the code — if you spot an inconsistency, file an issue.
   indexes: `verify("calls", a, b)` / `verify("decorated", sym, dec)` /
   `verify("raises", sym, exc)` / `verify("exists", sym)`. Lets agents
   prove a claim without reading the body.
-- **Method-level decorators** — currently we only capture top-level
-  decorators (class / function). Per-method capture would unlock
-  `@staticmethod` / `@property` / `@abstractmethod` queries.
-
-### Documentation polish
-- TL;DR block at top of `README.md`
-- `CHANGELOG.md` (keep-a-changelog format) starting from v0.5.0
 
 ### Code quality
-- Split `query_engine.py` (~1800 LOC) into per-domain modules
-  (`symbols`, `cards`, `routes`, `git`)
+- **Split `query_engine.py` (~1800 LOC)** into per-domain mixins
+  (`_symbols.py` / `_project.py` / `_routes.py` / `_runtime.py`).
+  Mechanical refactor; risk-controlled by the existing 510-test
+  suite. Worth a dedicated PR — a rushed split risks behavioural
+  drift on the central engine.
 - Replace inline `import re` / `import ast` with module-level imports
-  where the perf benefit is negligible
+  where the perf benefit is negligible.
 
 ---
 

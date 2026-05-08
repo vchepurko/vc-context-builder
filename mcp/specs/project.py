@@ -1,10 +1,10 @@
-"""JSON-Schema descriptors for every MCP tool surfaced over the wire.
+"""Project-level MCP tool specs.
 
-Single ``tool_specs()`` function returning the full list. Pure data —
-no dispatch, no engine references — so the spec file can be inspected /
-diffed / snapshot-tested in isolation. Adding a tool: append a record
-here AND wire a handler in ``mcp.dispatcher`` (the parity test in
-``tests/test_mcp_server.py`` enforces both halves stay in sync).
+Everything that's not symbol-centric or Angular-specific: file / repo
+/ git navigation, role + test queries, route / aiogram bridges,
+i18n / locale lookups, lint / format / typecheck / mypy / ruff
+inspectors, the whitelisted check runner, the notification audit log,
+the per-call telemetry sidecar, and the Angular HTML template grep.
 """
 
 from __future__ import annotations
@@ -12,132 +12,8 @@ from __future__ import annotations
 from typing import Any, Dict, List
 
 
-def tool_specs() -> List[Dict[str, Any]]:
-    """JSON-Schema descriptors for the six exposed tools."""
+def specs() -> List[Dict[str, Any]]:
     return [
-        {
-            "name": "find_symbol",
-            "description": (
-                "Look up a symbol in agent_symbols.json. Returns the "
-                "{file, line, end_line, kind, params, doc, role} "
-                "record, or null when the name is unknown. `line` and "
-                "`end_line` are 1-indexed; `end_line` is Python-only "
-                "(JS/TS only carries `line`).\n\n"
-                "Token economy:\n"
-                "- Pass `fields: ['file', 'line']` for a 'jump to X' "
-                "answer (~40 tokens) — agent can Read(file, "
-                "offset=line, limit=20) immediately, no follow-up grep.\n"
-                "- Pass `include_body: true` to embed the function/class "
-                "source in the response and skip the Read entirely.\n"
-                "- For multiple symbols, prefer `find_symbols` (one "
-                "round-trip vs N)."
-            ),
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "name": {
-                        "type": "string",
-                        "description": "Symbol name (case-sensitive).",
-                    },
-                    "fields": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": (
-                            "Whitelist of keys to keep in the response "
-                            "(e.g. ['file'], ['file', 'kind']). Default "
-                            "= full record."
-                        ),
-                    },
-                    "include_body": {
-                        "type": "boolean",
-                        "description": (
-                            "Embed verbatim source body (Python: AST "
-                            "segment; JS/TS: line-based slice). "
-                            "Saves a Read."
-                        ),
-                    },
-                },
-                "required": ["name"],
-            },
-        },
-        {
-            "name": "find_symbols",
-            "description": (
-                "Batch lookup — N symbol records in one MCP call. "
-                "Returns a {name → record_or_null} map. Same `fields` "
-                "and `include_body` knobs as find_symbol.\n\n"
-                "Token economy: 3 separate find_symbol calls cost "
-                "~3 × 135 = ~400 tokens of round-trip overhead; one "
-                "find_symbols(['A','B','C']) call carries the same "
-                "payload at ~150 tokens."
-            ),
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "names": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "Symbol names (case-sensitive).",
-                    },
-                    "fields": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                        "description": "Same as find_symbol.fields.",
-                    },
-                    "include_body": {
-                        "type": "boolean",
-                        "description": "Same as find_symbol.include_body.",
-                    },
-                },
-                "required": ["names"],
-            },
-        },
-        {
-            "name": "get_callees",
-            "description": (
-                "Return identifiers this symbol calls in its body — "
-                "the AST-derived 'what does X invoke?' axis "
-                "complementing `who_calls` (which is 'who invokes X?'). "
-                "Sorted, deduplicated. Bare ``foo()`` → ``foo``; "
-                "attribute chains ``a.b.c()`` → rightmost attribute "
-                "(``c``).\n\n"
-                "Use as a fact-check before claiming 'this function "
-                "depends on X' — saves reading the body."
-            ),
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "symbol": {
-                        "type": "string",
-                        "description": "Symbol name (case-sensitive).",
-                    },
-                },
-                "required": ["symbol"],
-            },
-        },
-        {
-            "name": "get_raised_exceptions",
-            "description": (
-                "Return exception class names this symbol raises. "
-                "``raise ValueError(...)`` → ``ValueError``; "
-                "``raise pkg.HTTPError(...)`` → ``HTTPError``. Bare "
-                "re-raise contributes nothing.\n\n"
-                "Use to verify error-handling claims without reading "
-                "the body. Empty list = no `raise` statements at AST "
-                "level (helpers might still propagate; recurse with "
-                "`get_callees` if needed)."
-            ),
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "symbol": {
-                        "type": "string",
-                        "description": "Symbol name (case-sensitive).",
-                    },
-                },
-                "required": ["symbol"],
-            },
-        },
         {
             "name": "read_slice",
             "description": (
@@ -168,32 +44,6 @@ def tool_specs() -> List[Dict[str, Any]]:
                     },
                 },
                 "required": ["file", "start", "end"],
-            },
-        },
-        {
-            "name": "get_symbol_card",
-            "description": (
-                "One-call symbol overview — bundles ``find_symbol`` "
-                "(file/line/end_line/kind/params/doc/role), "
-                "``get_callees``, ``get_raised_exceptions``, "
-                "``find_test``, and a capped callers summary "
-                "(``{total, top: [first-5]}``) into a single "
-                "round-trip.\n\n"
-                "Token economy: replaces the 4-call sequence "
-                "(find_symbol → get_callees → get_raised_exceptions → "
-                "who_calls → find_test) with one ~250-token "
-                "response. Use to bootstrap a playbook step that "
-                "needs full context before deciding what to read."
-            ),
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "symbol": {
-                        "type": "string",
-                        "description": "Symbol name (case-sensitive).",
-                    },
-                },
-                "required": ["symbol"],
             },
         },
         {
@@ -259,33 +109,6 @@ def tool_specs() -> List[Dict[str, Any]]:
             "inputSchema": {"type": "object", "properties": {}},
         },
         {
-            "name": "get_decorated_with",
-            "description": (
-                "Return symbols whose ``decorators`` array contains "
-                "the given decorator name. Match is suffix-aware: "
-                "``'router.get'`` matches ``router.get`` exactly; "
-                "``'get'`` matches ``router.get`` / ``app.get`` / "
-                "bare ``get``. Pass the full attribute path to "
-                "disambiguate.\n\n"
-                "Generalisation of ``find_by_role`` — works for ANY "
-                "decorator the indexer captured, not just the "
-                "role-mapped ones (``@cached``, ``@deprecated``, "
-                "custom decorators). Each item: "
-                "``{name, file, line, kind, role?}``, sorted by "
-                "``(file, line)``."
-            ),
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "decorator": {
-                        "type": "string",
-                        "description": ("Decorator name (with or without dotted path)."),
-                    },
-                },
-                "required": ["decorator"],
-            },
-        },
-        {
             "name": "find_by_role",
             "description": (
                 "Return every symbol name tagged with the given role "
@@ -299,22 +122,6 @@ def tool_specs() -> List[Dict[str, Any]]:
                     "role": {"type": "string"},
                 },
                 "required": ["role"],
-            },
-        },
-        {
-            "name": "who_calls",
-            "description": (
-                "Best-effort reverse-dependency lookup: return files "
-                "that import the package containing this symbol or "
-                "list the symbol name in their dependencies. Heuristic, "
-                "not a true call graph — confirm by reading the source."
-            ),
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "symbol": {"type": "string"},
-                },
-                "required": ["symbol"],
             },
         },
         {
@@ -466,41 +273,6 @@ def tool_specs() -> List[Dict[str, Any]]:
             },
         },
         {
-            "name": "find_call_sites",
-            "description": (
-                "Reverse call-site lookup. Return every Call(...) site "
-                "in the project whose target matches a given callable. "
-                "Accepts a plain name ('foo') or dotted path ('x.y'). "
-                "Optional match_path is an fnmatch-style glob "
-                "('services/**', 'bot/handlers/*.py'). Use to find who "
-                "calls state.clear / session.commit / cache.delete / etc."
-            ),
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "callable": {"type": "string"},
-                    "match_path": {"type": "string"},
-                },
-                "required": ["callable"],
-            },
-        },
-        {
-            "name": "logline_to_symbol",
-            "description": (
-                "Parse a Python logging line ('YYYY-MM-DD HH:MM:SS "
-                "[LEVEL] dotted.logger: message') into "
-                "{level, logger, file, message, symbol?, symbol_file?, "
-                "role?}. Maps the dotted logger name to the project "
-                "file via __name__-convention; if the message starts "
-                "with a known symbol, folds in its file/role too."
-            ),
-            "inputSchema": {
-                "type": "object",
-                "properties": {"line": {"type": "string"}},
-                "required": ["line"],
-            },
-        },
-        {
             "name": "list_checks",
             "description": (
                 "Return the names of whitelisted commands declared "
@@ -569,22 +341,6 @@ def tool_specs() -> List[Dict[str, Any]]:
                         ),
                     },
                 },
-            },
-        },
-        {
-            "name": "inspect_class",
-            "description": (
-                "Return a structured summary of a Python class — "
-                "{file, line, doc, bases, fields, methods}. Looks up "
-                "the symbol in agent_symbols.json, then AST-walks the "
-                "file. Works for SQLAlchemy models, pydantic schemas, "
-                "dataclasses, plain classes. Use instead of `grep` for "
-                "'what columns does Admin have?'."
-            ),
-            "inputSchema": {
-                "type": "object",
-                "properties": {"name": {"type": "string"}},
-                "required": ["name"],
             },
         },
         {
@@ -835,125 +591,6 @@ def tool_specs() -> List[Dict[str, Any]]:
                     },
                 },
                 "required": ["pattern"],
-            },
-        },
-        {
-            "name": "ng_audit_component",
-            "description": (
-                "Composite audit of a single Angular @Component. Returns "
-                "{name, file, role, selector, template_url, standalone, "
-                "inputs, outputs, style_urls, test} — everything indexed "
-                "for the class without making the caller stitch four "
-                "separate find_symbol / find_test / find_in_templates "
-                "calls. Use this before any component-level refactor."
-            ),
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "name": {
-                        "type": "string",
-                        "description": "Component class name (case-sensitive).",
-                    },
-                },
-                "required": ["name"],
-            },
-        },
-        {
-            "name": "ng_uses_selector",
-            "description": (
-                "Find every HTML template that uses an Angular selector "
-                "(e.g. 'app-cart-item' or 'mat-button'). Wraps "
-                "find_in_templates with two passes — `<selector` for "
-                "elements and `[selector]` for attribute directives — "
-                "deduped by (file, line). Returns [{file, line, text}] "
-                "capped at 100."
-            ),
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "selector": {
-                        "type": "string",
-                        "description": "Selector without surrounding brackets.",
-                    },
-                    "match_path": {
-                        "type": "string",
-                        "description": "Optional fnmatch glob to scope.",
-                    },
-                },
-                "required": ["selector"],
-            },
-        },
-        {
-            "name": "ng_overview",
-            "description": (
-                "One-call zero-arg snapshot of Angular surface: counts "
-                "for ng-component / ng-service / ng-module / ng-pipe / "
-                "ng-directive / ng-guard, plus a `standalone_components` "
-                "count and the list of detected `providers_root` "
-                "(services with `providedIn: 'root'`). Cheap — reads "
-                "agent_symbols.json once."
-            ),
-            "inputSchema": {"type": "object", "properties": {}},
-        },
-        {
-            "name": "ng_inject_graph",
-            "description": (
-                "For an Angular @Injectable service, list call sites "
-                "across components / services / guards (heuristic: "
-                "constructor params and `inject(Service)` calls in "
-                "scrubbed bodies). Returns [{file, line, kind}] where "
-                "kind is 'constructor' or 'inject'. Confirm by reading "
-                "the source — this is a substring scan, not a full TS "
-                "type-resolver."
-            ),
-            "inputSchema": {
-                "type": "object",
-                "properties": {
-                    "service": {
-                        "type": "string",
-                        "description": "Service class name.",
-                    },
-                },
-                "required": ["service"],
-            },
-        },
-        {
-            "name": "ng_list_routes",
-            "description": (
-                "Every Angular route extracted from "
-                "RouterModule.forRoot/forChild/provideRouter blocks. "
-                "Each record: {path, component, file, line, lazy, "
-                "redirect_to, guards}. Empty on non-Angular projects."
-            ),
-            "inputSchema": {"type": "object", "properties": {}},
-        },
-        {
-            "name": "ng_route_for_path",
-            "description": (
-                "Resolve an Angular URL path (e.g. 'users/:id' or "
-                "'/admin') to its route record(s). Exact match first, "
-                "falls back to substring so 'users' finds both "
-                "'users/:id' and 'admin/users'. Strips a leading "
-                "slash so either form works."
-            ),
-            "inputSchema": {
-                "type": "object",
-                "properties": {"path": {"type": "string"}},
-                "required": ["path"],
-            },
-        },
-        {
-            "name": "ng_routes_for_component",
-            "description": (
-                "Reverse lookup — every Angular route whose "
-                "`component` field equals the given class name. "
-                "Useful for 'where is HomeComponent mounted?' before "
-                "renaming or moving the file."
-            ),
-            "inputSchema": {
-                "type": "object",
-                "properties": {"name": {"type": "string"}},
-                "required": ["name"],
             },
         },
     ]
