@@ -1,0 +1,74 @@
+# Project config — minimal, only ruff settings (no packaging metadata).
+# vc-context-builder is stdlib-only and runs as a script, so we don't
+# declare a build system.  ruff is the only tool that benefits from
+# project-level config; everything else (mypy, unittest) reads its
+# own files.
+
+[tool.ruff]
+# Lowest supported Python — also what macOS ships system-wide. Keeps
+# auto-fixes from emitting 3.10+ syntax (PEP 604 unions, datetime.UTC
+# alias) that would break local devs without uv.  CI matrix runs
+# 3.11 + 3.13; both are syntactic supersets of py39 so we lose nothing.
+target-version = "py39"
+line-length = 100
+# Skip the nested ``.ai-context/`` self-index tree — it's a runtime
+# artefact of the submodule indexing itself, not source we maintain.
+extend-exclude = [".ai-context", ".vc-context"]
+
+[tool.ruff.lint]
+# Conservative starter set. UP rules are about modernising syntax —
+# valuable for cleanliness, but unsafe rewrites are pinned via the
+# pyupgrade subsection below.
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "N", "RUF"]
+# Keep runtime typing in function signatures — without
+# `from __future__ import annotations` (which not every file declares),
+# rewriting `Optional[X]` to `X | None` evaluates at runtime and breaks
+# Python <3.10.  Same goes for `List[X]` → `list[X]`.
+ignore = [
+    # Module-level imports not at top: legitimate sys.path tricks in
+    # this codebase (e.g. dispatcher.py inserting parent before sibling
+    # imports) — flagging them adds noise without value.
+    "E402",
+    # subprocess-without-shell-equals-true / start-process-with-partial-path:
+    # this is a code-analysis tool, all subprocess calls are static
+    # commands defined in conventions.json or hard-coded build invocations.
+    # The rules over-fire here.
+    "S603", "S607",
+    # try/except/pass: used at well-marked best-effort sites
+    # (cache writes, telemetry emit). Each `pass` is intentional.
+    "S110", "S112",
+    # Hashlib insecure (sha1) — used only as a short stable identifier
+    # for repo paths in metrics filenames, not for security.
+    "S324",
+    # PEP 585 / 604 modernisation: `Dict[X]` → `dict[X]` and friends
+    # are safe on py3.9+ at runtime, but ruff marks the auto-fix as
+    # "unsafe" without `from __future__ import annotations` declared
+    # in every file.  Adding that import to ~80 files is mechanical
+    # busywork; the typing.X imports work everywhere we ship.
+    "UP006", "UP035",
+    # Ambiguous Unicode characters: this project has Ukrainian / mixed
+    # Cyrillic text in docstrings, comments, and constant strings.
+    # That's intentional, not a homoglyph attack.
+    "RUF001", "RUF002", "RUF003",
+    # Stylistic refactors — debatable cleanliness wins, no behaviour
+    # impact.  Suppressing them so CI can gate on real lint issues
+    # without accumulating "shoulda used contextlib.suppress" noise:
+    #   SIM102 — nested `if` could collapse with `and`
+    #   SIM103 — `return condition` instead of if/else
+    #   SIM105 — `try/except/pass` → `contextlib.suppress(...)`
+    #   SIM108 — `if/else` → ternary
+    #   SIM110 — `for` loop → `any(...)`
+    #   E731   — lambda assignment instead of `def`
+    "SIM102", "SIM103", "SIM105", "SIM108", "SIM110", "E731",
+]
+
+[tool.ruff.lint.pyupgrade]
+# Don't rewrite `Optional[X]` / `List[X]` in callable signatures — they
+# get evaluated at import time and the codebase doesn't uniformly use
+# `from __future__ import annotations`.  Module-level / class-level
+# annotations still get the modern treatment.
+keep-runtime-typing = true
+
+[tool.ruff.format]
+# Default settings — match Black-equivalent output. No tabs, double
+# quotes, line ending = lf.
