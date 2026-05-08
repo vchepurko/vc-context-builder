@@ -1,0 +1,60 @@
+# Pre-commit hooks for vc-context-builder.
+# Install once: `pre-commit install` (or `uv run pre-commit install`).
+# Run on demand: `pre-commit run --all-files`.
+#
+# Mirrors the parent project's setup so contributors who already have
+# pre-commit available don't have to learn a second config style.
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.10
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      - id: ruff-format
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+        args: [--maxkb=500]
+      - id: detect-private-key
+      - id: check-merge-conflict
+
+  - repo: local
+    hooks:
+      # mypy runs through `uv run --with` so contributors don't need a
+      # local install. Same flag set as the lint.yml CI job. Pass `.`
+      # as the explicit target since `pass_filenames: false` strips
+      # the auto-supplied path list.
+      - id: mypy
+        name: mypy
+        entry: uv run --with mypy mypy . --ignore-missing-imports
+        language: system
+        types: [python]
+        pass_filenames: false
+        always_run: true
+
+      # Tests must pass before commit. unittest discover is fast (~4s)
+      # so the full suite is fine here; bigger projects would split
+      # unit / integration via markers.
+      - id: tests
+        name: tests
+        entry: python3 -m unittest discover tests
+        language: system
+        types: [python]
+        pass_filenames: false
+        always_run: true
+
+      # Snapshot drift gate — same check the CI lint workflow runs.
+      - id: snapshots
+        name: snapshots
+        entry: python3 tests/regen_snapshots.py --check
+        language: system
+        types: [python]
+        pass_filenames: false
+        always_run: true
