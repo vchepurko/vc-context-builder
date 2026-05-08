@@ -1,0 +1,55 @@
+name: 🧹 Lint
+
+# Style + type + snapshot checks. Kept separate from the test matrix
+# because these are version-independent and one job is enough.
+# Using `uv run --with <tool>` keeps the submodule stdlib-only — no
+# pyproject build system needed; ruff config still lives in
+# pyproject.toml [tool.ruff].
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install 3.13
+
+      # Ruff lint + format are GATING — pyproject.toml ignores the
+      # noisy/false-positive rules so failure here means a real
+      # regression a contributor introduced. Run the same commands
+      # locally with `uv run ruff check .` / `uv run ruff format --check .`
+      # before pushing.
+
+      - name: Ruff check
+        run: uv run --with ruff ruff check .
+
+      - name: Ruff format --check
+        run: uv run --with ruff ruff format --check .
+
+      # mypy stays informational for now — there's a baseline of
+      # ~19 pre-existing violations that would block PRs otherwise.
+      # Drop `continue-on-error: true` once the baseline reaches 0.
+      - name: mypy
+        run: uv run --with mypy mypy . --ignore-missing-imports
+        continue-on-error: true
+
+      - name: Snapshots are up to date
+        # Fails if specs.py drifted from the snapshot fixture — forces
+        # contributors to regenerate via `python3 tests/regen_snapshots.py`.
+        run: python3 tests/regen_snapshots.py --check
