@@ -44,5 +44,6 @@
   "summarise_module",
   "tests_by_category",
   "trace_fsm_flow",
+  "verify",
   "who_calls"
 ]

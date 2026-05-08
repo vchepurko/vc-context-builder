@@ -48,6 +48,7 @@ class Dispatcher:
             "find_symbols": self._find_symbols,
             "get_callees": self._get_callees,
             "get_raised_exceptions": self._get_raised_exceptions,
+            "verify": self._verify,
             "get_decorated_with": self._get_decorated_with,
             "get_symbol_card": self._get_symbol_card,
             "get_file_card": self._get_file_card,
@@ -147,6 +148,15 @@ class Dispatcher:
 
     def _get_raised_exceptions(self, args: Dict[str, Any]) -> Any:
         return self.engine.get_raised_exceptions(str(args.get("symbol", "")).strip())
+
+    def _verify(self, args: Dict[str, Any]) -> Any:
+        kind = str(args.get("kind", "")).strip()
+        subject = str(args.get("subject", "")).strip()
+        target_raw = args.get("target")
+        target = (
+            str(target_raw).strip() if isinstance(target_raw, str) and target_raw.strip() else None
+        )
+        return self.engine.verify(kind, subject, target=target)
 
     def _get_decorated_with(self, args: Dict[str, Any]) -> Any:
         return self.engine.get_decorated_with(str(args.get("decorator", "")).strip())

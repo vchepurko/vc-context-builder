@@ -136,6 +136,45 @@ def specs() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": "verify",
+            "description": (
+                "Typed fact-check primitive — answer one yes/no claim "
+                "about the symbol index without reading source.\n\n"
+                "Kinds:\n"
+                "- `exists` (subject) → does the symbol exist?\n"
+                "- `calls` (subject, target) → does subject call target?\n"
+                "- `decorated` (subject, target) → is subject decorated "
+                "with target? (suffix-aware: 'post' matches 'app.post')\n"
+                "- `raises` (subject, target) → does subject raise target "
+                "(exception class name)?\n\n"
+                "Returns `{kind, subject, target?, result: bool, "
+                "evidence: str}`. Use as a one-call alternative to "
+                "`find_symbol` + `get_callees` + `in` checks scattered "
+                "across the agent's reasoning chain — the evidence "
+                "string is short enough to quote in the answer."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "kind": {
+                        "type": "string",
+                        "enum": ["exists", "calls", "decorated", "raises"],
+                    },
+                    "subject": {
+                        "type": "string",
+                        "description": "Symbol name (case-sensitive).",
+                    },
+                    "target": {
+                        "type": "string",
+                        "description": (
+                            "Target name. Required for calls/decorated/raises; ignored for exists."
+                        ),
+                    },
+                },
+                "required": ["kind", "subject"],
+            },
+        },
+        {
             "name": "get_symbol_card",
             "description": (
                 "One-call symbol overview — bundles ``find_symbol`` "
