@@ -18,18 +18,12 @@ import re
 from collections.abc import Iterable
 from typing import Any, ClassVar, Dict, List, Optional, Tuple
 
-
-def _pct(numerator: int, denominator: int) -> float:
-    """Coverage percentage rounded to one decimal — 0.0 when denom=0."""
-    if denominator <= 0:
-        return 0.0
-    return round(100.0 * numerator / denominator, 1)
-
-
 from _query_inspectors import _InspectorsMixin
+from _query_routes import _RoutesMixin
+from _query_tests import _TestsMixin
 
 
-class QueryEngine(_InspectorsMixin):
+class QueryEngine(_InspectorsMixin, _RoutesMixin, _TestsMixin):
     """Lazy-loading reader over the three artifact tiers.
 
     Parameters
@@ -1070,272 +1064,18 @@ class QueryEngine(_InspectorsMixin):
 
         return lint_project(self.project_root)
 
-    # ------------------------------------------------------------------
-    # Feature B — test linking
-    # ------------------------------------------------------------------
-
-    def find_test(self, symbol: str) -> Optional[Dict[str, Any]]:
-        """Return the test record for ``symbol`` or ``None``.
-
-        Reads from the prebuilt ``agent_tests.json`` when available;
-        falls back to a live scan via ``test_linking.find_test_for_symbol``
-        so the tool still works before the builder has run.
-        """
-        tests = self._load_tests()
-        if symbol in tests:
-            entry = tests[symbol]
-            return dict(entry) if isinstance(entry, dict) else None
-
-        # Live fallback — useful right after a fresh symbol lands and
-        # the user hasn't rebuilt yet.
-        symbol_entry = self._symbols_get(symbol)
-        if symbol_entry is None:
-            return None
-        from test_linking import find_test_for_symbol  # type: ignore[import-not-found]
-
-        return find_test_for_symbol(self.project_root, symbol, symbol_entry.get("file") or "")
-
-    def coverage_stats(self) -> Dict[str, Dict[str, int]]:
-        """Return per-role coverage counts plus an overall total.
-
-        Shape: ``{role_or_'overall': {with_test, total}}``.
-        Roles without an entry in ``agent_root.json`` are silently
-        omitted; symbols without a role are counted only in
-        ``overall``.
-        """
-        symbols = self._load_symbols()
-        tests = self._load_tests()
-
-        def _has_test(name: str) -> bool:
-            entry = tests.get(name)
-            return isinstance(entry, dict) and bool(entry.get("test_file"))
-
-        role_buckets: Dict[str, Dict[str, int]] = {}
-        for name, entry in symbols.items():
-            role = entry.get("role") if isinstance(entry, dict) else None
-            if role:
-                bucket = role_buckets.setdefault(role, {"with_test": 0, "total": 0})
-                bucket["total"] += 1
-                if _has_test(name):
-                    bucket["with_test"] += 1
-
-        overall = {"with_test": 0, "total": 0}
-        for name in symbols:
-            overall["total"] += 1
-            if _has_test(name):
-                overall["with_test"] += 1
-        # Keep the overall bucket last for stable rendering.
-        ordered: Dict[str, Dict[str, int]] = {r: role_buckets[r] for r in sorted(role_buckets)}
-        ordered["overall"] = overall
-        return ordered
-
-    # ------------------------------------------------------------------
-    # Feature G — coverage by role (one-tool surface for QA gaps)
-    # ------------------------------------------------------------------
-
-    def coverage_for_role(self, role: Optional[str] = None) -> Dict[str, Any]:
-        """Test-coverage view, scoped or whole-project.
-
-        ``role=None`` →
-
-            {
-              "roles":  {"<role>": {"total": ..., "with_test": ...,
-                                    "coverage_pct": ...}, ...},
-              "overall": {"total": ..., "with_test": ...,
-                          "coverage_pct": ...}
-            }
-
-        ``role="<name>"`` (also accepts legacy umbrellas like
-        ``"aiogram-handler"``) →
-
-            {
-              "role": "<name>",
-              "total": ..., "with_test": ..., "coverage_pct": ...,
-              "missing":  [{"name", "file"}, ...],   # symbols WITHOUT a test
-              "covered":  [{"name", "file", "test_file", "test_function"}, ...]
-            }
-
-        Returns ``{"role": role, "total": 0, ...}`` (empty buckets) for
-        unknown roles instead of raising — callers can present "no
-        symbols found" without special-casing.
-        """
-        symbols = self._load_symbols()
-        tests = self._load_tests()
-
-        def _test_entry(name: str) -> Optional[Dict[str, Any]]:
-            entry = tests.get(name)
-            if isinstance(entry, dict) and entry.get("test_file"):
-                return entry
-            return None
-
-        if role is None:
-            stats = self.coverage_stats()
-            roles_out: Dict[str, Dict[str, Any]] = {}
-            overall_bucket: Dict[str, Any] = {}
-            for k, v in stats.items():
-                payload = {
-                    "total": v["total"],
-                    "with_test": v["with_test"],
-                    "coverage_pct": _pct(v["with_test"], v["total"]),
-                }
-                if k == "overall":
-                    overall_bucket = payload
-                else:
-                    roles_out[k] = payload
-            return {"roles": roles_out, "overall": overall_bucket}
-
-        # Build the symbol pool — supports legacy umbrellas (e.g.
-        # ``aiogram-handler``) by reusing find_by_role's expansion.
-        pool = set(self.find_by_role(role))
-
-        missing: List[Dict[str, Any]] = []
-        covered: List[Dict[str, Any]] = []
-        for name in pool:
-            entry = symbols.get(name)
-            file = entry.get("file") if isinstance(entry, dict) else None
-            test = _test_entry(name)
-            if test is None:
-                missing.append({"name": name, "file": file})
-            else:
-                covered.append(
-                    {
-                        "name": name,
-                        "file": file,
-                        "test_file": test.get("test_file"),
-                        "test_function": test.get("test_function"),
-                    }
-                )
-        # Stable ordering — alpha by name.
-        missing.sort(key=lambda r: r["name"])
-        covered.sort(key=lambda r: r["name"])
-        total = len(pool)
-        with_test = len(covered)
-        return {
-            "role": role,
-            "total": total,
-            "with_test": with_test,
-            "coverage_pct": _pct(with_test, total),
-            "missing": missing,
-            "covered": covered,
-        }
+    # find_test / coverage_stats / coverage_for_role / classify_tests /
+    # tests_by_category — now provided by ``_TestsMixin``.
 
     def _symbols_get(self, name: str) -> Optional[Dict[str, Any]]:
         symbols = self._load_symbols()
         entry = symbols.get(name)
         return dict(entry) if isinstance(entry, dict) else None
 
-    # ------------------------------------------------------------------
-    # Feature C — cross-language route bridge
-    # ------------------------------------------------------------------
-
-    def find_route(self, path: str) -> Optional[Dict[str, Any]]:
-        """Return the full route record (with ``callers_js``) or ``None``.
-
-        Accepts either the bare URL path (``/api/foo``) or a
-        method-prefixed key (``GET /api/foo``).
-        """
-        from route_bridge import find_route_for_path  # type: ignore[import-not-found]
-
-        return find_route_for_path(self._load_routes(), path)
-
-    def route_callers(self, path: str) -> List[Dict[str, Any]]:
-        """JS/TS call-sites for the given route path. Empty when none/missing."""
-        from route_bridge import callers_for_route  # type: ignore[import-not-found]
-
-        return callers_for_route(self._load_routes(), path)
-
-    def route_for_js_call(self, file_path: str) -> List[Dict[str, Any]]:
-        """Routes whose ``callers_js`` list mentions ``file_path``."""
-        from route_bridge import route_for_js_file  # type: ignore[import-not-found]
-
-        return route_for_js_file(self._load_routes(), file_path)
-
-    # ------------------------------------------------------------------
-    # Feature R — Angular RouterModule path → component map.
-    # ------------------------------------------------------------------
-
-    def ng_list_routes(self) -> List[Dict[str, Any]]:
-        """All extracted Angular routes, in (file, line) order. Empty
-        list on non-Angular projects (no agent_ng_routes.json)."""
-        return list(self._load_ng_routes())
-
-    def ng_route_for_path(self, path: str) -> List[Dict[str, Any]]:
-        """Resolve an Angular URL path to route records.
-
-        Exact match wins; falls back to substring contains so a query
-        for ``users`` finds ``users/:id`` and ``admin/users``. Strips a
-        leading slash before matching so callers can use either form.
-        """
-        from ng_route_bridge import route_for_path as _rp  # type: ignore[import-not-found]
-
-        if path is None:
-            return []
-        normalised = path.lstrip("/")
-        return _rp(self._load_ng_routes(), normalised)
-
-    def ng_routes_for_component(self, name: str) -> List[Dict[str, Any]]:
-        """Reverse lookup — every route whose ``component`` is *name*."""
-        from ng_route_bridge import routes_for_component as _rfc  # type: ignore[import-not-found]
-
-        return _rfc(self._load_ng_routes(), name)
-
-    # ------------------------------------------------------------------
-    # Feature D — aiogram callback_data resolver
-    # ------------------------------------------------------------------
-
-    def find_callback(self, data: str) -> List[Dict[str, Any]]:
-        """Resolve an aiogram ``callback_data`` string to its handler(s).
-
-        Tries an exact lookup first, then falls back to the longest
-        matching ``startswith`` prefix. Empty list when nothing matches
-        or the index is missing.
-        """
-        from callback_index import find_callback as _find  # type: ignore[import-not-found]
-
-        return _find(self._load_callbacks(), data)
-
-    # ------------------------------------------------------------------
-    # Feature F — aiogram FSM flow graph
-    # ------------------------------------------------------------------
-
-    def trace_fsm_flow(self, state: str) -> Optional[Dict[str, Any]]:
-        """Resolve an FSM state to its lifecycle graph.
-
-        Accepts the full ``StatesGroup.field`` form or a bare field name
-        when it's unambiguous. Returns ``None`` for unknown / ambiguous
-        states or when the index is missing.
-        """
-        from fsm_flow import trace_fsm_flow as _trace  # type: ignore[import-not-found]
-
-        return _trace(self._load_fsm_flows(), state)
-
-    # ------------------------------------------------------------------
-    # Feature H — test categorisation (unit / integration / unknown)
-    # ------------------------------------------------------------------
-
-    def classify_tests(self) -> Dict[str, Any]:
-        """Return ``{summary, files}`` for the whole test suite.
-
-        ``summary`` is ``{category → count}``; ``files`` is the raw
-        ``{rel_path → {category, signals}}`` map. Empty containers when
-        the artifact is missing.
-        """
-        from test_classifier import category_summary  # type: ignore[import-not-found]
-
-        index = self._load_test_categories()
-        return {
-            "summary": category_summary(index),
-            "files": index,
-        }
-
-    def tests_by_category(self, category: str) -> List[str]:
-        """File paths for ``category`` (``"unit"`` / ``"integration"`` /
-        ``"unknown"``). Sorted, deduped, empty list on miss."""
-        from test_classifier import (
-            lookup_tests_by_category as _by,  # type: ignore[import-not-found]
-        )
-
-        return _by(self._load_test_categories(), category)
+    # find_route / route_callers / route_for_js_call / ng_list_routes /
+    # ng_route_for_path / ng_routes_for_component / find_callback /
+    # trace_fsm_flow — provided by ``_RoutesMixin``.
+    # classify_tests / tests_by_category — provided by ``_TestsMixin``.
 
     # ------------------------------------------------------------------
     # Feature I — generic call-site lookup + log-line resolver
