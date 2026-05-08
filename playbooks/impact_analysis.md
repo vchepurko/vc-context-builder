@@ -15,34 +15,36 @@
 
 ## MCP sequence (typical)
 
-1. **Anchor on the target symbol.**
-   `find_symbol(name="add_admin", fields=["file","line","kind","role"])`
-   → confirm it exists, get its role for prioritising callers.
+1. **Anchor + forward surface in one call.**
+   `get_symbol_card(symbol="add_admin")`
+   → file/line/end_line, role, **callees**, **raises**, linked test,
+   callers summary (capped at 5 — see step 3 for the full list).
+   This single response covers what used to take 4-5 lookups:
+   - `card.callees` → forward deps (DB layer, external services?)
+   - `card.raises` → exception contract (callers' except clauses
+     break if you change this)
+   - `card.test` → coverage; missing test → flag *before* listing
+     impact
+   - `card.callers.total` → blast-radius hint; full list in step 3.
 
-2. **Forward dependency surface — what does it touch?**
-   `get_callees(symbol="add_admin")`
-   → if it calls into the DB layer / external services, the change may
-   need migration coordination.
-   `get_raised_exceptions(symbol="add_admin")`
-   → exception contract — if you change the surface, callers' except
-   clauses might break.
+2. **Bonus checks for special symbol kinds.**
+   - HTTP route handler? `route_callers(path="/api/admin/...")` —
+     returns JS + Python call sites in one shot (the card's caller
+     summary is Python-only).
+   - aiogram callback? `find_callback(data="...")`.
+   - Otherwise skip and go to step 3.
 
-3. **Reverse dependency surface — who depends on it?**
-   - For Python symbols: `who_calls(symbol="add_admin")` (file-level
-     heuristic) AND `find_call_sites(callable="add_admin")` (line-level
-     reverse lookup).
-   - For HTTP routes: `route_callers(path="/api/admin/staff/admins")`
-     → returns JS + Python call sites.
-   - For aiogram callbacks: `find_callback(data="...")`.
+3. **Full reverse-dependency list (when card.callers.total is high).**
+   - `find_call_sites(callable="add_admin")` — line-level reverse
+     lookup, includes `match_path` filter.
+   - `who_calls(symbol="add_admin")` — file-level heuristic.
+   - For role-wide gaps: `coverage_for_role(role)`.
 
-4. **Test coverage of the surface.**
-   `find_test(symbol="add_admin")` → direct test.
-   `coverage_for_role(role)` if the symbol's role has gaps.
-   No test → flag as risk *before* listing the impact.
-
-5. **Inspect each high-risk caller** — only the ones that look
+4. **Inspect each high-risk caller** — only the ones that look
    substantial. Use `find_symbol(name=..., fields=["file","line",
-   "end_line"])` then `read_slice` for the relevant block.
+   "end_line"])` then `read_slice` for the relevant block. Or, if
+   the caller is non-trivial, `get_symbol_card(name)` to peek at its
+   own callees/raises before reading.
    **Stop after 3 caller inspections** unless the caller list is short.
 
 ## Context budget

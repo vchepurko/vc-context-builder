@@ -18,36 +18,37 @@
 The order matters: each step narrows the surface so you read less code.
 
 1. **Anchor on a symbol from the log line.**
-   `mcp__vc-context__logline_to_symbol(line="ERROR auth_router.handle_callback ...")`
+   `logline_to_symbol(line="ERROR auth_router.handle_callback ...")`
    → returns the symbol name (or null if the line doesn't carry one).
    If null, fall through to step 2 with whatever name you can read off
    the traceback.
 
-2. **Locate the symbol — file + line range, no body yet.**
-   `find_symbol(name="handle_callback", fields=["file","line","end_line","kind"])`
-   → ~40 tokens. You now know the def block range.
+2. **Get the full picture in one call.**
+   `get_symbol_card(symbol="handle_callback")`
+   → ~250 tokens with file/line/end_line, kind/params/doc, **callees**,
+   **raises**, linked test, callers summary. Replaces the old
+   sequence (find_symbol → get_raised_exceptions → get_callees →
+   find_test → who_calls) with one round-trip.
 
-3. **Match the failure mode against `raises`.**
-   `get_raised_exceptions(symbol="handle_callback")`
-   - If the failure exception appears here → root cause is *inside this
-     symbol*. Skip to step 5 (read the body).
-   - If it doesn't appear → the failure propagates from a callee. Step 4.
+3. **Decide using the card alone — no source read yet.**
+   - Failure exception appears in `card.raises` → root cause is
+     *inside this symbol*. Go to step 4 (read body).
+   - Doesn't appear → propagates from a callee. Pick the suspicious
+     ones from `card.callees`, batch with
+     `find_symbols(["validate_token", "fetch_user"],
+       fields=["file","line"])`.
+   - No linked `card.test` → flag test gap *now*; the fix should
+     include one.
 
-4. **Walk one level into callees.**
-   `get_callees(symbol="handle_callback")`
-   → list of identifiers. Filter the suspicious ones (matches the error
-   message, related to the failing operation), then `find_symbol` on
-   each in **one batch**:
-   `find_symbols(["validate_token", "fetch_user"], fields=["file","line"])`
-
-5. **Read the def block — and only the def block.**
+4. **Read the def block — and only the def block.**
    `find_symbol(name="handle_callback", include_body=true)`
-   OR `read_slice(file, start=line, end=end_line)` if the body is large.
-   Cite line numbers in the answer.
+   OR `read_slice(file, start=line, end=end_line)` if the body is
+   large (use `card.line` / `card.end_line` from step 2 — no extra
+   call to find them). Cite line numbers in the answer.
 
-6. **Confirm a behaviour claim before stating it.**
+5. **Confirm a behaviour claim before stating it.**
    Don't say "it returns 403 when token is missing" unless the body
-   actually shows that branch. If the index says it raises X but the
+   actually shows that branch. If the card says it raises X but the
    body shows X is wrapped — say "raises X (per index); wrapped at
    `file:line`".
 

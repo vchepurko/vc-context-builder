@@ -18,24 +18,29 @@
 
 ## MCP sequence (typical)
 
-1. **List the symbols actually touched.**
-   `git diff --unified=0 main..HEAD` (Bash — git is the canonical
-   channel) — extract `(file, line_range)` hunks.
-   Match each hunk against `find_symbol(name=..., fields=["file",
-   "line","end_line"])` to find which symbols overlap. Skip pure
-   import-block / comment-only hunks.
+1. **List the symbols actually touched — one call.**
+   `get_changed_symbols(base="main")`
+   → `[{name, file, line, end_line, kind, role?}, ...]`. Replaces
+   the old "git diff hunks → match against find_symbol" dance with
+   a single MCP call. Skip the playbook entirely if the list is
+   empty (pure formatting / docs / config changes).
 
-2. **Per touched symbol — check the contract didn't drift.**
+2. **Per touched symbol — full picture in one call.**
    For each `S`:
-   - `get_raised_exceptions(symbol=S)` before/after — exception
-     contract should match unless the PR explicitly changes it.
-   - `get_callees(symbol=S)` — new external dependencies are
+   - `get_symbol_card(symbol=S)` → bundles `raises` (contract drift),
+     `callees` (new external deps?), `test` (coverage), and
+     `callers` summary (signature-change blast radius).
+
+   Compare against expectations:
+   - Exception contract changed? PR description should say so.
+   - New callees that weren't there before? New dependency edge —
      review-worthy.
-   - `find_test(symbol=S)` — test exists? Was it updated in the PR?
+   - `card.test` is null? Coverage gap. Flag.
 
 3. **Per touched symbol — check callers still hold.**
-   `find_call_sites(callable=S)` — if the signature changed, every
-   caller is a risk site. Spot-read 1–2.
+   When `card.callers.total` is high OR signature changed in the diff:
+   `find_call_sites(callable=S)` for the full line-level list.
+   Spot-read 1–2 with `read_slice`.
 
 4. **Run the project's check suite, don't trust intuition.**
    `run_check("test")`, `run_check("lint")`, `run_check("typecheck")`
@@ -79,9 +84,12 @@ Confidence:      high | medium | low
 
 ## Failure mode
 
-- PR touches symbols not in the index → `find_symbol` returns null
-  for them.  Causes: index out of date OR new file not yet under a
-  scanned module.  Run `python3 .ai-context/agent_map.py` and re-check
-  before judging.
+- PR touches symbols not in the index → `get_changed_symbols`
+  silently drops them (returns only indexed ones). Causes: index out
+  of date OR new file not yet under a scanned module. Run
+  `python3 .ai-context/agent_map.py` and re-check before judging.
+- `get_changed_symbols` returns `[]` AND you know there are changes →
+  not in a git repo OR diff failed silently. Fall back to
+  `git diff --stat` (Bash) to confirm the diff is real.
 - `run_check` not configured for the project → state that explicitly;
   don't guess the test outcome.
