@@ -2,6 +2,32 @@
 
 Zero-dependency, auto-updating **code intelligence layer for LLM agents**.
 
+## TL;DR
+
+```bash
+# 1. Drop into your project as a submodule (or clone standalone).
+git submodule add https://github.com/<you>/vc-context-builder .ai-context
+
+# 2. Build the index — scans the project, writes agent_*.json artefacts.
+python3 .ai-context/agent_map.py
+
+# 3. Wire the MCP server in your editor (one of):
+#    Claude Code:  see MCP_SETUP.md
+#    Cursor / Continue / Codex CLI / Aider: same file, copy-paste blocks.
+
+# 4. Your agent now has ~40 tools that answer in 50–250 tokens.
+#    Example claim → evidence flow:
+find_symbol("MyClass", fields=["file","line"])  → 40 tokens
+read_slice("path/to/file.py", 42, 58)           → 200 tokens
+# vs. reading the whole file: 5,000+ tokens, no chance to cite the line.
+```
+
+Read the rest of this README for the full surface, or jump to a
+playbook in [`playbooks/`](playbooks/) when you have a concrete task
+type (bug hunt, impact analysis, refactor review).
+
+---
+
 The builder scans your project, parses ASTs + path heuristics, and emits
 three artifacts that let an agent navigate the repo **without loading the
 full source tree into its context window**:
