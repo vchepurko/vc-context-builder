@@ -1,7 +1,7 @@
 import logging
 import os
 from abc import ABC, abstractmethod
-from typing import ClassVar, Dict, List
+from typing import ClassVar, Dict, List, Optional
 
 
 class BaseParser(ABC):
@@ -31,8 +31,12 @@ class BaseParser(ABC):
                 cls._file_registry[fname] = parser_instance
 
     @classmethod
-    def get_parser(cls, filename: str) -> "BaseParser":
-        """Retrieve a parser by exact filename first, then fallback to extension."""
+    def get_parser(cls, filename: str) -> Optional["BaseParser"]:
+        """Retrieve a parser by exact filename first, then fallback to extension.
+
+        Returns ``None`` when no parser is registered for the filename
+        OR its extension — callers handle the missing-parser case.
+        """
         if filename in cls._file_registry:
             return cls._file_registry[filename]
 

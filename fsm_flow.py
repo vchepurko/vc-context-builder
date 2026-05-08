@@ -34,7 +34,7 @@ import ast
 import json
 import os
 from collections.abc import Iterable
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 FSM_FLOW_FILENAME = "agent_fsm_flows.json"
 
@@ -230,7 +230,7 @@ def _decorator_filter_summary(dec: ast.Call) -> Optional[str]:
 # ----------------------------------------------------------------------
 
 
-def _set_state_targets(func_body: List[ast.AST]) -> List[str]:
+def _set_state_targets(func_body: Sequence[ast.AST]) -> List[str]:
     """Return every ``X.y`` reference passed to a ``state.set_state(...)``
     call inside ``func_body``.
 

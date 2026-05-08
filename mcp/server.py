@@ -13,7 +13,7 @@ from __future__ import annotations
 import json
 import os
 import sys
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 from .dispatcher import Dispatcher
 from .metrics import MetricsWriter
@@ -55,6 +55,7 @@ def serve(
         raw = raw.strip()
         if not raw:
             continue
+        response: Optional[Dict[str, Any]]
         try:
             req = json.loads(raw)
         except json.JSONDecodeError as exc:

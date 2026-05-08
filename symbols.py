@@ -406,6 +406,9 @@ def extract_scheduler_jobs_from_codebase(
             for sub in ast.walk(tree):
                 if not _is_scheduler_add_job_call(sub):
                     continue
+                # _is_scheduler_add_job_call already verified Call shape;
+                # the assert is just to give mypy the narrowing it needs.
+                assert isinstance(sub, ast.Call)
                 name = _first_arg_callable_name(sub)
                 if name:
                     found.add(name)

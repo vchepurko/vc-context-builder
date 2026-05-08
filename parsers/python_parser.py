@@ -167,9 +167,14 @@ class PythonParser(BaseParser):
         except Exception:
             pass
         if decorator_names:
-            # De-duplicate while preserving order.
-            seen: Set[str] = set()
-            unique = [d for d in decorator_names if not (d in seen or seen.add(d))]
+            # De-duplicate while preserving order — straight loop avoids
+            # the `seen.add(d) returns None` trick that mypy flags.
+            seen_dec: Set[str] = set()
+            unique: List[str] = []
+            for d in decorator_names:
+                if d not in seen_dec:
+                    seen_dec.add(d)
+                    unique.append(d)
             out["decorators"] = unique
         if source is not None:
             try:

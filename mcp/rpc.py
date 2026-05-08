@@ -60,7 +60,7 @@ def handle_request(
     is_notification = "id" not in req
 
     if method == "initialize":
-        result = {
+        result: Dict[str, Any] = {
             "protocolVersion": PROTOCOL_VERSION,
             "capabilities": {"tools": {}},
             "serverInfo": {"name": SERVER_NAME, "version": SERVER_VERSION},

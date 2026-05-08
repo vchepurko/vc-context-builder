@@ -184,6 +184,9 @@ def collect_callbacks(project_root: str) -> Dict[str, List[Dict[str, Any]]]:
             for dec in node.decorator_list or ():
                 if not _is_callback_query_decorator(dec):
                     continue
+                # _is_callback_query_decorator already required ast.Call;
+                # narrow for mypy so `dec.args` is reachable.
+                assert isinstance(dec, ast.Call)
                 # Single positional arg in the common case; iterate
                 # all so combined filters (rare) still register.
                 for arg in dec.args:
