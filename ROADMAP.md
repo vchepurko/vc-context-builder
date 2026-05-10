@@ -63,6 +63,31 @@ the code — if you spot an inconsistency, file an issue.
 - Replace inline `import re` / `import ast` with module-level imports
   where the perf benefit is negligible.
 
+### Anti-pattern detectors
+A small set of stat-only detectors layered on top of the existing
+indexer. Zero LLM, zero new runtime deps — pure set-difference over
+already-extracted artefacts. Each ships with a `--strict` mode that
+turns it into a lint-blocker via `conventions.json`.
+
+- `find_orphan_callbacks` — `callback_data` referenced from
+  keyboards / templates with no matching `@router.callback_query`
+  body. Set-difference between two existing artefacts; ~50 LOC.
+- `find_handlers_without_tests` — `aiogram-handler` ∩ ¬`coverage_for_role`.
+  Already half-built (`coverage_for_role` exists); needs a thin
+  aggregator + MCP wiring.
+- `find_locale_drift` — keys present in one language file but absent
+  in sibling language(s). The locale loader already enumerates them.
+- `find_anti_patterns(rule_name)` — runs registered AST detectors;
+  ships with `aiogram-state-check-in-body` (silent-dispatch killer)
+  as the first rule. Designed so new rules slot in as plain functions
+  in a registry.
+
+### Per-folder agent rules convention
+- Project-side companion: per-folder `AGENTS.md` (vendor-neutral) for
+  invariants too local for the root file. Submodule responsibility
+  here is a `find_local_agents_md(path)` MCP helper so any agent
+  can discover folder-scoped rules without filesystem walks.
+
 ---
 
 ## 🤔 Deferred — needs signal before it's worth building
@@ -87,6 +112,132 @@ before deciding which to pull from this list.
 - **Generic code-analysis skill docs** — explicitly *not* doing this.
   CLAUDE.md + AGENTS.md + 3 playbooks already cover the workflow side;
   more skill files would just rot.
+- **Conversation-mining harness** — nightly job that reads agent
+  transcripts (Claude Code first, others as drivers land), extracts
+  patterns the agent kept correcting, and proposes new
+  `conventions.json` rules / `AGENTS.md` lines via PR. **Strictly
+  human-in-the-loop** — no autonomous repo writes. Distinct from the
+  "no LLM summaries" out-of-scope rule below: this mines *agent
+  behaviour*, not source-code semantics. Needs ~1-2 weeks of
+  baseline telemetry before scope is locked.
+- **Telemetry-driven prompts** — when `get_session_metrics(quality=true)`
+  shows recurring `wasteful_pairs` / `hot_rereads` / `empty_streaks`,
+  surface a one-line suggestion in `vc-context stats` output (e.g.
+  "you read foo.py 5×; try `find_symbol(include_body=true)`"). Pure
+  static rule layer over the JSONL sidecar; no new dependency.
+
+---
+
+## 🌅 Phase 4 — Local-first + anti-redundancy (vision)
+
+**Status**: vision-stage. No code yet. Captured here so the direction
+is explicit and the next concrete PRs can be sliced from it.
+
+### The pain we're solving
+
+Today's MCP surface is **reactive**: the agent must know what to ask
+before it can find an existing helper. Result observed in the wild —
+an agent on an unfamiliar repo built a feature from scratch instead
+of reusing existing utilities, because nothing surfaced "we already
+have this". That's not a rules problem; it's a **proactive-knowledge
+problem**.
+
+### Three-layer artefact model
+
+A clean separation of what's committed vs. what lives per-machine.
+
+| Layer | Where | Lifecycle | Examples |
+|---|---|---|---|
+| **Shared** (project-wide) | `<repo>/` committed | Hand-edited; reviewed in PRs | `AGENTS.md`, `CLAUDE.md`, `.vc-context/conventions.json` |
+| **Local-per-repo** | `~/.vc-context/<repo-hash>/` | Auto-built, gitignored | indexes, embeddings, decision log, personal notes |
+| **Global** (cross-project) | `~/.vc-context/global/` | Optional dotfiles sync | workflow preferences, skill patterns |
+
+Concretely the local-per-repo folder gets:
+```
+~/.vc-context/<repo-hash>/
+├── index/           agent_*.json, _module_map.json — auto-rebuild
+├── embeddings/      semantic vectors per symbol
+├── learned/         decisions.jsonl — patterns figured out about this repo
+└── personal.md      private notes you don't want in the repo
+```
+
+**Side benefit** of moving the index to local-only: kills the git-diff
+noise from `_module_map.json` rebuilds on every commit (today every
+edit dirties 5–20 module maps). The repo only carries hand-curated
+artefacts; everything mechanical regenerates on demand in <2s.
+
+### Anti-redundancy mechanism
+
+A new MCP surface that fires *before* the agent writes new code:
+
+- `find_similar_to(text, top_k=5)` — semantic search across symbols.
+  Phase A: fuzzy match on `name + role + first-line doc` (no
+  embedding model needed). Phase B: real embeddings via local
+  `nomic-embed-text` (Ollama) or one-shot Claude API at index time.
+- `record_decision(action, target, reason)` — append to
+  `learned/decisions.jsonl`. Captures "agent reused X instead of
+  writing new Y" or "agent decided to write new Z because A, B, C".
+- `replay_decisions(query)` — when a similar context recurs, surface
+  the past decision so the agent doesn't relitigate it.
+
+The agent's pre-write protocol becomes:
+1. Before adding a new symbol, call `find_similar_to(description)`.
+2. If similarity ≥ threshold → propose reuse to the user.
+3. Whatever happens (reuse / new / variant), call `record_decision`.
+4. Next session, `replay_decisions` primes context with prior calls.
+
+### Promotion path local → shared
+
+Decisions that prove repeatable can graduate from local to committed
+project rules:
+```
+vc-context decisions list                # show local log
+vc-context decisions promote <id>        # open PR adding rule to AGENTS.md
+                                         #  or .vc-context/conventions.json
+```
+Keeps the shared layer curated (only validated patterns land there)
+while letting the local layer be noisy and exploratory.
+
+### Cross-machine sharing (deferred sub-question)
+
+For "I want my own agent-knowledge to follow me across machines":
+- Path A — symlink `~/.vc-context/global/` into a private dotfiles
+  repo. Plain-files; no infra.
+- Path B — opt-in cloud bucket sync. Bigger scope, encryption
+  questions, defer until path A is insufficient.
+
+For "I want to share patterns across teammates": that's the
+**shared** layer (PR a rule into the repo). No new mechanism.
+
+### Phasing — small first PR
+
+PoC ≈ 1 day of submodule work, validates direction without committing
+to embeddings:
+
+1. Move `agent_*.json` + `_module_map.json` writes to
+   `~/.vc-context/<repo-hash>/index/`.
+2. Update `agent_map.py` + MCP loader to read from the new path.
+3. Add `agent_*.json` and `_module_map.json` to `.gitignore` of the
+   parent project.
+4. Add CI step `vc-context build --ci` (rebuilds local index in CI
+   environment so MCP-aware checks still work).
+5. Implement `find_similar_to(text)` — fuzzy first (Phase A), no
+   embeddings.
+6. Implement `record_decision` + `decisions.jsonl` storage.
+
+**Does NOT include in PoC**: embeddings, replay, promotion CLI,
+cross-machine sync. Those land only after the first PoC shows real
+agents using the surface.
+
+### Open questions before slicing PoC
+
+- Embeddings: local Ollama vs one-shot Claude API at index time?
+  Cost vs offline-friendliness tradeoff.
+- CI flow: do we keep snapshot tests of the index shape that
+  currently rely on committed `agent_*.json`? (Check `.ai-context`'s
+  own test suite before the move.)
+- First target repo for dogfooding: klodchickknifes (local) +
+  vc-context-builder self-index (CI).
 
 ---
 
