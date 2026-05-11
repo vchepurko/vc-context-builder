@@ -64,6 +64,44 @@ class _InspectorsMixin:
         return _get(self._load_locale_keys(), key)
 
     # ------------------------------------------------------------------
+    # Config-file pattern search (Feature C — gap-closer)
+    # ------------------------------------------------------------------
+
+    def find_pattern_in_configs(
+        self,
+        pattern: str,
+        *,
+        kinds: Optional[List[str]] = None,
+        case_sensitive: bool = False,
+        use_regex: bool = False,
+        limit: int = 200,
+    ) -> List[Dict[str, object]]:
+        """Search non-code config files (env / yaml / Caddyfile / …) for
+        a substring or regex. Replaces ``grep -rn`` for "where is
+        ``GOOGLE_OAUTH_*`` referenced" style questions. Stdlib-only
+        on-demand scan — no persistent index.
+
+        Returns a list of ``{file, line, kind, text}`` dicts, bounded by
+        ``limit`` (default 200).
+        """
+        from configs_scanner import scan  # type: ignore[import-not-found]
+
+        return scan(
+            self.project_root,
+            pattern,
+            kinds=kinds,
+            case_sensitive=case_sensitive,
+            use_regex=use_regex,
+            limit=limit,
+        )
+
+    def list_config_kinds(self) -> List[str]:
+        """All known config kinds usable with ``find_pattern_in_configs``."""
+        from configs_scanner import list_kinds as _kinds  # type: ignore[import-not-found]
+
+        return _kinds()
+
+    # ------------------------------------------------------------------
     # Notification audit log (Feature N)
     # ------------------------------------------------------------------
 

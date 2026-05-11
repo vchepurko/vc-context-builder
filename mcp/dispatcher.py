@@ -77,6 +77,9 @@ class Dispatcher:
             "inspect_class": self._inspect_class,
             "list_locale_keys": self._list_locale_keys,
             "find_locale_key": self._find_locale_key,
+            "find_pattern_in_configs": self._find_pattern_in_configs,
+            "list_config_kinds": self._list_config_kinds,
+            "rebuild_index": self._rebuild_index,
             "get_locale_key": self._get_locale_key,
             "notify_log_search": self._notify_log_search,
             "notify_log_stats": self._notify_log_stats,
@@ -278,6 +281,76 @@ class Dispatcher:
 
     def _find_locale_key(self, args: Dict[str, Any]) -> Any:
         return self.engine.find_locale_key(str(args.get("pattern", "")))
+
+    def _find_pattern_in_configs(self, args: Dict[str, Any]) -> Any:
+        pattern = str(args.get("pattern", ""))
+        kinds_raw = args.get("kinds")
+        kinds: Optional[list] = None
+        if isinstance(kinds_raw, list):
+            kinds = [str(k) for k in kinds_raw if isinstance(k, str) and k.strip()]
+        elif isinstance(kinds_raw, str) and kinds_raw.strip():
+            # Accept comma-separated string too so the tool is friendly
+            # to clients that don't easily pass arrays.
+            kinds = [k.strip() for k in kinds_raw.split(",") if k.strip()]
+        limit = 200
+        if "limit" in args:
+            try:
+                limit = max(1, min(2000, int(args["limit"])))
+            except (TypeError, ValueError):
+                pass
+        return self.engine.find_pattern_in_configs(
+            pattern,
+            kinds=kinds,
+            case_sensitive=bool(args.get("case_sensitive", False)),
+            use_regex=bool(args.get("use_regex", False)),
+            limit=limit,
+        )
+
+    def _list_config_kinds(self, args: Dict[str, Any]) -> Any:
+        return self.engine.list_config_kinds()
+
+    def _rebuild_index(self, args: Dict[str, Any]) -> Any:
+        """Re-run ``agent_map.py`` against the active project root and
+        flush in-process caches so subsequent queries see the new
+        artifacts. Used after the agent edits source files — replaces
+        the manual ``python3 .ai-context/agent_map.py`` round-trip.
+
+        Returns ``{"ok": bool, "duration_ms": int, "stderr_tail": str}``.
+        Doesn't reload the running server itself — just rebuilds the
+        JSON artefacts and resets the engine's lazy-load caches.
+        """
+        import subprocess
+        import sys
+        import time
+
+        here = os.path.dirname(os.path.abspath(__file__))
+        builder = os.path.join(os.path.dirname(here), "agent_map.py")
+        if not os.path.isfile(builder):
+            return {"ok": False, "error": f"agent_map.py not found at {builder}"}
+
+        t0 = time.time()
+        try:
+            proc = subprocess.run(
+                [sys.executable, builder, "--root", self.engine.project_root],
+                capture_output=True,
+                text=True,
+                timeout=120,
+                check=False,
+            )
+        except subprocess.TimeoutExpired:
+            return {"ok": False, "error": "timeout after 120s"}
+        elapsed_ms = int((time.time() - t0) * 1000)
+
+        # Reset in-process caches so the next query reads fresh JSON.
+        self.engine.invalidate_caches()
+
+        return {
+            "ok": proc.returncode == 0,
+            "returncode": proc.returncode,
+            "duration_ms": elapsed_ms,
+            "stderr_tail": (proc.stderr or "")[-400:],
+            "stdout_tail": (proc.stdout or "")[-400:],
+        }
 
     def _get_locale_key(self, args: Dict[str, Any]) -> Any:
         return self.engine.get_locale_key(str(args.get("key", "")).strip())
