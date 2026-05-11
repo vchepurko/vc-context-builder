@@ -442,6 +442,53 @@ def specs() -> List[Dict[str, Any]]:
             "inputSchema": {"type": "object", "properties": {}},
         },
         {
+            "name": "find_orm_field_usage",
+            "description": (
+                "AST walker for ``<Model>.<column>`` access patterns "
+                "(also matches ``<model_lower>.<column>`` for canonical "
+                "variable names like ``product.photo_file_id`` when "
+                "the var is assigned from the model). Replaces "
+                "``grep -rn photo_file_id`` for refactor scoping — "
+                "returns {file, line, kind, context} per match, "
+                "classified as 'read' (load context) or 'write' "
+                "(assignment target). Ignores migrations and "
+                "non-Python files. Bounded by ``limit`` (default 200, "
+                "max 2000)."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "model": {
+                        "type": "string",
+                        "description": "ORM class name, e.g. 'Product' or 'Order'.",
+                    },
+                    "column": {
+                        "type": "string",
+                        "description": "Column attribute, e.g. 'photo_file_id'.",
+                    },
+                    "limit": {"type": "integer", "default": 200},
+                },
+                "required": ["model", "column"],
+            },
+        },
+        {
+            "name": "devops_card",
+            "description": (
+                "One-call DevOps snapshot of the project's deployment "
+                "surface. Returns {compose_files, dockerfiles, "
+                "caddy_sites, workflows, scheduler_jobs}: services + "
+                "images + ports + restart-policies from each "
+                "docker-compose; FROM/EXPOSE/CMD per Dockerfile; "
+                "domain → upstream pairs from Caddyfile(s); list of "
+                ".github/workflows files; APScheduler 'scheduler-job' "
+                "role members. Replaces the scattered "
+                "'cat compose / grep Caddyfile / ls workflows' "
+                "round-trips for 'where does deploy live?' questions. "
+                "Stdlib-only, on-demand scan (no persistent index)."
+            ),
+            "inputSchema": {"type": "object", "properties": {}},
+        },
+        {
             "name": "rebuild_index",
             "description": (
                 "Run ``agent_map.py`` against the active project root "
