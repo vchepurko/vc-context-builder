@@ -253,6 +253,78 @@ class AggregateTests(unittest.TestCase):
         self.assertEqual(out["by_hour"]["2026-05-07T10"]["calls"], 2)
 
 
+class BaselineAggregationTests(unittest.TestCase):
+    """``aggregate(baseline=True)`` adds a heuristic savings block —
+    "how much would this query mix have cost via grep + Read?"."""
+
+    def _entry(self, **kw) -> dict:
+        base = {
+            "ts": "2026-05-07T10:00:00+00:00",
+            "tool": "find_symbol",
+            "args_keys": [],
+            "result_bytes": 150,
+            "approx_tokens": 37,
+            "t_ms": 5,
+            "ok": True,
+            "empty": False,
+        }
+        base.update(kw)
+        return base
+
+    def test_empty_input_returns_zero_baseline(self) -> None:
+        out = aggregate([], baseline=True)
+        self.assertEqual(out["baseline"]["saved_tokens"], 0)
+        self.assertEqual(out["baseline"]["total_baseline_bytes"], 0)
+
+    def test_savings_computed_from_per_tool_estimate(self) -> None:
+        # find_symbol baseline = 3000 B (per _BASELINE_BYTES_PER_TOOL).
+        # One call with result_bytes=150 → savings ≈ 2850 B.
+        out = aggregate([self._entry()], baseline=True)
+        b = out["baseline"]
+        self.assertEqual(b["total_baseline_bytes"], 3000)
+        self.assertEqual(b["saved_bytes"], 2850)
+        # 0..1 ratio.
+        self.assertGreater(b["savings_ratio"], 0.9)
+
+    def test_empty_results_contribute_zero(self) -> None:
+        # Empty find_symbol → bash would also return empty → no savings.
+        out = aggregate([self._entry(empty=True, result_bytes=2)], baseline=True)
+        self.assertEqual(out["baseline"]["total_baseline_bytes"], 0)
+        self.assertEqual(out["baseline"]["saved_bytes"], 0)
+
+    def test_unknown_tool_contributes_zero(self) -> None:
+        out = aggregate([self._entry(tool="custom_tool_not_in_table")], baseline=True)
+        # Unknown tool — no baseline estimate, no claimed savings.
+        self.assertEqual(out["baseline"]["total_baseline_bytes"], 0)
+
+    def test_per_tool_breakdown(self) -> None:
+        out = aggregate(
+            [
+                self._entry(tool="find_symbol", result_bytes=150),
+                self._entry(tool="who_calls", result_bytes=200),
+            ],
+            baseline=True,
+        )
+        by = out["baseline"]["by_tool"]
+        self.assertIn("find_symbol", by)
+        self.assertIn("who_calls", by)
+        self.assertGreater(by["find_symbol"]["saved_bytes"], 0)
+        self.assertGreater(by["who_calls"]["saved_bytes"], 0)
+
+    def test_baseline_flag_off_omits_block(self) -> None:
+        out = aggregate([self._entry()])
+        self.assertNotIn("baseline", out)
+
+    def test_falls_back_to_table_when_entry_lacks_baseline_field(self) -> None:
+        """Historical telemetry without ``baseline_bytes`` per entry —
+        aggregator still computes savings from the per-tool table.
+        """
+        entry = self._entry()
+        entry.pop("baseline_bytes", None)
+        out = aggregate([entry], baseline=True)
+        self.assertEqual(out["baseline"]["total_baseline_bytes"], 3000)
+
+
 class DispatcherIntegrationTests(unittest.TestCase):
     def setUp(self) -> None:
         self.root = _make_root()

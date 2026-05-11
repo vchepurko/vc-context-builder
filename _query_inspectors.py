@@ -282,6 +282,7 @@ class _InspectorsMixin:
         since: Optional[str] = None,
         group_by: str = "tool",
         quality: bool = False,
+        baseline: bool = False,
     ) -> Dict[str, Any]:
         """Aggregate this project's per-call metrics.
 
@@ -294,10 +295,20 @@ class _InspectorsMixin:
         same JSONL stream and embed them under the ``quality`` key.
         Detectors are conservative — see ``mcp.quality`` for thresholds.
 
+        When ``baseline=True``, embed a heuristic estimate of the
+        Bash-fallback token cost for the same query mix — handy for
+        answering "how much is MCP actually saving me?" without paying
+        the cost of full dual-execution shadow mode. Tools without a
+        sensible Bash equivalent (``read_slice``, ``run_check``,
+        ``rebuild_index``, telemetry itself) contribute 0 to the
+        baseline; empty results also contribute 0. See
+        :data:`mcp.metrics._BASELINE_BYTES_PER_TOOL` for per-tool
+        numbers.
+
         Returns the shape produced by :func:`mcp.metrics.aggregate`:
         ``{calls, total_tokens, avg_t_ms, empty_ratio, ok_ratio,
-        by_<group>, quality?}``.  Empty payload when the writer has
-        never run for this project.
+        by_<group>, quality?, baseline?}``.  Empty payload when the
+        writer has never run for this project.
         """
         from mcp.metrics import aggregate, read_metrics
 
@@ -305,7 +316,7 @@ class _InspectorsMixin:
             self.project_root,
             since=since if since is not None else "today",
         )
-        out = aggregate(entries, group_by=group_by)
+        out = aggregate(entries, group_by=group_by, baseline=baseline)
         if quality:
             from mcp.quality import quality_report
 
