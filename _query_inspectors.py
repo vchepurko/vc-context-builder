@@ -132,15 +132,23 @@ class _InspectorsMixin:
         column: str,
         *,
         limit: int = 200,
+        include_tests: bool = False,
     ) -> List[Dict[str, Any]]:
         """Every read/write of ``<Model>.<column>`` (or
         ``<model>.<column>`` when the variable name follows the class
         name). Replaces ``grep -rn photo_file_id`` for refactor scoping
         — returns precise AST-anchored matches with read/write kind.
+
+        ``include_tests`` defaults to False — for refactor-impact
+        analysis test fixtures usually overstate "where is this field
+        touched?". Pass True when explicitly auditing test coverage of
+        a field.
         """
+        from _test_filter import filter_test_records  # type: ignore[import-not-found]
         from orm_field_usage import find_usage  # type: ignore[import-not-found]
 
-        return find_usage(self.project_root, model, column, limit=limit)
+        hits = find_usage(self.project_root, model, column, limit=limit)
+        return filter_test_records(hits, include_tests=include_tests)
 
     # ------------------------------------------------------------------
     # Notification audit log (Feature N)

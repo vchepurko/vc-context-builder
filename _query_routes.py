@@ -95,16 +95,27 @@ class _RoutesMixin:
     # Feature D — aiogram callback_data resolver
     # ------------------------------------------------------------------
 
-    def find_callback(self, data: str) -> List[Dict[str, Any]]:
+    def find_callback(
+        self,
+        data: str,
+        *,
+        include_tests: bool = False,
+    ) -> List[Dict[str, Any]]:
         """Resolve an aiogram ``callback_data`` string to its handler(s).
 
         Tries an exact lookup first, then falls back to the longest
         matching ``startswith`` prefix. Empty list when nothing matches
         or the index is missing.
+
+        ``include_tests`` defaults to False — production callback
+        handlers are what callers usually want. Test fixtures that
+        bind handlers to throwaway data strings are filtered out.
         """
+        from _test_filter import filter_test_records  # type: ignore[import-not-found]
         from callback_index import find_callback as _find  # type: ignore[import-not-found]
 
-        return _find(self._load_callbacks(), data)
+        hits = _find(self._load_callbacks(), data)
+        return filter_test_records(hits, include_tests=include_tests)
 
     # ------------------------------------------------------------------
     # Feature F — aiogram FSM flow graph

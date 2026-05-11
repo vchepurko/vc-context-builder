@@ -21,6 +21,7 @@ from typing import Any, ClassVar, Dict, List, Optional, Tuple
 from _query_inspectors import _InspectorsMixin
 from _query_routes import _RoutesMixin
 from _query_tests import _TestsMixin
+from _test_filter import filter_test_records, is_test_path
 
 
 class QueryEngine(_InspectorsMixin, _RoutesMixin, _TestsMixin):
@@ -283,6 +284,7 @@ class QueryEngine(_InspectorsMixin, _RoutesMixin, _TestsMixin):
         *,
         fields: Optional[List[str]] = None,
         include_body: bool = False,
+        include_tests: bool = False,
     ) -> Optional[Dict[str, Any]]:
         """Return the symbol record from ``agent_symbols.json``.
 
@@ -305,12 +307,21 @@ class QueryEngine(_InspectorsMixin, _RoutesMixin, _TestsMixin):
             lines starting at the indexed ``line``).  Saves a follow-up
             ``Read`` of the file when the caller already knows it
             wants the body.  Capped at ``BODY_SNIPPET_MAX_BYTES``.
+        include_tests:
+            By default symbols declared under ``tests/`` are hidden — a
+            test fixture / helper rarely answers "where is the
+            production X defined?".  Set ``True`` when the caller
+            specifically wants to find a test symbol (or check whether
+            a name exists in tests at all).
 
-        Returns ``None`` when the symbol is unknown.
+        Returns ``None`` when the symbol is unknown OR when it lives in
+        a test file and ``include_tests`` is False.
         """
         symbols = self._load_symbols()
         entry = symbols.get(name)
         if entry is None:
+            return None
+        if not include_tests and is_test_path(entry.get("file")):
             return None
         # Return a shallow copy so callers can't mutate the cache.
         out = dict(entry)
@@ -338,6 +349,7 @@ class QueryEngine(_InspectorsMixin, _RoutesMixin, _TestsMixin):
         *,
         fields: Optional[List[str]] = None,
         include_body: bool = False,
+        include_tests: bool = False,
     ) -> Dict[str, Optional[Dict[str, Any]]]:
         """Batch wrapper — N lookups in one MCP round-trip.
 
@@ -346,6 +358,10 @@ class QueryEngine(_InspectorsMixin, _RoutesMixin, _TestsMixin):
         the same payload at ~150 tokens because schema + envelope are
         shared.  Use when the caller needs more than one symbol at a
         time (sibling handlers, dependency chains, etc.).
+
+        ``include_tests`` matches the singular ``find_symbol`` — test-
+        path symbols are hidden by default; pass ``True`` to surface
+        them.
 
         Names not in the index map to ``null`` so the dict stays
         keyed by request order.
@@ -356,6 +372,7 @@ class QueryEngine(_InspectorsMixin, _RoutesMixin, _TestsMixin):
                 name,
                 fields=fields,
                 include_body=include_body,
+                include_tests=include_tests,
             )
         return out
 
@@ -475,7 +492,12 @@ class QueryEngine(_InspectorsMixin, _RoutesMixin, _TestsMixin):
         callees = entry.get("callees") or []
         return list(callees) if isinstance(callees, list) else []
 
-    def get_decorated_with(self, decorator: str) -> List[Dict[str, Any]]:
+    def get_decorated_with(
+        self,
+        decorator: str,
+        *,
+        include_tests: bool = False,
+    ) -> List[Dict[str, Any]]:
         """Return symbols whose ``decorators`` list contains
         ``decorator``.
 
@@ -488,6 +510,10 @@ class QueryEngine(_InspectorsMixin, _RoutesMixin, _TestsMixin):
         Each item: ``{name, file, line, kind, role?}``.  Empty list
         when nothing matches OR the index pre-dates ``decorators``
         capture (run ``python3 .ai-context/agent_map.py``).
+
+        ``include_tests`` defaults to False — symbols from test files
+        rarely matter for "where in the app is this decorator used?".
+        Set True if specifically auditing test fixtures.
 
         Generalisation of ``find_by_role`` — works for ANY decorator
         the indexer saw, not just the role-mapped ones.
@@ -514,6 +540,7 @@ class QueryEngine(_InspectorsMixin, _RoutesMixin, _TestsMixin):
                         rec["role"] = role
                     out.append(rec)
                     break
+        out = filter_test_records(out, include_tests=include_tests)
         out.sort(key=lambda r: (r.get("file") or "", r.get("line") or 0))
         return out
 
@@ -821,7 +848,12 @@ class QueryEngine(_InspectorsMixin, _RoutesMixin, _TestsMixin):
         bucket = roles.get(role) or []
         return list(bucket)
 
-    def who_calls(self, symbol: str) -> List[Dict[str, str]]:
+    def who_calls(
+        self,
+        symbol: str,
+        *,
+        include_tests: bool = False,
+    ) -> List[Dict[str, str]]:
         """Best-effort callers list for ``symbol``.
 
         Heuristic
@@ -836,13 +868,20 @@ class QueryEngine(_InspectorsMixin, _RoutesMixin, _TestsMixin):
         3. Return every file whose ``dependencies`` list contains either
            the symbol name itself or that package segment.
 
+        ``include_tests`` defaults to False — test files importing the
+        symbol are noise for the "where is this used in the app?"
+        question. Set True when the caller is auditing coverage.
+
         This is a structural approximation, not a true call graph — it
         will over-report (any importer of the package looks like a
         caller) and under-report (a relative import that didn't make
         it into ``dependencies`` is invisible). Use it as a starting
         list, then confirm by reading the source.
         """
-        symbol_entry = self.find_symbol(symbol)
+        # Internal lookup must NOT honour include_tests — we still want
+        # to know about test-defined symbols here so target_pkg resolves
+        # for the package-level callers below.
+        symbol_entry = self.find_symbol(symbol, include_tests=True)
         target_pkg: Optional[str] = None
         if symbol_entry and symbol_entry.get("file"):
             head = symbol_entry["file"].split("/", 1)[0]
@@ -863,7 +902,8 @@ class QueryEngine(_InspectorsMixin, _RoutesMixin, _TestsMixin):
                     continue
                 seen.setdefault(hit["file"], hit)
 
-        return sorted(seen.values(), key=lambda r: r["file"])
+        callers = sorted(seen.values(), key=lambda r: r["file"])
+        return filter_test_records(callers, include_tests=include_tests)
 
     def summarise_module(self, folder: str) -> Optional[Dict[str, Any]]:
         """Return a tight summary of a folder's ``_module_map.json``.
@@ -1107,16 +1147,24 @@ class QueryEngine(_InspectorsMixin, _RoutesMixin, _TestsMixin):
         self,
         callable_name: str,
         match_path: Optional[str] = None,
+        *,
+        include_tests: bool = False,
     ) -> List[Dict[str, Any]]:
         """Live AST scan: every ``Call(...)`` site whose target matches
         ``callable_name`` (plain ``"foo"`` or dotted ``"x.y"``).
 
         Optional ``match_path`` is an fnmatch glob to restrict the
         scan (``"services/**"`` etc.). On-demand — no cached artifact.
+
+        ``include_tests`` defaults to False — call sites in ``tests/``
+        are usually noise for the "where is this function used?"
+        question. Note: when ``match_path`` is already targeting
+        ``tests/**`` the filter is a no-op (nothing left to drop).
         """
         from call_sites import find_call_sites as _find  # type: ignore[import-not-found]
 
-        return _find(self.project_root, callable_name, match_path)
+        sites = _find(self.project_root, callable_name, match_path)
+        return filter_test_records(sites, include_tests=include_tests)
 
     def logline_to_symbol(self, line: str) -> Dict[str, Any]:
         """Parse a Python ``logging`` line and resolve to a

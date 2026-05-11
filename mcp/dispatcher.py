@@ -146,7 +146,17 @@ class Dispatcher:
             kw["fields"] = [str(f) for f in fields if isinstance(f, str)]
         if args.get("include_body") is True:
             kw["include_body"] = True
+        if args.get("include_tests") is True:
+            kw["include_tests"] = True
         return kw
+
+    @staticmethod
+    def _include_tests(args: Dict[str, Any]) -> bool:
+        """Decode the ``include_tests`` knob — strictly boolean True
+        opts the caller back into test-file results. Anything else
+        (including a missing key) means "production only", which is
+        the default."""
+        return args.get("include_tests") is True
 
     def _get_callees(self, args: Dict[str, Any]) -> Any:
         return self.engine.get_callees(str(args.get("symbol", "")).strip())
@@ -164,7 +174,10 @@ class Dispatcher:
         return self.engine.verify(kind, subject, target=target)
 
     def _get_decorated_with(self, args: Dict[str, Any]) -> Any:
-        return self.engine.get_decorated_with(str(args.get("decorator", "")).strip())
+        return self.engine.get_decorated_with(
+            str(args.get("decorator", "")).strip(),
+            include_tests=self._include_tests(args),
+        )
 
     def _get_symbol_card(self, args: Dict[str, Any]) -> Any:
         return self.engine.get_symbol_card(str(args.get("symbol", "")).strip())
@@ -195,7 +208,10 @@ class Dispatcher:
         return self.engine.find_by_role(str(args.get("role", "")))
 
     def _who_calls(self, args: Dict[str, Any]) -> Any:
-        return self.engine.who_calls(str(args.get("symbol", "")))
+        return self.engine.who_calls(
+            str(args.get("symbol", "")),
+            include_tests=self._include_tests(args),
+        )
 
     def _summarise_module(self, args: Dict[str, Any]) -> Any:
         return self.engine.summarise_module(str(args.get("folder", "")))
@@ -219,7 +235,10 @@ class Dispatcher:
         return self.engine.route_for_js_call(str(args.get("file_path", "")))
 
     def _find_callback(self, args: Dict[str, Any]) -> Any:
-        return self.engine.find_callback(str(args.get("data", "")))
+        return self.engine.find_callback(
+            str(args.get("data", "")),
+            include_tests=self._include_tests(args),
+        )
 
     def _trace_fsm_flow(self, args: Dict[str, Any]) -> Any:
         return self.engine.trace_fsm_flow(str(args.get("state", "")))
@@ -245,7 +264,11 @@ class Dispatcher:
             if isinstance(match_path_raw, str) and match_path_raw.strip()
             else None
         )
-        return self.engine.find_call_sites(callable_name, match_path)
+        return self.engine.find_call_sites(
+            callable_name,
+            match_path,
+            include_tests=self._include_tests(args),
+        )
 
     def _logline_to_symbol(self, args: Dict[str, Any]) -> Any:
         return self.engine.logline_to_symbol(str(args.get("line", "")))
@@ -325,7 +348,12 @@ class Dispatcher:
                 limit = max(1, min(2000, int(args["limit"])))
             except (TypeError, ValueError):
                 pass
-        return self.engine.find_orm_field_usage(model, column, limit=limit)
+        return self.engine.find_orm_field_usage(
+            model,
+            column,
+            limit=limit,
+            include_tests=self._include_tests(args),
+        )
 
     def _rebuild_index(self, args: Dict[str, Any]) -> Any:
         """Re-run ``agent_map.py`` against the active project root and
