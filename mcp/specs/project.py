@@ -398,6 +398,65 @@ def specs() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": "find_pattern_in_configs",
+            "description": (
+                "Substring or regex search across non-code config "
+                "files (env, yaml, toml, Caddyfile, Dockerfile, "
+                "GitHub Actions, *.conf, *.ini). Replaces 'grep -rn' "
+                "for questions like 'where is GOOGLE_OAUTH_* "
+                "referenced' or 'which compose file sets restart: "
+                "unless-stopped'. Returns matches as a list of "
+                "{file, line, kind, text}. Bounded by `limit` "
+                "(default 200, max 2000). Case-insensitive by "
+                "default; pass case_sensitive=true for exact match, "
+                "use_regex=true to interpret pattern as Python regex. "
+                "Use `list_config_kinds` to see available kinds; "
+                "narrow with kinds=['env','caddy'] to skip noise."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "pattern": {"type": "string"},
+                    "kinds": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": (
+                            "Whitelist of config kinds (e.g. "
+                            "['env','caddy']). Omit = all kinds."
+                        ),
+                    },
+                    "case_sensitive": {"type": "boolean", "default": False},
+                    "use_regex": {"type": "boolean", "default": False},
+                    "limit": {"type": "integer", "default": 200},
+                },
+                "required": ["pattern"],
+            },
+        },
+        {
+            "name": "list_config_kinds",
+            "description": (
+                "Enumerate known config kinds usable with "
+                "`find_pattern_in_configs` — env / yaml / toml / "
+                "ini / caddy / nginx / conf / json / dockerfile / "
+                "github-actions. Useful for `--help`-style discovery."
+            ),
+            "inputSchema": {"type": "object", "properties": {}},
+        },
+        {
+            "name": "rebuild_index",
+            "description": (
+                "Run ``agent_map.py`` against the active project root "
+                "and flush the engine's lazy-load caches so subsequent "
+                "queries see fresh ``agent_*.json`` artifacts. Use "
+                "after the agent edited source files and wants symbol/"
+                "role queries to reflect the edits — replaces the "
+                "manual ``python3 .ai-context/agent_map.py`` shell "
+                "round-trip. Returns "
+                "{ok, returncode, duration_ms, stderr_tail, stdout_tail}."
+            ),
+            "inputSchema": {"type": "object", "properties": {}},
+        },
+        {
             "name": "notify_log_search",
             "description": (
                 "Search the rotating notification audit log emitted "

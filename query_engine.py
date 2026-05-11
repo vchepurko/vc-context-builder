@@ -88,6 +88,28 @@ class QueryEngine(_InspectorsMixin, _RoutesMixin, _TestsMixin):
         self._locale_keys: Optional[Dict[str, Dict[str, Any]]] = None
 
     # ------------------------------------------------------------------
+    # Cache invalidation — used after an in-process rebuild so the next
+    # query reads fresh artifacts. The engine doesn't watch the disk
+    # for changes; callers explicitly drop caches when they've rebuilt
+    # the index (e.g. via ``rebuild_index`` MCP tool).
+    # ------------------------------------------------------------------
+
+    def invalidate_caches(self) -> None:
+        """Drop every lazy-load cache. Forces the next query to re-read
+        ``agent_*.json`` from disk."""
+        self._root = None
+        self._symbols = None
+        self._module_maps = None
+        self._reverse_deps = None
+        self._tests = None
+        self._routes = None
+        self._ng_routes = None
+        self._callbacks = None
+        self._fsm_flows = None
+        self._test_categories = None
+        self._locale_keys = None
+
+    # ------------------------------------------------------------------
     # Lazy loaders
     # ------------------------------------------------------------------
 
