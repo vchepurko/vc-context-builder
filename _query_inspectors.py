@@ -75,7 +75,7 @@ class _InspectorsMixin:
         case_sensitive: bool = False,
         use_regex: bool = False,
         limit: int = 200,
-    ) -> List[Dict[str, object]]:
+    ) -> List[Dict[str, Any]]:
         """Search non-code config files (env / yaml / Caddyfile / …) for
         a substring or regex. Replaces ``grep -rn`` for "where is
         ``GOOGLE_OAUTH_*`` referenced" style questions. Stdlib-only

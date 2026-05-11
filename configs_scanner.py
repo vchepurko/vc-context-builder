@@ -32,7 +32,7 @@ from __future__ import annotations
 import fnmatch
 import os
 import re
-from typing import Dict, FrozenSet, List, Optional
+from typing import Any, Dict, FrozenSet, List, Optional
 
 # (kind, list-of-glob-patterns). Order is informational only — matches
 # all categories independently.
@@ -140,7 +140,7 @@ def scan(
     case_sensitive: bool = False,
     use_regex: bool = False,
     limit: int = 200,
-) -> List[Dict[str, object]]:
+) -> List[Dict[str, Any]]:
     """Walk ``project_root`` for config files of ``kinds`` and return every
     line that matches ``pattern``.
 
@@ -196,7 +196,7 @@ def scan(
         def _is_match(line: str) -> bool:
             return needle in (line if case_sensitive else line.lower())
 
-    out: List[Dict[str, object]] = []
+    out: List[Dict[str, Any]] = []
     for rel_path, abs_path, kind in _iter_config_files(project_root, active):
         try:
             size = os.path.getsize(abs_path)
