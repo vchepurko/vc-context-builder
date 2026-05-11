@@ -421,8 +421,7 @@ def specs() -> List[Dict[str, Any]]:
                         "type": "array",
                         "items": {"type": "string"},
                         "description": (
-                            "Whitelist of config kinds (e.g. "
-                            "['env','caddy']). Omit = all kinds."
+                            "Whitelist of config kinds (e.g. ['env','caddy']). Omit = all kinds."
                         ),
                     },
                     "case_sensitive": {"type": "boolean", "default": False},
