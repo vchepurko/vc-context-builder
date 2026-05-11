@@ -340,6 +340,18 @@ def specs() -> List[Dict[str, Any]]:
                             "(wasteful_pairs, hot_rereads, empty_streaks)."
                         ),
                     },
+                    "baseline": {
+                        "type": "boolean",
+                        "description": (
+                            "Include a heuristic baseline block: how "
+                            "many tokens a Bash-fallback (grep + Read) "
+                            "would have cost for the same query mix. "
+                            "Returns {total_baseline_tokens, "
+                            "saved_tokens, savings_ratio, by_tool}. "
+                            "Tools with no Bash equivalent (read_slice, "
+                            "run_check, rebuild_index) contribute 0."
+                        ),
+                    },
                 },
             },
         },

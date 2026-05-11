@@ -271,6 +271,8 @@ class Dispatcher:
             kw["group_by"] = v.strip()
         if args.get("quality") is True:
             kw["quality"] = True
+        if args.get("baseline") is True:
+            kw["baseline"] = True
         return self.engine.get_session_metrics(**kw)
 
     def _inspect_class(self, args: Dict[str, Any]) -> Any:
