@@ -53,6 +53,16 @@ def specs() -> List[Dict[str, Any]]:
                             "Saves a Read."
                         ),
                     },
+                    "include_tests": {
+                        "type": "boolean",
+                        "description": (
+                            "Default false — symbols defined in tests/ "
+                            "are hidden so 'where is the production X?' "
+                            "questions don't get test-file hits. Set "
+                            "true to look up a fixture/helper or to "
+                            "verify a name exists in tests at all."
+                        ),
+                    },
                 },
                 "required": ["name"],
             },
@@ -84,6 +94,10 @@ def specs() -> List[Dict[str, Any]]:
                     "include_body": {
                         "type": "boolean",
                         "description": "Same as find_symbol.include_body.",
+                    },
+                    "include_tests": {
+                        "type": "boolean",
+                        "description": "Same as find_symbol.include_tests (default false).",
                     },
                 },
                 "required": ["names"],
@@ -223,6 +237,14 @@ def specs() -> List[Dict[str, Any]]:
                         "type": "string",
                         "description": ("Decorator name (with or without dotted path)."),
                     },
+                    "include_tests": {
+                        "type": "boolean",
+                        "description": (
+                            "Default false — hide test-file matches. "
+                            "Set true when auditing test fixtures that "
+                            "share a decorator."
+                        ),
+                    },
                 },
                 "required": ["decorator"],
             },
@@ -239,6 +261,14 @@ def specs() -> List[Dict[str, Any]]:
                 "type": "object",
                 "properties": {
                     "symbol": {"type": "string"},
+                    "include_tests": {
+                        "type": "boolean",
+                        "description": (
+                            "Default false — hide test-file callers. "
+                            "Set true when checking coverage of a "
+                            "production symbol from tests."
+                        ),
+                    },
                 },
                 "required": ["symbol"],
             },
@@ -258,6 +288,15 @@ def specs() -> List[Dict[str, Any]]:
                 "properties": {
                     "callable": {"type": "string"},
                     "match_path": {"type": "string"},
+                    "include_tests": {
+                        "type": "boolean",
+                        "description": (
+                            "Default false — hide call sites under "
+                            "tests/. Set true when explicitly auditing "
+                            "test usage. No-op when match_path already "
+                            "scopes to tests/**."
+                        ),
+                    },
                 },
                 "required": ["callable"],
             },

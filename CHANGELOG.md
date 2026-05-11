@@ -10,6 +10,14 @@ bump the minor; fixes bump the patch.
 ## [Unreleased]
 
 ### Added
+- **`include_tests` knob on search/query tools** (default false). Hides
+  test-file matches from `find_symbol` / `find_symbols` / `who_calls` /
+  `find_call_sites` / `find_callback` / `get_decorated_with` /
+  `find_orm_field_usage` so "where is X used?" and "where is X
+  defined?" answers stop mixing production hits with their test
+  fixtures. Pass `include_tests: true` to opt back in for coverage
+  audits. Helper lives in [`_test_filter.py`](_test_filter.py); 12
+  new tests in [`tests/test_test_filter.py`](tests/test_test_filter.py).
 - **`ARCHITECTURE.md`** — text-diagram walk-through of the
   three-layer design (indexer → engine → surfaces).
 - **`CONTRIBUTING.md`** — dev setup, hooks, conventions, how to

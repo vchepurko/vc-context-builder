@@ -209,7 +209,18 @@ def specs() -> List[Dict[str, Any]]:
             ),
             "inputSchema": {
                 "type": "object",
-                "properties": {"data": {"type": "string"}},
+                "properties": {
+                    "data": {"type": "string"},
+                    "include_tests": {
+                        "type": "boolean",
+                        "description": (
+                            "Default false — hide callback handlers "
+                            "registered in tests/ (fixtures binding "
+                            "throwaway data strings). Set true when "
+                            "specifically auditing such fixtures."
+                        ),
+                    },
+                },
                 "required": ["data"],
             },
         },
@@ -479,6 +490,15 @@ def specs() -> List[Dict[str, Any]]:
                         "description": "Column attribute, e.g. 'photo_file_id'.",
                     },
                     "limit": {"type": "integer", "default": 200},
+                    "include_tests": {
+                        "type": "boolean",
+                        "description": (
+                            "Default false — hide field-usage hits "
+                            "from tests/ so refactor-impact analysis "
+                            "isn't drowned in fixture code. Set true "
+                            "for coverage audits of a specific column."
+                        ),
+                    },
                 },
                 "required": ["model", "column"],
             },

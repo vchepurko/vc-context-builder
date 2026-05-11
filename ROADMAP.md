@@ -34,6 +34,13 @@ the code — if you spot an inconsistency, file an issue.
   - Locales: list / find / get
 - **CLI** (`vc-context`) — full parity with the MCP surface
 - **JSON fallback** — read artifacts directly when no MCP / CLI
+- **`include_tests` knob (default false)** on search/query tools —
+  `find_symbol` / `find_symbols` / `who_calls` / `find_call_sites` /
+  `find_callback` / `get_decorated_with` / `find_orm_field_usage`
+  hide test-file matches by default. Production "where is X used?"
+  queries no longer mix in test fixtures; coverage audits opt in
+  explicitly. Helper: `_test_filter.py::is_test_path` (paths under
+  `tests/` and `.ai-context/tests/`).
 
 ### Telemetry & quality
 - Per-call JSONL telemetry sidecar (`~/.vc-context/metrics/`)
@@ -122,6 +129,17 @@ captured here so we don't keep re-deriving the need:
   `empty_streak` looks at consecutive call-level emptiness, not
   batch-internal. Detector should treat "all keys null in one batch"
   as 1 empty streak signal so agents notice they're asking for ghosts.
+- **Sampled baseline benchmark** — every Nth call (configurable, e.g.
+  1-in-20 or 1-in-30), the dispatcher also runs the equivalent Bash
+  query (grep / Read) in parallel and emits a side-by-side telemetry
+  record: token-budget MCP vs baseline, latency, result-set
+  cardinality. Yields a rolling savings estimate without the
+  full-time 2× cost of always-shadow mode (discussed in the
+  klodchikknifes session — exact measurement is expensive; sampling
+  trades precision for sustainability). Implementation: probabilistic
+  shim in `mcp.dispatcher.call()` + a new `baseline_calls` sidecar
+  next to the existing JSONL telemetry; `get_session_metrics` adds a
+  `baseline` block to its output.
 
 Each of these has a real use case, but commits to non-trivial design.
 Waiting for ~1–2 weeks of real `vc-context stats --quality` data
