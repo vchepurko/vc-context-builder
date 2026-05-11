@@ -102,6 +102,47 @@ class _InspectorsMixin:
         return _kinds()
 
     # ------------------------------------------------------------------
+    # DevOps snapshot (gap-closer)
+    # ------------------------------------------------------------------
+
+    def devops_card(self) -> Dict[str, Any]:
+        """One-call snapshot of the project's deployment surface —
+        docker-compose services, Dockerfiles, Caddy sites, GitHub
+        Actions workflows, scheduler-job role members. Replaces the
+        scattered "cat compose / grep Caddyfile / ls workflows /
+        find_by_role" sequence agents fall into when investigating
+        "where does deploy live?".
+        """
+        from devops_card import build as _build  # type: ignore[import-not-found]
+
+        scheduler_jobs: List[str] = []
+        try:
+            scheduler_jobs = list(self.find_by_role("scheduler-job"))  # type: ignore[attr-defined]
+        except Exception:
+            scheduler_jobs = []
+        return _build(self.project_root, scheduler_jobs=scheduler_jobs)
+
+    # ------------------------------------------------------------------
+    # ORM field usage (gap-closer)
+    # ------------------------------------------------------------------
+
+    def find_orm_field_usage(
+        self,
+        model: str,
+        column: str,
+        *,
+        limit: int = 200,
+    ) -> List[Dict[str, Any]]:
+        """Every read/write of ``<Model>.<column>`` (or
+        ``<model>.<column>`` when the variable name follows the class
+        name). Replaces ``grep -rn photo_file_id`` for refactor scoping
+        — returns precise AST-anchored matches with read/write kind.
+        """
+        from orm_field_usage import find_usage  # type: ignore[import-not-found]
+
+        return find_usage(self.project_root, model, column, limit=limit)
+
+    # ------------------------------------------------------------------
     # Notification audit log (Feature N)
     # ------------------------------------------------------------------
 

@@ -1,11 +1,13 @@
 [
   "classify_tests",
   "coverage_for_role",
+  "devops_card",
   "find_by_role",
   "find_call_sites",
   "find_callback",
   "find_in_templates",
   "find_locale_key",
+  "find_orm_field_usage",
   "find_pattern_in_configs",
   "find_symbol",
   "find_symbols",

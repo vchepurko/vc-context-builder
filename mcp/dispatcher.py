@@ -80,6 +80,8 @@ class Dispatcher:
             "find_pattern_in_configs": self._find_pattern_in_configs,
             "list_config_kinds": self._list_config_kinds,
             "rebuild_index": self._rebuild_index,
+            "devops_card": self._devops_card,
+            "find_orm_field_usage": self._find_orm_field_usage,
             "get_locale_key": self._get_locale_key,
             "notify_log_search": self._notify_log_search,
             "notify_log_stats": self._notify_log_stats,
@@ -308,6 +310,20 @@ class Dispatcher:
 
     def _list_config_kinds(self, args: Dict[str, Any]) -> Any:
         return self.engine.list_config_kinds()
+
+    def _devops_card(self, args: Dict[str, Any]) -> Any:
+        return self.engine.devops_card()
+
+    def _find_orm_field_usage(self, args: Dict[str, Any]) -> Any:
+        model = str(args.get("model", "")).strip()
+        column = str(args.get("column", "")).strip()
+        limit = 200
+        if "limit" in args:
+            try:
+                limit = max(1, min(2000, int(args["limit"])))
+            except (TypeError, ValueError):
+                pass
+        return self.engine.find_orm_field_usage(model, column, limit=limit)
 
     def _rebuild_index(self, args: Dict[str, Any]) -> Any:
         """Re-run ``agent_map.py`` against the active project root and
