@@ -88,9 +88,40 @@ turns it into a lint-blocker via `conventions.json`.
   here is a `find_local_agents_md(path)` MCP helper so any agent
   can discover folder-scoped rules without filesystem walks.
 
----
+### Gap-closers from real session usage
 
-## 🤔 Deferred — needs signal before it's worth building
+Concrete tools called out by 24h-telemetry + observed Bash fall-backs
+during a real klodchikknifes session (May 2026). Each is a 1-2-day add,
+captured here so we don't keep re-deriving the need:
+
+- **`find_pattern_in_configs(pattern, kinds=['env','yaml','caddy',…])`** —
+  fast indexed grep over `.env*`, `docker-compose*.y*ml`, `Caddyfile`,
+  `*.conf`, `*.ini`. Today every "where is `GOOGLE_OAUTH_*` referenced"
+  falls back to Bash `grep -rn` because the indexer ignores non-code
+  surfaces. ASCII-only scan, cached per-`(mtime, size)` like the
+  Python parser.
+- **`list_migrations()`** — alembic-aware: returns current head in DB,
+  list of files in `alembic/versions/`, drift between model columns and
+  applied migrations. Replaces `ls alembic/versions/` + `alembic current`
+  + manual model inspection.
+- **`find_orm_field_usage(model, column)`** — for "every read/write of
+  `Product.photo_file_id`": today `grep -rn photo_file_id` returns 50+
+  lines of noise. With ORM-aware parsing we can return only `.<column>`
+  attribute accesses and `Model(column=...)` constructors.
+- **`devops_card()`** — single roll-up of Dockerfile, docker-compose
+  services, Caddyfile rules, scheduler entries (APScheduler jobs +
+  cron files we discover), `update-all.sh`-style scripts. Avoids the
+  current scattered "where does deploy actually live?" investigation.
+- **`summarise_module(folder, *, filter, max_tokens)`** — current call
+  on `tests/` overflows with 16k tokens / 3243-line dump and tells the
+  caller to chunk-read. Better contract: bail early with `truncated:
+  true` + filter parameter (e.g. `filter='test_photo*'`) so a typed
+  question gets a typed answer.
+- **`empty_batch` telemetry quality finding** — `find_symbols(['a','b','c'])`
+  returning all-null today doesn't fire any quality warning because
+  `empty_streak` looks at consecutive call-level emptiness, not
+  batch-internal. Detector should treat "all keys null in one batch"
+  as 1 empty streak signal so agents notice they're asking for ghosts.
 
 Each of these has a real use case, but commits to non-trivial design.
 Waiting for ~1–2 weeks of real `vc-context stats --quality` data
