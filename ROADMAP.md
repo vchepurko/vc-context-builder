@@ -202,6 +202,49 @@ turns it into a lint-blocker via `conventions.json`.
   here is a `find_local_agents_md(path)` MCP helper so any agent
   can discover folder-scoped rules without filesystem walks.
 
+### Angular / TypeScript gaps — from lms-client session (2026-05-12)
+
+Four concrete issues surfaced during an Angular 19 feature build
+(`my-profile-page`, groups section). All four can be reproduced with
+a freshly-indexed Angular project.
+
+- **TS `interface` / `type` not indexed.** `find_symbol('SectionState')`
+  → `null`. The TS/JS parser only captures `class`, `func`,
+  `async-func`. Adding `InterfaceDeclaration` and `TypeAliasDeclaration`
+  to the AST/regex extraction would close a 57.9% empty-ratio
+  blind spot observed in `get_session_metrics` (20 calls, 60%
+  empty — all due to TypeScript interfaces). Fix: extend
+  `parsers/ts_js_parser.py` to emit `kind: "interface"` /
+  `kind: "type"` records; add an opt-in `index_ts_types: true`
+  flag in `conventions.json` so projects that don't need it pay
+  nothing.
+
+- **`ng_audit_component` selector is `null` for `standalone: false`
+  + `templateUrl` components.** Even with `typescript_ast: enabled`,
+  the selector field came back `null` for a standard Angular
+  declaration-based component. Workaround today: `read_slice` the
+  first 20 lines. Fix: ensure the AST path reads `selector` from
+  `@Component({selector: '...'})` for non-standalone components
+  regardless of whether `templateUrl` is present.
+
+- **`inspect_class` is Python-only.** Called on a TypeScript class →
+  `null`. For Angular, the most-wanted output is constructor
+  injection params (= which services are wired) + public methods
+  (= what the template can call). A thin TS variant that parses
+  `constructor(private x: X)` and public method signatures via
+  `ts_js_parser` would replace 3-4 manual `read_slice` calls per
+  component audit.
+
+- **`rebuild_index` always times out (120 s) when `typescript_ast:
+  enabled`.** Node-per-file spawning takes ~50 ms × 500+ components
+  ≈ 25 s+ on top of the normal build, pushing total past the MCP
+  timeout. Fix options: (a) run the Node pass in a single batched
+  worker process instead of per-file spawns; (b) expose an async
+  `rebuild_index` that returns a job-id and a `poll_rebuild` tool;
+  (c) increase the tool timeout to 300 s for rebuild only. Option
+  (a) is the cleanest; (b) adds API surface but keeps the MCP
+  contract synchronous everywhere else.
+
 ### Gap-closers from real session usage
 
 Concrete tools called out by 24h-telemetry + observed Bash fall-backs
