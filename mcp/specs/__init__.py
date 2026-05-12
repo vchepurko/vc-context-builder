@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, List
 
-from . import angular, project, symbols
+from . import angular, docs, project, symbols
 
 
 def tool_specs() -> List[Dict[str, Any]]:
@@ -25,6 +25,7 @@ def tool_specs() -> List[Dict[str, Any]]:
     out.extend(symbols.specs())
     out.extend(project.specs())
     out.extend(angular.specs())
+    out.extend(docs.specs())
     return out
 
 

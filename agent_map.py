@@ -105,6 +105,7 @@ class ContextBuilder:
         self.fsm_flow_filename = FSM_FLOW_FILENAME
         self.test_categories_filename = TEST_CATEGORIES_FILENAME
         self.locales_filename = LOCALES_FILENAME
+        self.docs_filename = "agent_docs_index.json"
         self.readme_filename = "AGENT_README.md"
         self.processed_modules: List[str] = []
 
@@ -400,6 +401,7 @@ class ContextBuilder:
         self._build_fsm_flow_index()
         self._build_test_categories_index()
         self._build_locale_index()
+        self._build_docs_index()
         self._generate_agent_sop()
         self._save_parse_cache()
         logging.info("Context build complete. Agent SOP is ready.")
@@ -783,6 +785,38 @@ class ContextBuilder:
             )
         except OSError as e:
             logging.error(f"Failed to write locale index: {e}")
+
+    # ------------------------------------------------------------------
+    # Feature: markdown docs index
+    # ------------------------------------------------------------------
+
+    def _build_docs_index(self) -> None:
+        """Emit ``agent_docs_index.json`` — section TOC + link metadata
+        for every ``.md`` file in the project. Surfaces the markdown
+        navigation gap noted in the submodule ROADMAP."""
+        try:
+            from markdown_index import build_index
+
+            index = build_index(self.root_dir)
+            doc_count = len(index.get("docs") or {})
+            if doc_count == 0:
+                # No markdown anywhere — skip the empty artefact rather
+                # than littering the tree.
+                return
+            out = os.path.join(self.root_dir, self.docs_filename)
+            with open(out, "w", encoding="utf-8") as fh:
+                json.dump(index, fh, indent=2, ensure_ascii=False)
+            sec_total = sum(
+                len((rec.get("sections") or [])) for rec in index["docs"].values()
+            )
+            logging.info(
+                "Wrote docs index: %s (%d files, %d sections).",
+                self.docs_filename,
+                doc_count,
+                sec_total,
+            )
+        except OSError as e:
+            logging.error(f"Failed to write docs index: {e}")
 
     def _generate_agent_sop(self) -> None:
         """Generates Standard Operating Procedure for AI Agents."""

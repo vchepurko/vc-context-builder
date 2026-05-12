@@ -70,6 +70,113 @@ the code — if you spot an inconsistency, file an issue.
 - Replace inline `import re` / `import ast` with module-level imports
   where the perf benefit is negligible.
 
+### Telemetry & quality detectors — observations from real sessions
+
+A long klodchickknifes session (2026-05-12, IDEAS #27 + #28 + Phase
+3 — ~70 file edits, 56 MCP calls, 4633 tokens) surfaced concrete
+gaps in the telemetry surface:
+
+- **Bash usage isn't tracked.** `get_session_metrics` reports only
+  MCP calls + heuristic baseline, so the "true MCP win" is
+  understated. The session showed a 44.5% baseline win, but with
+  Bash-grep usage counted (sed bulk-replaces, `grep -rn` for
+  free-text, `node --check` for JS) the savings ratio would be more
+  representative. Two paths:
+  - **Light**: emit a single "session.summary" record on shutdown
+    with a self-reported Bash count (claude-side instrumentation,
+    not MCP-side). Cheap, requires agent cooperation.
+  - **Heavier**: add a `hint_bash_use(action, bytes_estimate)`
+    no-op tool that agents call when they shell out, so metrics see
+    the volume. Coupling cost is the agent has to remember.
+  Pick light first; revisit when 3+ users instrument.
+
+- **Hot-reread detector caught real waste.** `run_check("test-unit")`
+  fired 15× in the session — detector flagged "consider caching".
+  The agent batched poorly: ran tests after almost every small edit
+  instead of grouping 3-5 edits per test run. Two affordances we
+  could add:
+  - **Test-discriminator**: cache the last `run_check("test-unit")`
+    result keyed on `git diff --stat` hash. If no source change
+    since last run, return the cached summary with `cached=true`
+    flag. Saves 10-20s per redundant invocation.
+  - **Sugar in tool description**: explicit phrasing like
+    "run only after 3+ edits accumulate" in the `run_check`
+    description. Documentation wins behavior more than enforcement.
+
+- **`mypy_violations` + `lint_violations` are dirt cheap but called
+  reflexively in pairs.** 11 calls of each in the session; almost
+  always empty. Could either:
+  - Surface a single combined `check_health()` tool that returns
+    `{lint: [...], mypy: [...], ruff: [...]}` in one call — 3 calls
+    → 1 call, ~3× fewer round-trips.
+  - Or document the existing tools as "use after batches, not after
+    each edit; pre-commit hook covers per-commit". Behavioral.
+
+- **Quality finding `wasteful_pairs` showed empty in this session**
+  (good — no `find_symbol → grep -n` followed by Read of the same
+  symbol). The rule that "don't grep after MCP answered" is
+  internalised. Worth verifying on other agents'/users' sessions
+  whether the detector ever fires; if not in 30 days, consider
+  promoting it to a stricter `warn` or removing.
+
+### Markdown / docs navigation — real gap
+
+Same 2026-05-12 session: ~30% of edits touched markdown files
+(`IDEAS.md`, `ROADMAP.md`, `docs/ENV.md`, `docs/OPS.md`,
+`WEBAPP_V2_SPEC.md`, plus this submodule's own `ROADMAP.md`).
+**Zero MCP coverage for that work** — `find_symbol` /
+`find_by_role` / `summarise_module` are all Python-AST-only.
+Result: I fell back to `grep -rn "^## "` + `tail` + `Read` to
+locate sections, which the user flagged as "you're not using MCP
+here either".
+
+The current rule ("free-text inside file bodies → grep") is
+correct **only because there's no alternative**. Bash isn't
+faster for markdown navigation — it's the only option. Adding
+even a thin markdown index closes a 30% blind spot in the MCP
+surface.
+
+Concrete tool sketches, cheapest first:
+
+- **`get_doc_toc(file: str)`** — return `[(line, level, header_text), ...]`
+  for a `.md` file. Implementation: regex over `^#{1,6} ` lines, no
+  AST. ~30 LOC. Saves a `grep "^## "` + Read combo.
+
+- **`find_doc_section(file, header_pattern, *, fuzzy=True)`** —
+  match a section by title and return `(start_line, end_line)` so
+  callers feed it into `read_slice` for surgical reads. The
+  workflow that today is "Bash `grep -n '^## Planned'`, then
+  `Read offset=63 limit=30`" becomes one MCP call.
+
+- **`list_docs(*, glob='**/*.md')`** — enumerate every `.md` in
+  the project, returning `(path, top_header, section_count,
+  byte_size)`. Useful for "where do we document X" kind of
+  queries before zooming in.
+
+- **`find_doc_xref(symbol_or_term)`** — full-text search across
+  the docs only (separate from code grep), return
+  `[(file, line, snippet)]`. Distinct from `find_symbol` since
+  docs reference flags / env names / concepts, not Python
+  symbols.
+
+- **`docs_link_graph()`** — extract all `[text](relative-path.md)`
+  links, build a directed graph, report broken links + dangling
+  docs (referenced from nowhere). One-shot validator that doubles
+  as agent-navigation primitive ("which docs link to BACKUP.md?").
+
+**Index build cost.** Markdown sits well below Python in churn
+volume; ~20 files in this repo, ~3 KB each. A scan-and-index pass
+adds < 50 ms to ``agent_map.py``. Artefact file:
+``agent_docs_index.json`` (~30 KB), parallel to the existing
+``agent_symbols.json``.
+
+**Priority**: medium. Less than `find_orphan_callbacks` (already
+queued) and `find_handlers_without_tests`, but higher than the
+``query_engine`` split refactor — that's pure code-quality, this
+extends user-visible surface.
+
+### Anti-pattern detectors
+
 ### Anti-pattern detectors
 A small set of stat-only detectors layered on top of the existing
 indexer. Zero LLM, zero new runtime deps — pure set-difference over
@@ -107,6 +214,13 @@ captured here so we don't keep re-deriving the need:
   falls back to Bash `grep -rn` because the indexer ignores non-code
   surfaces. ASCII-only scan, cached per-`(mtime, size)` like the
   Python parser.
+- **`find_in_file(file, pattern, *, limit=20, regex=False)`** —
+  surgical grep over a single file with line numbers + context.
+  Captures the "I know the file, I'm hunting a string inside it"
+  case the JS files surface every session (`Checkout.js` is one
+  big component, `find_symbol` only reaches the top-level class).
+  Avoids the Bash fall-back that prompted "так може покращити для
+  жс команду?" — 2026-05-11.
 - **`list_migrations()`** — alembic-aware: returns current head in DB,
   list of files in `alembic/versions/`, drift between model columns and
   applied migrations. Replaces `ls alembic/versions/` + `alembic current`

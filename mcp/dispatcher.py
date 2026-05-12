@@ -96,6 +96,11 @@ class Dispatcher:
             "ng_list_routes": self._ng_list_routes,
             "ng_route_for_path": self._ng_route_for_path,
             "ng_routes_for_component": self._ng_routes_for_component,
+            "get_doc_toc": self._get_doc_toc,
+            "find_doc_section": self._find_doc_section,
+            "list_docs": self._list_docs,
+            "find_doc_xref": self._find_doc_xref,
+            "docs_link_graph": self._docs_link_graph,
         }
 
     def call(self, name: str, args: Dict[str, Any]) -> Any:
@@ -505,3 +510,41 @@ class Dispatcher:
     def _ng_routes_for_component(self, args: Dict[str, Any]) -> Any:
         name = str(args.get("name", "")).strip()
         return self.engine.ng_routes_for_component(name) if name else []
+
+    # ─── Markdown docs index ─────────────────────────────────────
+
+    def _get_doc_toc(self, args: Dict[str, Any]) -> Any:
+        file = str(args.get("file", "")).strip()
+        return self.engine.get_doc_toc(file) if file else None
+
+    def _find_doc_section(self, args: Dict[str, Any]) -> Any:
+        file = str(args.get("file", "")).strip()
+        header_pattern = str(args.get("header_pattern", "")).strip()
+        if not file or not header_pattern:
+            return None
+        fuzzy = bool(args.get("fuzzy", True))
+        return self.engine.find_doc_section(file, header_pattern, fuzzy=fuzzy)
+
+    def _list_docs(self, args: Dict[str, Any]) -> Any:
+        path_prefix = args.get("path_prefix")
+        kw: Dict[str, Any] = {}
+        if isinstance(path_prefix, str) and path_prefix.strip():
+            kw["path_prefix"] = path_prefix.strip()
+        return self.engine.list_docs(**kw)
+
+    def _find_doc_xref(self, args: Dict[str, Any]) -> Any:
+        term = str(args.get("term", "")).strip()
+        if not term:
+            return []
+        kw: Dict[str, Any] = {}
+        if "case_sensitive" in args:
+            kw["case_sensitive"] = bool(args.get("case_sensitive"))
+        if "max_results" in args:
+            try:
+                kw["max_results"] = int(args.get("max_results") or 50)
+            except (TypeError, ValueError):
+                pass
+        return self.engine.find_doc_xref(term, **kw)
+
+    def _docs_link_graph(self, args: Dict[str, Any]) -> Any:
+        return self.engine.docs_link_graph()

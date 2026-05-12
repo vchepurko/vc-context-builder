@@ -54,6 +54,7 @@ class QueryEngine(_InspectorsMixin, _RoutesMixin, _TestsMixin):
     FSM_FLOW_FILENAME = "agent_fsm_flows.json"
     TEST_CATEGORIES_FILENAME = "agent_test_categories.json"
     LOCALES_FILENAME = "agent_locale_keys.json"
+    DOCS_INDEX_FILENAME = "agent_docs_index.json"
     MAP_FILENAME = "_module_map.json"
     IGNORE_DIRS = frozenset(
         {
@@ -87,6 +88,7 @@ class QueryEngine(_InspectorsMixin, _RoutesMixin, _TestsMixin):
         self._fsm_flows: Optional[Dict[str, Dict[str, Any]]] = None
         self._test_categories: Optional[Dict[str, Dict[str, Any]]] = None
         self._locale_keys: Optional[Dict[str, Dict[str, Any]]] = None
+        self._docs_index: Optional[Dict[str, Any]] = None
 
     # ------------------------------------------------------------------
     # Cache invalidation — used after an in-process rebuild so the next
@@ -109,6 +111,7 @@ class QueryEngine(_InspectorsMixin, _RoutesMixin, _TestsMixin):
         self._fsm_flows = None
         self._test_categories = None
         self._locale_keys = None
+        self._docs_index = None
 
     # ------------------------------------------------------------------
     # Lazy loaders
@@ -215,6 +218,63 @@ class QueryEngine(_InspectorsMixin, _RoutesMixin, _TestsMixin):
             except (OSError, json.JSONDecodeError):
                 self._locale_keys = {}
         return self._locale_keys
+
+    def _load_docs_index(self) -> Dict[str, Any]:
+        """Return ``agent_docs_index.json`` (or ``{"docs": {}}`` if
+        missing). Lazy-loaded on first markdown query."""
+        if self._docs_index is None:
+            path = os.path.join(self.project_root, self.DOCS_INDEX_FILENAME)
+            try:
+                with open(path, encoding="utf-8") as fh:
+                    self._docs_index = json.load(fh)
+            except (OSError, json.JSONDecodeError):
+                self._docs_index = {"docs": {}}
+        return self._docs_index
+
+    # ─── Markdown docs queries (delegate to markdown_index helpers) ──
+
+    def get_doc_toc(self, file: str) -> Optional[List[Dict[str, Any]]]:
+        from markdown_index import get_toc
+
+        return get_toc(self._load_docs_index(), file)
+
+    def find_doc_section(
+        self, file: str, header_pattern: str, *, fuzzy: bool = True
+    ) -> Optional[Dict[str, Any]]:
+        from markdown_index import find_section
+
+        return find_section(
+            self._load_docs_index(), file, header_pattern, fuzzy=fuzzy
+        )
+
+    def list_docs(
+        self, *, path_prefix: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        from markdown_index import list_docs as _list
+
+        return _list(self._load_docs_index(), path_prefix=path_prefix)
+
+    def find_doc_xref(
+        self,
+        term: str,
+        *,
+        case_sensitive: bool = False,
+        max_results: int = 50,
+    ) -> List[Dict[str, Any]]:
+        from markdown_index import find_xref
+
+        return find_xref(
+            self.project_root,
+            self._load_docs_index(),
+            term,
+            case_sensitive=case_sensitive,
+            max_results=max_results,
+        )
+
+    def docs_link_graph(self) -> Dict[str, Any]:
+        from markdown_index import link_graph
+
+        return link_graph(self.project_root, self._load_docs_index())
 
     def _iter_module_maps(self) -> Iterable[Tuple[str, Dict[str, Any]]]:
         """Yield ``(relative_directory, parsed_map_json)`` for each
