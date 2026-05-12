@@ -175,6 +175,80 @@ queued) and `find_handlers_without_tests`, but higher than the
 ``query_engine`` split refactor — that's pure code-quality, this
 extends user-visible surface.
 
+**Phase 1 status (2026-05-12): ✅ all five tools shipped** —
+``get_doc_toc`` / ``find_doc_section`` / ``list_docs`` /
+``find_doc_xref`` / ``docs_link_graph`` are live in the MCP
+server and serving real queries.
+
+### Markdown navigation Phase 2 — calibration after head-to-head trial
+
+Same-day 3-paired benchmark (MCP vs grep on `IDEAS.md`) revealed
+the shipped tools have sharper interfaces than grep for some
+ad-hoc queries. The honest scoreboard:
+
+| Query | MCP | grep | Verdict |
+| --- | --- | --- | --- |
+| Full TOC of `IDEAS.md` | `get_doc_toc` → 12KB structured (level/line/end_line/anchor) | `grep -nE '^#+ '` → 5KB raw, truncated | **MCP** (metadata + bounds) |
+| "Find section #31" | `find_doc_section(anchor="31")` → `null` | `grep '^## 31\.'` → 1 line, 80B | **grep** (MCP needs full slug) |
+| "Which docs mention IDEAS #27" | `find_doc_xref("IDEAS #27")` → `[]` | `grep -rln "IDEAS #27"` → 3 files | **grep** (xref index doesn't catch free text) |
+
+**Gaps to close so MCP is a strict superset of grep for docs:**
+
+- **`find_doc_section` — loose anchor lookup.** Today the slug
+  must be exact. Accept alternative selectors:
+  - ``number=31`` → finds `## 31. …` at level 2 (regex on prefix).
+  - ``heading="Unified User"`` → case-insensitive substring match
+    on heading text, ranked by match length.
+  - ``anchor="31"`` → slug prefix match when the full slug isn't
+    known. Falls back gracefully across all three.
+
+- **`search_doc_text(query, *, file=None, regex=False, kinds=None)`**
+  — new tool. Markdown-aware grep returning
+  ``[{file, line, section: {heading, anchor, level}, snippet}]``
+  instead of bare lines. Groups hits per section so the agent
+  sees "this mention is inside Phase 2 of IDEAS #28" without a
+  follow-up Read. ``kinds=['ideas','spec','roadmap','folder-rules']``
+  scopes by doc role. Closes the "which docs mention X" free-text
+  query class.
+
+- **`find_doc_xref` — broaden index to free-text refs.** Today
+  only markdown-link syntax `[#27](#27-...)` is indexed. Extend
+  the indexer to catch patterned mentions:
+  - ``IDEAS #\d+`` / ``AUTH_SPEC §\d+`` / ``ROADMAP Phase \d+``
+  - ``BOOKING_SPEC §...`` / ``WEBAPP_V2_SPEC §...``
+  Store alongside link-xrefs in ``agent_docs_index.json`` with a
+  ``kind: 'reference' | 'link'`` discriminator. Closes the "where
+  else is IDEAS #27 discussed" query without grep.
+
+- **`list_doc_headings(file, *, level=2)`** — light TOC.
+  ``get_doc_toc`` returns the full recursive tree (~12 KB on
+  `IDEAS.md`). For 80% of "where is section X" queries an agent
+  only needs top-level entries (~3 KB). One filter parameter,
+  same code path.
+
+- **`find_doc_heading(query, *, file=None, top=3)`** — fuzzy
+  search over heading text via rapidfuzz / difflib. "find the
+  section about unified user" → top-3 headings across all docs
+  with score.
+
+**Priority order:**
+
+1. **`search_doc_text`** — biggest single win. Covers free-text
+   queries that today drop to grep entirely. ~80 LOC, mostly
+   reuse of the existing TOC walker to attach section context
+   to each hit.
+2. **`find_doc_section` loose lookup** — ~30 LOC wrapper on the
+   existing tool. Adds `number=` / `heading=` / prefix matching.
+3. **`find_doc_xref` broaden index** — touches
+   ``markdown_index.py`` indexer (~50 LOC + ~5 KB artefact bump).
+4. `list_doc_headings(level=N)` and `find_doc_heading(query)`
+   are polish — useful but #1–3 close the major functional gap.
+
+**Acceptance test:** rerun the 3-paired benchmark above — all
+three rows must flip to "MCP wins or ties" after these changes.
+Pin as ``tests/test_doc_tools_vs_grep.py`` so the regression
+stays caught.
+
 ### Anti-pattern detectors
 
 ### Anti-pattern detectors
