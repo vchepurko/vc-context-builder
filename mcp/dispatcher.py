@@ -515,7 +515,16 @@ class Dispatcher:
 
     def _get_doc_toc(self, args: Dict[str, Any]) -> Any:
         file = str(args.get("file", "")).strip()
-        return self.engine.get_doc_toc(file) if file else None
+        if not file:
+            return None
+        # ``max_level`` (1–6) optionally trims the TOC. Anything outside
+        # that range is ignored — better to fall back to a full TOC
+        # than 500 the caller for a typo on an optional parameter.
+        max_level_raw = args.get("max_level")
+        max_level: Optional[int] = None
+        if isinstance(max_level_raw, int) and 1 <= max_level_raw <= 6:
+            max_level = max_level_raw
+        return self.engine.get_doc_toc(file, max_level=max_level)
 
     def _find_doc_section(self, args: Dict[str, Any]) -> Any:
         file = str(args.get("file", "")).strip()

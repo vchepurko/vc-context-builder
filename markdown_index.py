@@ -239,17 +239,32 @@ def write_index(project_root: str, out_path: Optional[str] = None) -> str:
 # ──────────────────────────────────────────────────────────────────
 
 
-def get_toc(index: Dict[str, Any], file: str) -> Optional[List[Dict[str, Any]]]:
+def get_toc(
+    index: Dict[str, Any],
+    file: str,
+    *,
+    max_level: Optional[int] = None,
+) -> Optional[List[Dict[str, Any]]]:
     """Return the section list for ``file`` (repo-relative path).
 
     None means the file isn't in the index (typo / not a markdown
     file / outside the tracked tree). Empty list means the file is
     indexed but has no headings.
+
+    ``max_level`` (1–6) restricts the TOC to top-level entries. The
+    full recursive tree on a long doc like ``IDEAS.md`` is ~12 KB;
+    ``max_level=2`` trims it to ~3 KB by dropping ``###``+
+    subsections. The default (``None``) keeps the current behaviour
+    — return every heading. Closes the "light TOC" follow-up flagged
+    in the markdown-nav Phase 2 roadmap entry.
     """
     rec = index.get("docs", {}).get(file)
     if rec is None:
         return None
-    return rec.get("sections", [])  # type: ignore[no-any-return]
+    sections: List[Dict[str, Any]] = rec.get("sections", [])
+    if max_level is None:
+        return sections
+    return [s for s in sections if s.get("level", 0) <= max_level]
 
 
 def find_section(

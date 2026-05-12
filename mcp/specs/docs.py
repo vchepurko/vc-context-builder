@@ -20,7 +20,13 @@ def specs() -> List[Dict[str, Any]]:
                 "[{level, text, line, end_line, anchor}, ...]. Replaces "
                 "the grep '^## ' + Read combo for 'show me the layout "
                 "of OPS.md'. Returns null when the file isn't in the "
-                "index (typo / outside tracked tree)."
+                "index (typo / outside tracked tree).\n\n"
+                "``max_level`` (1–6, default unlimited) trims the TOC "
+                "to top-level entries — pass ``max_level: 2`` to get "
+                "just the ``##`` headings on long docs like "
+                "``IDEAS.md`` (~3 KB instead of the full ~12 KB tree). "
+                "Out-of-range values are silently ignored (full TOC "
+                "returned) — keeps the optional parameter forgiving."
             ),
             "inputSchema": {
                 "type": "object",
@@ -30,6 +36,14 @@ def specs() -> List[Dict[str, Any]]:
                         "description": (
                             "Repo-relative path to the ``.md`` file "
                             "(e.g. 'docs/OPS.md')."
+                        ),
+                    },
+                    "max_level": {
+                        "type": "integer",
+                        "description": (
+                            "Optional 1–6 cap. Drops headings deeper "
+                            "than this level (e.g. ``2`` hides all "
+                            "``###``+ subsections)."
                         ),
                     },
                 },

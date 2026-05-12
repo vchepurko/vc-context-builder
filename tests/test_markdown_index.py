@@ -91,7 +91,9 @@ class BuildIndexTests(unittest.TestCase):
         headings — the indexer must ignore them."""
         _write(
             os.path.join(self.root, "doc.md"),
-            "# Real H1\n\n```python\n# this is a Python comment\n## not a heading\n```\n\n## After fence\n",
+            "# Real H1\n\n"
+            "```python\n# this is a Python comment\n## not a heading\n```\n\n"
+            "## After fence\n",
         )
         secs = markdown_index.build_index(self.root)["docs"]["doc.md"]["sections"]
         texts = [s["text"] for s in secs]
@@ -141,6 +143,39 @@ class QueryHelperTests(unittest.TestCase):
 
     def test_get_doc_toc_unknown_file_returns_none(self) -> None:
         self.assertIsNone(self.engine.get_doc_toc("nope.md"))
+
+    def test_get_doc_toc_max_level_trims_deep_headings(self) -> None:
+        """``max_level`` drops headings deeper than the cap. Pins the
+        Phase 2 'light TOC' behaviour — agent passes ``max_level=2``
+        to skip ``###``+ subsections on long docs."""
+        # Build a fresh fixture with mixed levels so the cap has
+        # something to actually trim (OPS.md only has H1+H2).
+        _write(
+            os.path.join(self.root, "deep.md"),
+            "# Root\n\n"
+            "## Top A\n\n"
+            "### Sub A1\n\n"
+            "### Sub A2\n\n"
+            "## Top B\n\n"
+            "#### Deep B1\n\n",
+        )
+        out = os.path.join(self.root, "agent_docs_index.json")
+        with open(out, "w", encoding="utf-8") as fh:
+            json.dump(markdown_index.build_index(self.root), fh)
+        engine = QueryEngine(self.root)
+
+        full = engine.get_doc_toc("deep.md") or []
+        levels_full = [s["level"] for s in full]
+        self.assertEqual(levels_full, [1, 2, 3, 3, 2, 4])
+
+        trimmed = engine.get_doc_toc("deep.md", max_level=2) or []
+        self.assertEqual([s["text"] for s in trimmed], ["Root", "Top A", "Top B"])
+
+        # Out-of-range / invalid values fall through to full TOC at
+        # the dispatcher boundary; the helper layer respects the value
+        # literally — H1-only when max_level=1.
+        h1_only = engine.get_doc_toc("deep.md", max_level=1) or []
+        self.assertEqual([s["text"] for s in h1_only], ["Root"])
 
     def test_find_doc_section_fuzzy_match(self) -> None:
         sec = self.engine.find_doc_section("docs/OPS.md", "rotat")

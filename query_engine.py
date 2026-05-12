@@ -233,10 +233,12 @@ class QueryEngine(_InspectorsMixin, _RoutesMixin, _TestsMixin):
 
     # ─── Markdown docs queries (delegate to markdown_index helpers) ──
 
-    def get_doc_toc(self, file: str) -> Optional[List[Dict[str, Any]]]:
+    def get_doc_toc(
+        self, file: str, *, max_level: Optional[int] = None
+    ) -> Optional[List[Dict[str, Any]]]:
         from markdown_index import get_toc
 
-        return get_toc(self._load_docs_index(), file)
+        return get_toc(self._load_docs_index(), file, max_level=max_level)
 
     def find_doc_section(
         self, file: str, header_pattern: str, *, fuzzy: bool = True
