@@ -37,7 +37,12 @@ from typing import Any, Dict, List, Optional
 CONFIG_RELATIVE_PATH = os.path.join(".vc-context", "conventions.json")
 
 VALID_SEVERITIES = ("error", "warn", "info")
-VALID_RULE_KEYS = ("forbid_import", "forbid_call", "forbid_decorator_regex")
+VALID_RULE_KEYS = (
+    "forbid_import",
+    "forbid_import_symbol",
+    "forbid_call",
+    "forbid_decorator_regex",
+)
 
 # Project subtrees we never walk.
 IGNORE_DIRS = {
@@ -105,7 +110,10 @@ def load_rules(project_root: str) -> List[Dict[str, Any]]:
                 forbid_decorator_pattern = None
                 # No raw — drop this rule entirely if we couldn't compile
                 # AND the rule has no other rule keys.
-                if not any(r.get(k) for k in ("forbid_import", "forbid_call")):
+                if not any(
+                    r.get(k)
+                    for k in ("forbid_import", "forbid_import_symbol", "forbid_call")
+                ):
                     continue
 
         cleaned.append(
@@ -115,6 +123,7 @@ def load_rules(project_root: str) -> List[Dict[str, Any]]:
                 "match_path": match_path,
                 "severity": severity,
                 "forbid_import": r.get("forbid_import"),
+                "forbid_import_symbol": r.get("forbid_import_symbol"),
                 "forbid_call": r.get("forbid_call"),
                 "forbid_decorator_regex": forbid_decorator_regex_raw,
                 "_decorator_pattern": forbid_decorator_pattern,
@@ -218,6 +227,7 @@ def _scan_file(
         return []
 
     forbid_imports = [r for r in applicable if r.get("forbid_import")]
+    forbid_import_symbols = [r for r in applicable if r.get("forbid_import_symbol")]
     forbid_calls = [r for r in applicable if r.get("forbid_call")]
     forbid_decorators = [r for r in applicable if r.get("_decorator_pattern")]
 
@@ -270,6 +280,26 @@ def _scan_file(
                         out.append(
                             _record(rule, rel_path, node.lineno, f"forbidden import: from {mod}")
                         )
+
+    if forbid_import_symbols:
+        # ``forbid_import_symbol`` flags ``from X import <symbol>`` lines
+        # — for cases where the module is fine but a specific symbol
+        # within it is forbidden. Used by ``admin-route-needs-role-gate``
+        # to block ``from backend.auth import RequiredInternal``.
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom):
+                for alias in node.names:
+                    name = alias.name
+                    for rule in forbid_import_symbols:
+                        if name == rule["forbid_import_symbol"]:
+                            out.append(
+                                _record(
+                                    rule,
+                                    rel_path,
+                                    node.lineno,
+                                    f"forbidden symbol import: {name}",
+                                )
+                            )
 
     if forbid_calls:
         for node in ast.walk(tree):

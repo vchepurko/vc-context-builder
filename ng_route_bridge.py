@@ -275,7 +275,10 @@ def build_ng_route_index(project_root: str) -> list[dict[str, Any]]:
 
 def write_ng_route_index(project_root: str, routes: list[dict[str, Any]]) -> str:
     """Persist ``agent_ng_routes.json`` and return its absolute path."""
-    out_path = os.path.join(project_root, NG_ROUTES_FILENAME)
+    from paths import ensure_index_dir, index_path
+
+    ensure_index_dir(project_root)
+    out_path = index_path(project_root, NG_ROUTES_FILENAME)
     with open(out_path, "w", encoding="utf-8") as fh:
         json.dump(routes, fh, indent=2, ensure_ascii=False)
         fh.write("\n")

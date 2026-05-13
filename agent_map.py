@@ -12,6 +12,7 @@ if _HERE not in sys.path:
 
 # Import our custom heuristic parser
 import parse_cache
+from paths import ensure_index_dir, index_path, index_read_path
 from callback_index import (
     CALLBACKS_FILENAME,
     collect_callbacks,
@@ -497,7 +498,8 @@ class ContextBuilder:
         return rel
 
     def _build_root_map(self) -> None:
-        root_map_path = os.path.join(self.root_dir, self.root_map_filename)
+        ensure_index_dir(self.root_dir)
+        root_map_path = index_path(self.root_dir, self.root_map_filename)
 
         # Aggregate roles across every module map. We re-read maps from
         # disk (vs holding state in memory) so this works even when most
@@ -617,7 +619,8 @@ class ContextBuilder:
 
         # Sort keys for deterministic output (idempotent builds).
         ordered = {k: index[k] for k in sorted(index)}
-        out_path = os.path.join(self.root_dir, self.symbols_filename)
+        ensure_index_dir(self.root_dir)
+        out_path = index_path(self.root_dir, self.symbols_filename)
         try:
             with open(out_path, "w", encoding="utf-8") as f:
                 json.dump(ordered, f, indent=2, ensure_ascii=False)
@@ -637,7 +640,7 @@ class ContextBuilder:
         agent_tests.json. Empty index is still emitted so consumers can
         rely on the file's presence after a successful build.
         """
-        symbols_path = os.path.join(self.root_dir, self.symbols_filename)
+        symbols_path = index_read_path(self.root_dir, self.symbols_filename)
         try:
             with open(symbols_path, encoding="utf-8") as fh:
                 symbols = json.load(fh)
@@ -803,7 +806,8 @@ class ContextBuilder:
                 # No markdown anywhere — skip the empty artefact rather
                 # than littering the tree.
                 return
-            out = os.path.join(self.root_dir, self.docs_filename)
+            ensure_index_dir(self.root_dir)
+            out = index_path(self.root_dir, self.docs_filename)
             with open(out, "w", encoding="utf-8") as fh:
                 json.dump(index, fh, indent=2, ensure_ascii=False)
             sec_total = sum(

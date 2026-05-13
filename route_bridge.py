@@ -353,7 +353,10 @@ def build_route_index(project_root: str) -> Dict[str, Dict[str, Any]]:
 
 
 def write_route_index(project_root: str, index: Dict[str, Any]) -> str:
-    out_path = os.path.join(project_root, ROUTES_FILENAME)
+    from paths import ensure_index_dir, index_path
+
+    ensure_index_dir(project_root)
+    out_path = index_path(project_root, ROUTES_FILENAME)
     ordered = {k: index[k] for k in sorted(index)}
     with open(out_path, "w", encoding="utf-8") as fh:
         json.dump(ordered, fh, indent=2, ensure_ascii=False)

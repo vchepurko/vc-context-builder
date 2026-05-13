@@ -212,8 +212,15 @@ def collect_callbacks(project_root: str) -> Dict[str, List[Dict[str, Any]]]:
 
 
 def write_callback_index(project_root: str, index: Dict[str, List[Dict[str, Any]]]) -> str:
-    """Write ``agent_callbacks.json`` (sorted keys for deterministic builds)."""
-    out_path = os.path.join(project_root, CALLBACKS_FILENAME)
+    """Write ``agent_callbacks.json`` (sorted keys for deterministic builds).
+
+    Lands under ``<project_root>/.vc-context/index/`` per the path
+    helper — the directory is created if missing.
+    """
+    from paths import ensure_index_dir, index_path
+
+    ensure_index_dir(project_root)
+    out_path = index_path(project_root, CALLBACKS_FILENAME)
     ordered = {k: index[k] for k in sorted(index)}
     with open(out_path, "w", encoding="utf-8") as fh:
         json.dump(ordered, fh, indent=2, ensure_ascii=False)

@@ -89,14 +89,18 @@ class ContextBuilderRunTests(_ProjectFixture):
             "agent_fsm_flows.json",
             "agent_test_categories.json",
         ):
+            from paths import index_path
+
             self.assertTrue(
-                os.path.exists(os.path.join(self.root, fname)),
+                os.path.exists(index_path(self.root, fname)),
                 f"missing artefact: {fname}",
             )
 
     def test_symbols_carry_line_and_role(self) -> None:
+        from paths import index_path
+
         ContextBuilder(self.root).run()
-        with open(os.path.join(self.root, "agent_symbols.json")) as fh:
+        with open(index_path(self.root, "agent_symbols.json")) as fh:
             symbols = json.load(fh)
 
         # `add_admin` should be present with file/line plus path-role.
@@ -113,7 +117,9 @@ class ContextBuilderRunTests(_ProjectFixture):
 
     def test_root_index_lists_modules_and_roles(self) -> None:
         ContextBuilder(self.root).run()
-        with open(os.path.join(self.root, "agent_root.json")) as fh:
+        from paths import index_path
+
+        with open(index_path(self.root, "agent_root.json")) as fh:
             root_data = json.load(fh)
         self.assertIn("modules", root_data)
         # Three indexed module folders (bot/handlers, bot/api_client, services).
@@ -142,7 +148,9 @@ class IgnoreDirsTests(_ProjectFixture):
             ("def should_not_be_indexed(): pass\n"),
         )
         ContextBuilder(self.root).run()
-        with open(os.path.join(self.root, "agent_symbols.json")) as fh:
+        from paths import index_path
+
+        with open(index_path(self.root, "agent_symbols.json")) as fh:
             symbols = json.load(fh)
         self.assertNotIn("should_not_be_indexed", symbols)
 

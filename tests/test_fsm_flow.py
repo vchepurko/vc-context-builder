@@ -204,7 +204,9 @@ class TestQueryEngineTrace(unittest.TestCase):
         self.assertEqual(out["entered_by"][0]["callback"], "adm:staff_add")
 
     def test_missing_index_degrades_gracefully(self) -> None:
-        os.remove(os.path.join(self.fx.root, FSM_FLOW_FILENAME))
+        from paths import index_path
+
+        os.remove(index_path(self.fx.root, FSM_FLOW_FILENAME))
         engine = QueryEngine(self.fx.root)
         self.assertIsNone(engine.trace_fsm_flow("AddStaffState.waiting_user_id"))
 

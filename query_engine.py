@@ -22,6 +22,7 @@ from _query_inspectors import _InspectorsMixin
 from _query_routes import _RoutesMixin
 from _query_tests import _TestsMixin
 from _test_filter import filter_test_records, is_test_path
+from paths import index_read_path as _index_read
 
 
 class QueryEngine(_InspectorsMixin, _RoutesMixin, _TestsMixin):
@@ -119,14 +120,14 @@ class QueryEngine(_InspectorsMixin, _RoutesMixin, _TestsMixin):
 
     def _load_root(self) -> Dict[str, Any]:
         if self._root is None:
-            path = os.path.join(self.project_root, self.ROOT_FILENAME)
+            path = _index_read(self.project_root, self.ROOT_FILENAME)
             with open(path, encoding="utf-8") as fh:
                 self._root = json.load(fh)
         return self._root
 
     def _load_symbols(self) -> Dict[str, Dict[str, Any]]:
         if self._symbols is None:
-            path = os.path.join(self.project_root, self.SYMBOLS_FILENAME)
+            path = _index_read(self.project_root, self.SYMBOLS_FILENAME)
             with open(path, encoding="utf-8") as fh:
                 self._symbols = json.load(fh)
         return self._symbols
@@ -139,7 +140,7 @@ class QueryEngine(_InspectorsMixin, _RoutesMixin, _TestsMixin):
         generate it.
         """
         if self._tests is None:
-            path = os.path.join(self.project_root, self.TESTS_FILENAME)
+            path = _index_read(self.project_root, self.TESTS_FILENAME)
             try:
                 with open(path, encoding="utf-8") as fh:
                     self._tests = json.load(fh)
@@ -150,7 +151,7 @@ class QueryEngine(_InspectorsMixin, _RoutesMixin, _TestsMixin):
     def _load_routes(self) -> Dict[str, Dict[str, Any]]:
         """Return ``agent_routes.json`` content (or ``{}`` if missing)."""
         if self._routes is None:
-            path = os.path.join(self.project_root, self.ROUTES_FILENAME)
+            path = _index_read(self.project_root, self.ROUTES_FILENAME)
             try:
                 with open(path, encoding="utf-8") as fh:
                     self._routes = json.load(fh)
@@ -161,7 +162,7 @@ class QueryEngine(_InspectorsMixin, _RoutesMixin, _TestsMixin):
     def _load_ng_routes(self) -> List[Dict[str, Any]]:
         """Return ``agent_ng_routes.json`` content (or ``[]`` if missing)."""
         if self._ng_routes is None:
-            path = os.path.join(self.project_root, self.NG_ROUTES_FILENAME)
+            path = _index_read(self.project_root, self.NG_ROUTES_FILENAME)
             try:
                 with open(path, encoding="utf-8") as fh:
                     data = json.load(fh)
@@ -178,7 +179,7 @@ class QueryEngine(_InspectorsMixin, _RoutesMixin, _TestsMixin):
         older builds.
         """
         if self._callbacks is None:
-            path = os.path.join(self.project_root, self.CALLBACKS_FILENAME)
+            path = _index_read(self.project_root, self.CALLBACKS_FILENAME)
             try:
                 with open(path, encoding="utf-8") as fh:
                     self._callbacks = json.load(fh)
@@ -189,7 +190,7 @@ class QueryEngine(_InspectorsMixin, _RoutesMixin, _TestsMixin):
     def _load_fsm_flows(self) -> Dict[str, Dict[str, Any]]:
         """Return ``agent_fsm_flows.json`` content (or ``{}`` if missing)."""
         if self._fsm_flows is None:
-            path = os.path.join(self.project_root, self.FSM_FLOW_FILENAME)
+            path = _index_read(self.project_root, self.FSM_FLOW_FILENAME)
             try:
                 with open(path, encoding="utf-8") as fh:
                     self._fsm_flows = json.load(fh)
@@ -200,7 +201,7 @@ class QueryEngine(_InspectorsMixin, _RoutesMixin, _TestsMixin):
     def _load_test_categories(self) -> Dict[str, Dict[str, Any]]:
         """Return ``agent_test_categories.json`` (or ``{}`` if missing)."""
         if self._test_categories is None:
-            path = os.path.join(self.project_root, self.TEST_CATEGORIES_FILENAME)
+            path = _index_read(self.project_root, self.TEST_CATEGORIES_FILENAME)
             try:
                 with open(path, encoding="utf-8") as fh:
                     self._test_categories = json.load(fh)
@@ -211,7 +212,7 @@ class QueryEngine(_InspectorsMixin, _RoutesMixin, _TestsMixin):
     def _load_locale_keys(self) -> Dict[str, Dict[str, Any]]:
         """Return ``agent_locale_keys.json`` (or ``{}`` if missing)."""
         if self._locale_keys is None:
-            path = os.path.join(self.project_root, self.LOCALES_FILENAME)
+            path = _index_read(self.project_root, self.LOCALES_FILENAME)
             try:
                 with open(path, encoding="utf-8") as fh:
                     self._locale_keys = json.load(fh)
@@ -223,7 +224,7 @@ class QueryEngine(_InspectorsMixin, _RoutesMixin, _TestsMixin):
         """Return ``agent_docs_index.json`` (or ``{"docs": {}}`` if
         missing). Lazy-loaded on first markdown query."""
         if self._docs_index is None:
-            path = os.path.join(self.project_root, self.DOCS_INDEX_FILENAME)
+            path = _index_read(self.project_root, self.DOCS_INDEX_FILENAME)
             try:
                 with open(path, encoding="utf-8") as fh:
                     self._docs_index = json.load(fh)
@@ -1240,7 +1241,7 @@ class QueryEngine(_InspectorsMixin, _RoutesMixin, _TestsMixin):
         # identifier. The loader caches.
         symbols = (
             self._load_symbols()
-            if os.path.isfile(os.path.join(self.project_root, self.SYMBOLS_FILENAME))
+            if os.path.isfile(_index_read(self.project_root, self.SYMBOLS_FILENAME))
             else {}
         )
         return _resolve(self.project_root, line, symbols=symbols)
@@ -1386,7 +1387,7 @@ class QueryEngine(_InspectorsMixin, _RoutesMixin, _TestsMixin):
 
         symbols = (
             self._load_symbols()
-            if os.path.isfile(os.path.join(self.project_root, self.SYMBOLS_FILENAME))
+            if os.path.isfile(_index_read(self.project_root, self.SYMBOLS_FILENAME))
             else {}
         )
         return _inspect(self.project_root, name, symbols=symbols)

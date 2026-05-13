@@ -186,7 +186,9 @@ class TestQueryEngineWiring(unittest.TestCase):
         )
 
     def test_missing_artifact_degrades_gracefully(self) -> None:
-        os.remove(os.path.join(self.fx.root, TEST_CATEGORIES_FILENAME))
+        from paths import index_path
+
+        os.remove(index_path(self.fx.root, TEST_CATEGORIES_FILENAME))
         engine = QueryEngine(self.fx.root)
         self.assertEqual(engine.classify_tests(), {"summary": {}, "files": {}})
         self.assertEqual(engine.tests_by_category("unit"), [])

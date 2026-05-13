@@ -53,9 +53,12 @@ class TestCallbackIndexExtraction(unittest.TestCase):
             fh.write(_FIXTURE_SOURCE)
 
     def tearDown(self) -> None:
-        for f in os.listdir(self.tmpdir):
-            os.remove(os.path.join(self.tmpdir, f))
-        os.rmdir(self.tmpdir)
+        # Use shutil.rmtree — the write now lands under
+        # ``.vc-context/index/`` so the tmpdir contains a sub-tree,
+        # not just flat files.
+        import shutil
+
+        shutil.rmtree(self.tmpdir, ignore_errors=True)
 
     def test_exact_filter_indexed(self) -> None:
         idx = collect_callbacks(self.tmpdir)
@@ -137,9 +140,12 @@ class TestQueryEngineFindCallback(unittest.TestCase):
         self.engine = QueryEngine(self.tmpdir)
 
     def tearDown(self) -> None:
-        for f in os.listdir(self.tmpdir):
-            os.remove(os.path.join(self.tmpdir, f))
-        os.rmdir(self.tmpdir)
+        # Use shutil.rmtree — the write now lands under
+        # ``.vc-context/index/`` so the tmpdir contains a sub-tree,
+        # not just flat files.
+        import shutil
+
+        shutil.rmtree(self.tmpdir, ignore_errors=True)
 
     def test_round_trip_through_engine(self) -> None:
         out = self.engine.find_callback("adm:staff_add")
@@ -151,7 +157,10 @@ class TestQueryEngineFindCallback(unittest.TestCase):
         self.assertEqual(out[0]["handler"], "adm_staff_detail")
 
     def test_missing_index_degrades_gracefully(self) -> None:
-        os.remove(os.path.join(self.tmpdir, CALLBACKS_FILENAME))
+        # File now lives under .vc-context/index/ — remove it there.
+        from paths import index_path
+
+        os.remove(index_path(self.tmpdir, CALLBACKS_FILENAME))
         engine = QueryEngine(self.tmpdir)
         self.assertEqual(engine.find_callback("anything"), [])
 

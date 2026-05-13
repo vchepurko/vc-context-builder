@@ -223,10 +223,14 @@ def build_index(project_root: str) -> Dict[str, Any]:
 
 
 def write_index(project_root: str, out_path: Optional[str] = None) -> str:
-    """Write the index to ``agent_docs_index.json`` at the project
-    root (or ``out_path`` when given). Returns the absolute path."""
+    """Write the index to ``agent_docs_index.json`` under
+    ``<project_root>/.vc-context/index/`` (or ``out_path`` when given).
+    Returns the absolute path."""
     if out_path is None:
-        out_path = os.path.join(project_root, "agent_docs_index.json")
+        from paths import ensure_index_dir, index_path
+
+        ensure_index_dir(project_root)
+        out_path = index_path(project_root, "agent_docs_index.json")
     index = build_index(project_root)
     with open(out_path, "w", encoding="utf-8") as fh:
         json.dump(index, fh, indent=2, ensure_ascii=False)
