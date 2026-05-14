@@ -267,6 +267,11 @@ Missing config = built-in roles only, no error. Opt-in by design.
 cd your-project-root
 git submodule add https://github.com/vchepurko/vc-context-builder.git .ai-context
 ./.ai-context/install.sh
+
+# Optional but recommended — generates .vc-context/conventions.json
+# tuned for your stack (Django / FastAPI / Flask / Angular / bot / generic).
+# Idempotent: safe to re-run; only adds keys that are missing.
+python3 .ai-context/cli.py init
 ```
 
 **That's it.** The installer:
@@ -669,6 +674,10 @@ vc-context route-callers <path>     # JS/TS call-sites that hit a route
 
 vc-context find <symbol> --json     # machine-readable; works on every subcommand
 vc-context --root /abs/path …       # query a different project
+
+# Project setup:
+vc-context init                     # generate .vc-context/conventions.json (idempotent)
+vc-context init --force             # re-detect stack, reset disabled_tool_groups only
 ```
 
 Exit codes: `0` on hit, `1` on miss / unknown role / unknown module /
@@ -677,7 +686,48 @@ error-severity lint hit.
 ### Conventions config (Feature A)
 
 Drop a `.vc-context/conventions.json` in the **parent project root**
-(NOT the submodule). Stdlib JSON, tiny schema:
+(NOT the submodule). Generate a starter with `vc-context init` (detects
+your stack automatically) or write it by hand. Stdlib JSON, tiny schema:
+
+#### Filtering MCP tools per project
+
+Use `disabled_tool_groups` to hide irrelevant tool groups from the MCP
+`tools/list` response — the client never sees them, so they don't
+pollute the agent's tool menu:
+
+```json
+{
+  "disabled_tool_groups": ["angular", "locale", "fsm", "notify_log", "route"]
+}
+```
+
+Available groups:
+
+| Group | Tools hidden |
+|---|---|
+| `angular` | `ng_*` (14 tools) + `find_in_templates` |
+| `locale` | `list_locale_keys`, `find_locale_key`, `get_locale_key` |
+| `fsm` | `trace_fsm_flow` |
+| `notify_log` | `notify_log_search`, `notify_log_stats` |
+| `route` | `route_callers`, `route_for_js_call` |
+| `docs` | `get_doc_toc`, `find_doc_section`, `list_docs`, `find_doc_xref`, `docs_link_graph` |
+
+For individual tools not covered by a group, use `disabled_tools`:
+
+```json
+{
+  "disabled_tools": ["devops_card", "repo_map"]
+}
+```
+
+Both keys can coexist. Takes effect on the next MCP server restart
+(i.e. new conversation / editor reload).
+
+`vc-context init` picks sensible defaults for common stacks:
+- **django / fastapi / flask** → disables `angular`, `locale`, `fsm`, `notify_log`, `route`
+- **angular** → disables `fsm`, `notify_log`, `locale` (keeps `ng_*`)
+- **bot** (aiogram / telebot / pyrogram) → disables `angular`, `route` (keeps `fsm` for state machines)
+- **generic** → disables `fsm`, `notify_log`
 
 ```json
 {
