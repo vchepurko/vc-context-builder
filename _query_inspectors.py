@@ -34,6 +34,10 @@ class _InspectorsMixin:
         """Provided by the host class; declared here so mypy is quiet."""
         raise NotImplementedError  # pragma: no cover — overridden by host
 
+    def lint_violations(self) -> List[Dict[str, Any]]:
+        """Provided by the host class; declared here so mypy is quiet."""
+        raise NotImplementedError  # pragma: no cover — overridden by host
+
     # ------------------------------------------------------------------
     # Locale keys (Feature I)
     # ------------------------------------------------------------------
@@ -330,3 +334,37 @@ class _InspectorsMixin:
 
             out["quality"] = quality_report(entries)
         return out
+
+    # ------------------------------------------------------------------
+    # Composite health roll-up — one call covers four inspectors
+    # ------------------------------------------------------------------
+
+    def check_health(self, *, summary: bool = True) -> Dict[str, Any]:
+        """One-call code-health roll-up: lint + mypy + ruff + ruff-format
+        in a single MCP round-trip.
+
+        Replaces the typical 4-call sequence (`lint_violations` →
+        `mypy_violations` → `ruff_violations` → `ruff_format`) with one
+        bounded response. Real-session telemetry (klodchickknifes,
+        May 2026) showed 33 calls split 11/11/11 between the three
+        inspectors, almost always returning empty — exactly the
+        pattern this tool collapses.
+
+        Returns
+        -------
+        ``{lint, mypy, ruff, format}`` where:
+
+        - ``lint`` — raw convention-lint violations list (the
+          convention linter has no summary mode).
+        - ``mypy`` / ``ruff`` / ``format`` — structured breakdowns
+          from their dedicated inspectors. ``summary=True`` (default)
+          drops the per-violation list and returns counts only,
+          keeping the response under ~250 bytes when the codebase is
+          clean. Pass ``summary=False`` to embed the full lists.
+        """
+        return {
+            "lint": self.lint_violations(),
+            "mypy": self.mypy_violations(summary=summary),
+            "ruff": self.ruff_violations(summary=summary),
+            "format": self.ruff_format(summary=summary),
+        }

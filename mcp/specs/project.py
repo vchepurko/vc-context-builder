@@ -707,6 +707,36 @@ def specs() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": "check_health",
+            "description": (
+                "One-call code-health roll-up: lint + mypy + ruff + "
+                "ruff-format in a single MCP round-trip. Returns "
+                "{lint, mypy, ruff, format} where each is the same "
+                "shape its dedicated tool would return. ``summary`` "
+                "defaults to true so the response stays bounded "
+                "(~250 B when clean); pass summary=false to embed "
+                "the per-violation lists from each inspector. Use as "
+                "the cheapest 'is the codebase healthy?' check — "
+                "3× fewer round-trips than calling each tool in "
+                "sequence (observed: 33 calls split 11/11/11 between "
+                "lint/mypy/ruff in a single klodchickknifes session, "
+                "almost always empty)."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "summary": {
+                        "type": "boolean",
+                        "description": (
+                            "When true (default), each inspector "
+                            "returns counts only. Set false to embed "
+                            "the full per-violation lists."
+                        ),
+                    },
+                },
+            },
+        },
+        {
             "name": "find_in_templates",
             "description": (
                 "Search Angular HTML templates for a pattern (CSS class, "

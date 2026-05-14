@@ -89,6 +89,7 @@ class Dispatcher:
             "ruff_violations": self._ruff_violations,
             "ruff_format": self._ruff_format,
             "mypy_violations": self._mypy_violations,
+            "check_health": self._check_health,
             "find_in_templates": self._find_in_templates,
             "ng_audit_component": self._ng_audit_component,
             "ng_uses_selector": self._ng_uses_selector,
@@ -482,6 +483,12 @@ class Dispatcher:
             except (TypeError, ValueError):
                 pass
         return self.engine.mypy_violations(**kw)
+
+    def _check_health(self, args: Dict[str, Any]) -> Any:
+        kw: Dict[str, Any] = {}
+        if "summary" in args:
+            kw["summary"] = bool(args["summary"])
+        return self.engine.check_health(**kw)
 
     def _find_in_templates(self, args: Dict[str, Any]) -> Any:
         pattern = str(args.get("pattern", "")).strip()

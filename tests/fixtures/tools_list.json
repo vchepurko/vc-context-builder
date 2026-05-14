@@ -1,4 +1,5 @@
 [
+  "check_health",
   "classify_tests",
   "coverage_for_role",
   "devops_card",
