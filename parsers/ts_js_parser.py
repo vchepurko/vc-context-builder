@@ -254,6 +254,14 @@ class TsJsParser(BaseParser):
         ):
             _maybe_upgrade_with_ast(exports, file_path, project_root)
 
+        # Last-resort fallback for ng-component selector / templateUrl /
+        # standalone: scan the entire file body without the 2 KB lookback
+        # cap the primary regex path uses. Closes the lms-client gap
+        # where ``standalone: false`` + a long ``templateUrl`` decorator
+        # block pushed ``selector`` outside the window.
+        if ext == ".ts":
+            _backfill_ng_metadata(exports, content)
+
         # Imports → top-level package names only (no relative imports,
         # no DOM globals, no /wp-json URLs — those were noise bumping
         # the dependency list past anything useful).
@@ -712,6 +720,54 @@ def _line_start(text: str, offset: int) -> int:
     while i > 0 and text[i - 1] != "\n":
         i -= 1
     return i
+
+
+def _backfill_ng_metadata(
+    exports: List[Dict[str, Any]],
+    content: str,
+) -> None:
+    """For ng-component exports missing ``ng_selector``, scan the entire
+    file body for the ``@Component(...)`` block immediately above the
+    class and pull selector / templateUrl / standalone.
+
+    Handles long decorator blocks (extensive imports + 100+ line
+    metadata) that exceed the primary regex path's 2 KB lookback
+    window. Idempotent — never overwrites a value the primary path
+    already set.
+    """
+    for exp in exports:
+        if exp.get("role") != "ng-component":
+            continue
+        if exp.get("ng_selector"):
+            continue
+        name = exp.get("name")
+        if not name:
+            continue
+        cls_re = re.compile(
+            r"(?:^|\n)\s*(?:export\s+(?:default\s+)?)?(?:abstract\s+)?"
+            r"class\s+" + re.escape(name) + r"\b"
+        )
+        m = cls_re.search(content)
+        if not m:
+            continue
+        # Locate the @Component( closest to the class start (the last
+        # @Component before it). No window cap.
+        prefix = content[: m.start()]
+        candidates = list(re.finditer(r"@Component\s*\(", prefix))
+        if not candidates:
+            continue
+        deco_args = prefix[candidates[-1].end() :]
+        sel = _RE_NG_SELECTOR.search(deco_args)
+        if sel:
+            exp["ng_selector"] = sel.group(1)
+        if not exp.get("ng_template_url"):
+            tpl = _RE_NG_TEMPLATE_URL.search(deco_args)
+            if tpl:
+                exp["ng_template_url"] = tpl.group(1)
+        if exp.get("ng_standalone") is None:
+            standalone = _RE_NG_STANDALONE.search(deco_args)
+            if standalone:
+                exp["ng_standalone"] = standalone.group(1) == "true"
 
 
 # ----------------------------------------------------------------------
