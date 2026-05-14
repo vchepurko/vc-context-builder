@@ -90,6 +90,11 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
         self._test_categories: Optional[Dict[str, Dict[str, Any]]] = None
         self._locale_keys: Optional[Dict[str, Dict[str, Any]]] = None
         self._docs_index: Optional[Dict[str, Any]] = None
+        # Memoised ``run_check`` results keyed on (name, git_state_hash).
+        # Survives across MCP calls in the long-lived server process so
+        # repeated ``test-unit`` invocations without source edits return
+        # in ~ms instead of re-running pytest.
+        self._check_cache: Dict[Tuple[str, str], Dict[str, Any]] = {}
 
     # ------------------------------------------------------------------
     # Cache invalidation — used after an in-process rebuild so the next
@@ -802,15 +807,84 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
 
         return _list(self.project_root)
 
-    def run_check(self, name: str, timeout_sec: Optional[int] = None) -> Dict[str, Any]:
+    def run_check(
+        self,
+        name: str,
+        timeout_sec: Optional[int] = None,
+        *,
+        nocache: bool = False,
+    ) -> Dict[str, Any]:
         """Execute a whitelisted check by name. Returns
         ``{name, command, returncode, duration_ms, stdout_tail,
-        stderr_tail, summary, error?}``. Refuses unknown names with
-        returncode -2.
+        stderr_tail, summary, error?, cached?}``. Refuses unknown names
+        with returncode -2.
+
+        Results are memoised by ``(name, git_state_hash)`` so a repeat
+        invocation with no source edits returns in ~ms with
+        ``cached: True``. The hash covers committed HEAD + staged +
+        unstaged + untracked changes via ``git status --porcelain``.
+        Pass ``nocache=True`` to bypass the cache (e.g. when something
+        outside git changed — environment vars, external services).
+        Caching is skipped when the project isn't a git repo or when
+        the previous invocation failed to spawn (returncode -3).
         """
         from checks import run_check as _run  # type: ignore[import-not-found]
 
-        return _run(self.project_root, name, timeout_sec=timeout_sec)
+        if not nocache:
+            state = self._git_state_hash()
+            if state is not None:
+                cached = self._check_cache.get((name, state))
+                if cached is not None:
+                    return {**cached, "cached": True}
+
+        result = _run(self.project_root, name, timeout_sec=timeout_sec)
+
+        # Cache only successful spawns — re-running after a spawn
+        # failure (returncode -3) should give a fresh try once the env
+        # is fixed, not a stale "still broken" hit.
+        if not nocache and result.get("returncode") != -3:
+            state = self._git_state_hash()
+            if state is not None:
+                self._check_cache[(name, state)] = dict(result)
+        return result
+
+    def _git_state_hash(self) -> Optional[str]:
+        """SHA-256 of ``git rev-parse HEAD`` + ``git status --porcelain``
+        — a stable fingerprint of every change visible to git.
+
+        Returns ``None`` when the project isn't a git repo (treated as
+        "uncacheable" — no key to safely deduplicate against).
+        """
+        import hashlib
+        import subprocess
+
+        try:
+            head = subprocess.run(
+                ["git", "rev-parse", "HEAD"],
+                cwd=self.project_root,
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if head.returncode != 0:
+                return None
+            status = subprocess.run(
+                ["git", "status", "--porcelain"],
+                cwd=self.project_root,
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+            if status.returncode != 0:
+                return None
+        except (OSError, subprocess.TimeoutExpired):
+            return None
+
+        h = hashlib.sha256()
+        h.update(head.stdout.strip().encode("utf-8"))
+        h.update(b"\n")
+        h.update(status.stdout.encode("utf-8"))
+        return h.hexdigest()
 
     # ------------------------------------------------------------------
     # Template search

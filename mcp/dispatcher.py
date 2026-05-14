@@ -305,7 +305,8 @@ class Dispatcher:
         timeout_sec = (
             int(timeout_raw) if isinstance(timeout_raw, (int, float)) and timeout_raw > 0 else None
         )
-        return self.engine.run_check(name, timeout_sec=timeout_sec)
+        nocache = bool(args.get("nocache", False))
+        return self.engine.run_check(name, timeout_sec=timeout_sec, nocache=nocache)
 
     def _get_session_metrics(self, args: Dict[str, Any]) -> Any:
         kw: Dict[str, Any] = {}

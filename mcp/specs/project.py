@@ -330,15 +330,33 @@ def specs() -> List[Dict[str, Any]]:
                 "Execute a whitelisted check declared in "
                 ".vc-context/conventions.json. Returns "
                 "{returncode, duration_ms, stdout_tail, stderr_tail, "
-                "summary, error?}. Unknown name → returncode -2; "
-                "timeout → -1; spawn failure → -3. Use to run tests / "
-                "lint / typecheck without exposing arbitrary shell."
+                "summary, error?, cached?}. Unknown name → "
+                "returncode -2; timeout → -1; spawn failure → -3. "
+                "Use to run tests / lint / typecheck without "
+                "exposing arbitrary shell.\n\n"
+                "Results are memoised by ``(name, git_state_hash)`` "
+                "where the hash covers committed HEAD + staged + "
+                "unstaged + untracked files. A repeat call with no "
+                "source edits returns in ~ms with ``cached: true`` "
+                "(saves 10-20 s on test-unit). Pass ``nocache: true`` "
+                "to bypass the cache (e.g. when something outside "
+                "git changed — env vars, external services). "
+                "Caching is skipped on spawn failures (-3) and on "
+                "non-git projects."
             ),
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "name": {"type": "string"},
                     "timeout_sec": {"type": "integer", "minimum": 1},
+                    "nocache": {
+                        "type": "boolean",
+                        "description": (
+                            "Default false. Set true to bypass the "
+                            "memoised-by-git-state cache and force a "
+                            "fresh run."
+                        ),
+                    },
                 },
                 "required": ["name"],
             },
