@@ -199,4 +199,45 @@ def specs() -> List[Dict[str, Any]]:
                 "required": ["name"],
             },
         },
+        {
+            "name": "ng_ajs_find",
+            "description": (
+                "Find an AngularJS symbol definition in the legacy app/ tree. "
+                "Searches for .component(), .service(), .directive(), "
+                ".filter(), .factory(), .controller() registrations by name. "
+                "Returns {name, kind, file, line} or null. "
+                "Use this instead of find_symbol for AJS symbols — "
+                "find_symbol has a 54%+ miss rate on the app/ directory."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "AngularJS symbol name as registered (e.g. 'userProfileMenu').",
+                    },
+                },
+                "required": ["name"],
+            },
+        },
+        {
+            "name": "ng_module_members",
+            "description": (
+                "Return the declarations, imports, exports, and providers "
+                "of an NgModule as lists of identifier strings. "
+                "Returns {module, file, declarations, imports, exports, providers}. "
+                "Essential for projects with many NgModules (this project has 43) "
+                "and zero standalone components — every component lives in some module."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "NgModule class name (e.g. 'MyProfileModule').",
+                    },
+                },
+                "required": ["name"],
+            },
+        },
     ]

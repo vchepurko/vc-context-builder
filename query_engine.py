@@ -1806,3 +1806,118 @@ class QueryEngine(_InspectorsMixin, _RoutesMixin, _TestsMixin):
             "outputs": outputs,
             "public_methods": list(dict.fromkeys(methods)),
         }
+
+    def ng_ajs_find(self, name: str) -> Optional[Dict[str, Any]]:
+        """Find an AngularJS symbol definition in the legacy ``app/`` tree.
+
+        Searches for ``.component(name``, ``.service(name``,
+        ``.directive(name``, ``.filter(name``, and ``.factory(name``
+        patterns across every ``*.ts`` and ``*.js`` file under ``app/``.
+        Returns ``{name, kind, file, line}`` for the first match, or
+        ``null``. Fills the gap left by ``find_symbol`` which only
+        indexes Angular (``src/``) TypeScript classes.
+        """
+        if not name:
+            return None
+        import re as _re
+
+        kinds = ["component", "service", "directive", "filter", "factory", "controller"]
+        pattern = _re.compile(
+            r"\.\s*(" + "|".join(kinds) + r")\s*\(\s*['\"]"
+            + _re.escape(name)
+            + r"['\"]"
+        )
+        app_root = os.path.join(self.project_root, "app")
+        if not os.path.isdir(app_root):
+            return None
+        for dirpath, _dirs, files in os.walk(app_root):
+            _dirs[:] = [d for d in _dirs if d not in {"node_modules", "__pycache__"}]
+            for fname in files:
+                if not fname.endswith((".ts", ".js")):
+                    continue
+                abs_path = os.path.join(dirpath, fname)
+                rel = os.path.relpath(abs_path, self.project_root).replace("\\", "/")
+                try:
+                    with open(abs_path, encoding="utf-8", errors="replace") as fh:
+                        for lineno, line in enumerate(fh, 1):
+                            m = pattern.search(line)
+                            if m:
+                                return {
+                                    "name": name,
+                                    "kind": m.group(1),
+                                    "file": rel,
+                                    "line": lineno,
+                                }
+                except OSError:
+                    continue
+        return None
+
+    def ng_module_members(self, module_name: str) -> Optional[Dict[str, Any]]:
+        """Return the declarations, imports, exports, and providers of an NgModule.
+
+        Finds the module file via the symbol index, then extracts each
+        array from the ``@NgModule({...})`` decorator using a bracket-
+        balanced scan. Returns ``{module, file, declarations, imports,
+        exports, providers}`` with each array as a list of identifier
+        strings. Returns ``null`` when the module is not found.
+        """
+        if not module_name:
+            return None
+        import re as _re
+
+        symbols = self._load_symbols()
+        mod = symbols.get(module_name)
+        if not mod or mod.get("role") != "ng-module":
+            # fallback: search by suffix
+            for sym_name, sym in symbols.items():
+                if (
+                    isinstance(sym, dict)
+                    and sym.get("role") == "ng-module"
+                    and sym_name.lower() == module_name.lower()
+                ):
+                    mod = sym
+                    break
+        if not mod:
+            return None
+
+        file = mod.get("file") if isinstance(mod, dict) else None
+        if not file:
+            return None
+        abs_path = os.path.join(self.project_root, file)
+        try:
+            with open(abs_path, encoding="utf-8", errors="replace") as fh:
+                content = fh.read()
+        except OSError:
+            return None
+
+        def _extract_array(key: str, src: str) -> List[str]:
+            """Pull identifiers from `key: [ ... ]` inside @NgModule."""
+            pat = _re.compile(
+                key + r"\s*:\s*\[", _re.MULTILINE
+            )
+            m = pat.search(src)
+            if not m:
+                return []
+            start = m.end()
+            depth = 1
+            i = start
+            while i < len(src) and depth:
+                if src[i] == "[":
+                    depth += 1
+                elif src[i] == "]":
+                    depth -= 1
+                i += 1
+            block = src[start : i - 1]
+            # strip comments and newlines, then grab identifiers
+            block = _re.sub(r"//[^\n]*", "", block)
+            block = _re.sub(r"/\*.*?\*/", "", block, flags=_re.DOTALL)
+            return [t.strip() for t in _re.findall(r"\b([A-Z]\w+)\b", block)]
+
+        return {
+            "module": module_name,
+            "file": file,
+            "declarations": _extract_array("declarations", content),
+            "imports": _extract_array("imports", content),
+            "exports": _extract_array("exports", content),
+            "providers": _extract_array("providers", content),
+        }

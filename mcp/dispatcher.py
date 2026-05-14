@@ -99,6 +99,8 @@ class Dispatcher:
             "ng_eslint_violations": self._ng_eslint_violations,
             "ng_find_module": self._ng_find_module,
             "ng_ts_class_shape": self._ng_ts_class_shape,
+            "ng_ajs_find": self._ng_ajs_find,
+            "ng_module_members": self._ng_module_members,
             "get_doc_toc": self._get_doc_toc,
             "find_doc_section": self._find_doc_section,
             "list_docs": self._list_docs,
@@ -532,6 +534,14 @@ class Dispatcher:
     def _ng_ts_class_shape(self, args: Dict[str, Any]) -> Any:
         name = str(args.get("name", "")).strip()
         return self.engine.ng_ts_class_shape(name) if name else None
+
+    def _ng_ajs_find(self, args: Dict[str, Any]) -> Any:
+        name = str(args.get("name", "")).strip()
+        return self.engine.ng_ajs_find(name) if name else None
+
+    def _ng_module_members(self, args: Dict[str, Any]) -> Any:
+        name = str(args.get("name", "")).strip()
+        return self.engine.ng_module_members(name) if name else None
 
     # ─── Markdown docs index ─────────────────────────────────────
 
