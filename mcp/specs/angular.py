@@ -131,4 +131,72 @@ def specs() -> List[Dict[str, Any]]:
                 "required": ["name"],
             },
         },
+        {
+            "name": "ng_eslint_violations",
+            "description": (
+                "Run ESLint on a project-relative path (default: 'src') "
+                "and return structured violations as "
+                "[{file, line, col, severity, rule, message}]. "
+                "Uses the project's own ESLint config via `npx eslint "
+                "--format json`. Replaces the Python-only "
+                "`lint_violations` for TypeScript/Angular projects. "
+                "Capped at `max_results` (default 100)."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": "Project-relative path to lint (default: 'src').",
+                    },
+                    "max_results": {
+                        "type": "integer",
+                        "description": "Cap on returned violations (default 100, max 500).",
+                    },
+                },
+            },
+        },
+        {
+            "name": "ng_find_module",
+            "description": (
+                "Find which NgModule declares a given Angular symbol "
+                "(component, directive, pipe). Scans every ng-module "
+                "file for a word-boundary match. Returns "
+                "{module, file} for the first match, or null. "
+                "Useful for projects with many NgModules — avoids "
+                "grepping declarations arrays manually."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Angular class name to locate (e.g. 'ProfileEditGroupsComponent').",
+                    },
+                },
+                "required": ["name"],
+            },
+        },
+        {
+            "name": "ng_ts_class_shape",
+            "description": (
+                "Return the public shape of a TypeScript class: "
+                "constructor_params (name + type for each DI param), "
+                "inputs (@Input properties), outputs (@Output properties), "
+                "and public_methods. "
+                "Replaces the Python-only `inspect_class` for "
+                "Angular/TypeScript code. Returns null when the symbol "
+                "is not indexed."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "TypeScript class name (case-sensitive).",
+                    },
+                },
+                "required": ["name"],
+            },
+        },
     ]

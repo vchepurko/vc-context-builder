@@ -96,6 +96,9 @@ class Dispatcher:
             "ng_list_routes": self._ng_list_routes,
             "ng_route_for_path": self._ng_route_for_path,
             "ng_routes_for_component": self._ng_routes_for_component,
+            "ng_eslint_violations": self._ng_eslint_violations,
+            "ng_find_module": self._ng_find_module,
+            "ng_ts_class_shape": self._ng_ts_class_shape,
             "get_doc_toc": self._get_doc_toc,
             "find_doc_section": self._find_doc_section,
             "list_docs": self._list_docs,
@@ -510,6 +513,25 @@ class Dispatcher:
     def _ng_routes_for_component(self, args: Dict[str, Any]) -> Any:
         name = str(args.get("name", "")).strip()
         return self.engine.ng_routes_for_component(name) if name else []
+
+    def _ng_eslint_violations(self, args: Dict[str, Any]) -> Any:
+        path = args.get("path")
+        path_arg = str(path).strip() if isinstance(path, str) and path.strip() else None
+        max_results = 100
+        if "max_results" in args:
+            try:
+                max_results = max(1, min(500, int(args["max_results"])))
+            except (TypeError, ValueError):
+                pass
+        return self.engine.ng_eslint_violations(path=path_arg, max_results=max_results)
+
+    def _ng_find_module(self, args: Dict[str, Any]) -> Any:
+        name = str(args.get("name", "")).strip()
+        return self.engine.ng_find_module(name) if name else None
+
+    def _ng_ts_class_shape(self, args: Dict[str, Any]) -> Any:
+        name = str(args.get("name", "")).strip()
+        return self.engine.ng_ts_class_shape(name) if name else None
 
     # ─── Markdown docs index ─────────────────────────────────────
 

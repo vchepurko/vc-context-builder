@@ -1638,3 +1638,171 @@ class QueryEngine(_InspectorsMixin, _RoutesMixin, _TestsMixin):
                 if len(out) >= 200:
                     return out
         return out
+
+    def ng_eslint_violations(
+        self,
+        path: Optional[str] = None,
+        max_results: int = 100,
+    ) -> List[Dict[str, Any]]:
+        """Run ESLint on a path and return structured violations.
+
+        ``path`` is project-relative (default: ``src``). Returns
+        ``[{file, line, col, severity, rule, message}]`` capped at
+        ``max_results``. Uses ``npx eslint --format json`` so the
+        project's own eslint config and plugins are always respected.
+        Returns ``[{error}]`` on spawn failure.
+        """
+        import json as _json
+        import subprocess as _sp
+
+        target_rel = path or "src"
+        abs_target = os.path.join(self.project_root, target_rel)
+        try:
+            proc = _sp.run(
+                ["npx", "eslint", "--format", "json", abs_target],
+                cwd=self.project_root,
+                capture_output=True,
+                text=True,
+                timeout=120,
+                check=False,
+            )
+            raw = (proc.stdout or "").strip()
+            if not raw:
+                return []
+            data = _json.loads(raw)
+        except _sp.TimeoutExpired:
+            return [{"error": "eslint timed out after 120s"}]
+        except Exception as exc:
+            return [{"error": str(exc)}]
+
+        out: List[Dict[str, Any]] = []
+        for file_result in data:
+            rel = os.path.relpath(
+                file_result.get("filePath", ""), self.project_root
+            ).replace("\\", "/")
+            for msg in file_result.get("messages", []):
+                out.append(
+                    {
+                        "file": rel,
+                        "line": msg.get("line"),
+                        "col": msg.get("column"),
+                        "severity": "error" if msg.get("severity") == 2 else "warn",
+                        "rule": msg.get("ruleId"),
+                        "message": msg.get("message"),
+                    }
+                )
+                if len(out) >= max_results:
+                    return out
+        return out
+
+    def ng_find_module(self, component_name: str) -> Optional[Dict[str, Any]]:
+        """Find the NgModule that declares a given Angular symbol.
+
+        Scans every ``ng-module`` file in the symbol index for a word
+        boundary match of ``component_name``. Returns
+        ``{module, file}`` for the first match, or ``null`` when not
+        found. Confirm by reading the file — this is a substring scan,
+        not a full TS resolver.
+        """
+        if not component_name:
+            return None
+        import re as _re
+
+        pattern = _re.compile(r"\b" + _re.escape(component_name) + r"\b")
+        symbols = self._load_symbols()
+        modules = [
+            (sym_name, s)
+            for sym_name, s in symbols.items()
+            if isinstance(s, dict) and s.get("role") == "ng-module"
+        ]
+        for sym_name, mod in modules:
+            file = mod.get("file")
+            if not file:
+                continue
+            abs_path = os.path.join(self.project_root, file)
+            try:
+                with open(abs_path, encoding="utf-8", errors="replace") as fh:
+                    content = fh.read()
+                if pattern.search(content):
+                    return {"module": sym_name, "file": file}
+            except OSError:
+                continue
+        return None
+
+    def ng_ts_class_shape(self, name: str) -> Optional[Dict[str, Any]]:
+        """Return the public shape of a TypeScript class.
+
+        Reads the class source and extracts (via regex):
+        - ``constructor_params`` — name + type for each DI param
+        - ``inputs`` — ``@Input()`` property names
+        - ``outputs`` — ``@Output()`` property names
+        - ``public_methods`` — non-private method names
+
+        Use before refactoring a component or service — replaces the
+        Python-only ``inspect_class`` for Angular/TypeScript code.
+        Returns ``null`` when the symbol is not indexed.
+        """
+        import re as _re
+
+        sym = self._symbols_get(name)
+        if not sym:
+            return None
+        file = sym.get("file")
+        if not file:
+            return None
+        abs_path = os.path.join(self.project_root, file)
+        try:
+            with open(abs_path, encoding="utf-8", errors="replace") as fh:
+                content = fh.read()
+        except OSError:
+            return None
+
+        # Constructor params — handles multi-line constructors
+        params: List[Dict[str, Any]] = []
+        ctor_m = _re.search(r"constructor\s*\(([^)]*)\)", content, _re.DOTALL)
+        if ctor_m:
+            raw_params = ctor_m.group(1).strip()
+            for tok in _re.split(r",(?![^<>]*>)", raw_params):
+                tok = tok.strip()
+                if not tok:
+                    continue
+                # strip access modifiers and decorators
+                tok_clean = _re.sub(r"@\w+\([^)]*\)\s*", "", tok)
+                tok_clean = _re.sub(
+                    r"\b(private|public|protected|readonly)\s+", "", tok_clean
+                ).strip()
+                parts = tok_clean.split(":", 1)
+                pname = parts[0].strip()
+                ptype = parts[1].strip() if len(parts) > 1 else None
+                if pname:
+                    params.append({"name": pname, "type": ptype})
+
+        inputs = _re.findall(r"@Input\(\)\s+(?:readonly\s+)?(\w+)", content)
+        outputs = _re.findall(r"@Output\(\)\s+(?:readonly\s+)?(\w+)", content)
+
+        # Public methods — skip private/protected/lifecycle hooks and JS keywords
+        _SKIP = {
+            "constructor", "ngOnInit", "ngOnDestroy", "ngOnChanges",
+            "ngAfterViewInit", "ngAfterContentInit", "ngAfterViewChecked",
+            "ngAfterContentChecked", "ngDoCheck",
+            "if", "for", "while", "switch", "catch", "function",
+        }
+        method_re = _re.compile(
+            r"(?:^|\n)\s*(?:(?:public|async)\s+)*"
+            r"(?!private\b|protected\b|get\s|set\s)(\w+)\s*\([^)]*\)\s*(?::\s*\S+\s*)?\{",
+            _re.MULTILINE,
+        )
+        methods = [
+            m
+            for m in method_re.findall(content)
+            if m not in _SKIP and not m.startswith("_")
+        ]
+
+        return {
+            "name": name,
+            "file": file,
+            "constructor_params": params,
+            "inputs": inputs,
+            "outputs": outputs,
+            "public_methods": list(dict.fromkeys(methods)),
+        }
