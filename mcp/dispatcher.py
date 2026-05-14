@@ -571,11 +571,28 @@ class Dispatcher:
 
     def _find_doc_section(self, args: Dict[str, Any]) -> Any:
         file = str(args.get("file", "")).strip()
-        header_pattern = str(args.get("header_pattern", "")).strip()
-        if not file or not header_pattern:
+        if not file:
             return None
-        fuzzy = bool(args.get("fuzzy", True))
-        return self.engine.find_doc_section(file, header_pattern, fuzzy=fuzzy)
+        kw: Dict[str, Any] = {}
+        if "fuzzy" in args:
+            kw["fuzzy"] = bool(args["fuzzy"])
+        if "number" in args:
+            try:
+                kw["number"] = int(args["number"])
+            except (TypeError, ValueError):
+                pass
+        h = args.get("heading")
+        if isinstance(h, str) and h.strip():
+            kw["heading"] = h.strip()
+        a = args.get("anchor")
+        if isinstance(a, str) and a.strip():
+            kw["anchor"] = a.strip()
+        hp = args.get("header_pattern")
+        header_pattern = hp.strip() if isinstance(hp, str) and hp.strip() else None
+        if header_pattern is None and not any(k in kw for k in ("number", "heading", "anchor")):
+            # Nothing to match on — preserve the previous "empty result" contract.
+            return None
+        return self.engine.find_doc_section(file, header_pattern, **kw)
 
     def _list_docs(self, args: Dict[str, Any]) -> Any:
         path_prefix = args.get("path_prefix")

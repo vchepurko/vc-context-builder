@@ -185,6 +185,74 @@ class QueryHelperTests(unittest.TestCase):
         self.assertIsNone(self.engine.find_doc_section("docs/OPS.md", "log", fuzzy=False))
         self.assertIsNotNone(self.engine.find_doc_section("docs/OPS.md", "Logs", fuzzy=False))
 
+    def _ideas_engine(self) -> QueryEngine:
+        """Build an IDEAS.md-style fixture with numbered headings and
+        slug anchors that exercise the loose-lookup selectors."""
+        _write(
+            os.path.join(self.root, "IDEAS.md"),
+            "# Ideas\n\n"
+            "## 27. Unified User Model\n\nbody\n\n"
+            "## 28. Authz Hardening — signed X-Acting-User-Id\n\nbody\n\n"
+            "## 28.1 Sub-step\n\nbody\n\n"
+            "## 31. Booking with Calendar\n\nbody\n\n",
+        )
+        out = os.path.join(self.root, "agent_docs_index.json")
+        with open(out, "w", encoding="utf-8") as fh:
+            json.dump(markdown_index.build_index(self.root), fh)
+        return QueryEngine(self.root)
+
+    def test_find_doc_section_anchor_prefix_match(self) -> None:
+        """``anchor="31"`` matches the slug ``31-...`` regardless of
+        what comes after the number."""
+        engine = self._ideas_engine()
+        sec = engine.find_doc_section("IDEAS.md", anchor="31")
+        self.assertIsNotNone(sec)
+        assert sec is not None  # mypy nudge
+        self.assertIn("31.", sec["text"])
+        self.assertTrue(sec["anchor"].startswith("31"))
+
+    def test_find_doc_section_number_selector(self) -> None:
+        """``number=27`` finds the heading whose text starts with
+        '27.' / '27 ' / '27<eof>'."""
+        engine = self._ideas_engine()
+        sec = engine.find_doc_section("IDEAS.md", number=27)
+        self.assertIsNotNone(sec)
+        assert sec is not None
+        self.assertTrue(sec["text"].startswith("27."))
+        # Negative: a number not present returns None.
+        self.assertIsNone(engine.find_doc_section("IDEAS.md", number=99))
+
+    def test_find_doc_section_heading_ranks_shortest_first(self) -> None:
+        """``heading="Authz"`` prefers '28.1 Sub-step' over the
+        longer '28. Authz Hardening — signed X-Acting-User-Id'? No —
+        the substring 'Authz' isn't in '28.1 Sub-step'. Verify the
+        single matching section is returned, then verify shortest-
+        first ranking by hitting a substring present in multiple
+        headings ('28')."""
+        engine = self._ideas_engine()
+        sec = engine.find_doc_section("IDEAS.md", heading="Authz")
+        self.assertIsNotNone(sec)
+        assert sec is not None
+        self.assertIn("Authz", sec["text"])
+        # Shortest-first: 'Sub-step' heading is shortest among the 28* family.
+        ranked = engine.find_doc_section("IDEAS.md", heading="28")
+        self.assertIsNotNone(ranked)
+        assert ranked is not None
+        self.assertEqual(ranked["text"], "28.1 Sub-step")
+
+    def test_find_doc_section_selector_priority_anchor_wins(self) -> None:
+        """When multiple selectors are passed, ``anchor`` wins."""
+        engine = self._ideas_engine()
+        sec = engine.find_doc_section(
+            "IDEAS.md",
+            anchor="27",
+            number=31,
+            heading="Booking",
+        )
+        self.assertIsNotNone(sec)
+        assert sec is not None
+        self.assertTrue(sec["anchor"].startswith("27"))
+
     def test_list_docs_filters_by_prefix(self) -> None:
         # All docs
         every = self.engine.list_docs()

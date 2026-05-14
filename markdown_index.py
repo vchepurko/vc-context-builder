@@ -274,27 +274,72 @@ def get_toc(
 def find_section(
     index: Dict[str, Any],
     file: str,
-    header_pattern: str,
+    header_pattern: Optional[str] = None,
     *,
     fuzzy: bool = True,
+    number: Optional[int] = None,
+    heading: Optional[str] = None,
+    anchor: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
-    """Locate one section in ``file`` whose heading matches.
+    """Locate one section in ``file`` by one of four selectors.
 
-    Match rules (``fuzzy=True`` default):
-      * case-insensitive substring on the heading text;
-      * the first match wins (top-down).
+    Selector priority (first non-None wins):
 
-    ``fuzzy=False`` requires an exact case-insensitive equality with
-    the heading text — useful for round-trip queries.
+    1. ``anchor`` — case-insensitive **prefix** match on the section
+       slug. Pass ``"31"`` to find ``31-unified-user`` (covers the
+       common "I know the number, not the full slug" case).
+    2. ``number`` — match a numeric heading prefix, e.g.
+       ``number=31`` finds ``## 31. Something``.
+    3. ``heading`` — case-insensitive **substring** match on the
+       heading text, ranked shortest-heading-first (so a 4-word
+       heading beats a 40-word one for the same query).
+    4. ``header_pattern`` — back-compat path. With ``fuzzy=True``
+       (default) it's a case-insensitive substring (first match
+       wins, top-down). With ``fuzzy=False`` it's an exact
+       case-insensitive equality.
 
-    Returns ``{level, text, line, end_line, anchor}`` or None.
+    Returns ``{level, text, line, end_line, anchor}`` or ``None``.
     """
     sections = get_toc(index, file) or []
-    needle = header_pattern.strip().lower()
-    for sec in sections:
-        text_lower = sec["text"].lower()
-        if (fuzzy and needle in text_lower) or (not fuzzy and needle == text_lower):
-            return dict(sec)
+
+    if anchor is not None:
+        needle = anchor.strip().lower()
+        if not needle:
+            return None
+        for sec in sections:
+            sec_anchor = (sec.get("anchor") or "").lower()
+            if sec_anchor.startswith(needle):
+                return dict(sec)
+        return None
+
+    if number is not None:
+        prefix_re = re.compile(rf"^\s*{re.escape(str(number))}(?:\.|\s|$)")
+        for sec in sections:
+            text = sec.get("text") or ""
+            if prefix_re.match(text):
+                return dict(sec)
+        return None
+
+    if heading is not None:
+        needle = heading.strip().lower()
+        if not needle:
+            return None
+        matches = [sec for sec in sections if needle in sec["text"].lower()]
+        if not matches:
+            return None
+        matches.sort(key=lambda s: len(s["text"]))
+        return dict(matches[0])
+
+    if header_pattern is not None:
+        needle = header_pattern.strip().lower()
+        if not needle:
+            return None
+        for sec in sections:
+            text_lower = sec["text"].lower()
+            if (fuzzy and needle in text_lower) or (not fuzzy and needle == text_lower):
+                return dict(sec)
+        return None
+
     return None
 
 

@@ -242,11 +242,26 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
         return get_toc(self._load_docs_index(), file, max_level=max_level)
 
     def find_doc_section(
-        self, file: str, header_pattern: str, *, fuzzy: bool = True
+        self,
+        file: str,
+        header_pattern: Optional[str] = None,
+        *,
+        fuzzy: bool = True,
+        number: Optional[int] = None,
+        heading: Optional[str] = None,
+        anchor: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
         from markdown_index import find_section
 
-        return find_section(self._load_docs_index(), file, header_pattern, fuzzy=fuzzy)
+        return find_section(
+            self._load_docs_index(),
+            file,
+            header_pattern,
+            fuzzy=fuzzy,
+            number=number,
+            heading=heading,
+            anchor=anchor,
+        )
 
     def list_docs(self, *, path_prefix: Optional[str] = None) -> List[Dict[str, Any]]:
         from markdown_index import list_docs as _list
