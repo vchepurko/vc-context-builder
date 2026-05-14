@@ -119,6 +119,30 @@ class _RoutesMixin:
         hits = _find(self._load_callbacks(), data)
         return filter_test_records(hits, include_tests=include_tests)
 
+    def find_anti_patterns(
+        self,
+        rule: str,
+    ) -> List[Dict[str, Any]]:
+        """Run one registered anti-pattern detector. Returns
+        ``[{rule, file, line, function?, evidence}]``. Empty list for
+        unknown rule names (cross-check with :meth:`list_anti_patterns`)
+        or when the project is clean.
+
+        Available rules:
+
+        * ``aiogram-state-check-in-body`` — ``@router.message(F.<...>)``
+          without a state filter. CLAUDE.md silent-dispatch killer.
+        """
+        from anti_patterns import find_anti_patterns as _find  # type: ignore[import-not-found]
+
+        return _find(self.project_root, rule)
+
+    def list_anti_patterns(self) -> List[str]:
+        """All registered anti-pattern rule names, sorted."""
+        from anti_patterns import list_anti_patterns as _list  # type: ignore[import-not-found]
+
+        return _list()
+
     def find_orphan_callbacks(
         self,
         *,

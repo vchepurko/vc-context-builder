@@ -67,6 +67,8 @@ class Dispatcher:
             "route_for_js_call": self._route_for_js_call,
             "find_callback": self._find_callback,
             "find_orphan_callbacks": self._find_orphan_callbacks,
+            "find_anti_patterns": self._find_anti_patterns,
+            "list_anti_patterns": self._list_anti_patterns,
             "trace_fsm_flow": self._trace_fsm_flow,
             "coverage_for_role": self._coverage_for_role,
             "find_handlers_without_tests": self._find_handlers_without_tests,
@@ -264,6 +266,15 @@ class Dispatcher:
         return self.engine.find_orphan_callbacks(
             include_tests=self._include_tests(args),
         )
+
+    def _find_anti_patterns(self, args: Dict[str, Any]) -> Any:
+        rule = str(args.get("rule", "")).strip()
+        if not rule:
+            return []
+        return self.engine.find_anti_patterns(rule)
+
+    def _list_anti_patterns(self, args: Dict[str, Any]) -> Any:
+        return self.engine.list_anti_patterns()
 
     def _trace_fsm_flow(self, args: Dict[str, Any]) -> Any:
         return self.engine.trace_fsm_flow(str(args.get("state", "")))
