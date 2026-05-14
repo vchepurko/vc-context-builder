@@ -9,6 +9,7 @@
   "find_callback",
   "find_doc_section",
   "find_doc_xref",
+  "find_handlers_without_tests",
   "find_in_file",
   "find_in_templates",
   "find_locale_drift",

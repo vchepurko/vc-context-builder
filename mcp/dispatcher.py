@@ -69,6 +69,7 @@ class Dispatcher:
             "find_orphan_callbacks": self._find_orphan_callbacks,
             "trace_fsm_flow": self._trace_fsm_flow,
             "coverage_for_role": self._coverage_for_role,
+            "find_handlers_without_tests": self._find_handlers_without_tests,
             "classify_tests": self._classify_tests,
             "tests_by_category": self._tests_by_category,
             "find_call_sites": self._find_call_sites,
@@ -273,6 +274,12 @@ class Dispatcher:
         role = args.get("role")
         role_arg = str(role).strip() if isinstance(role, str) and role.strip() else None
         return self.engine.coverage_for_role(role_arg)
+
+    def _find_handlers_without_tests(self, args: Dict[str, Any]) -> Any:
+        role = args.get("role")
+        if isinstance(role, str) and role.strip():
+            return self.engine.find_handlers_without_tests(role.strip())
+        return self.engine.find_handlers_without_tests()
 
     def _classify_tests(self, args: Dict[str, Any]) -> Any:
         return self.engine.classify_tests()

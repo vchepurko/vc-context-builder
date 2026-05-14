@@ -291,6 +291,35 @@ def specs() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": "find_handlers_without_tests",
+            "description": (
+                "Anti-pattern detector — every symbol with the given "
+                "handler ``role`` that has no linked test entry. "
+                'Sugar over ``coverage_for_role(role)["missing"]`` '
+                "enriched with ``line`` / ``kind`` from the symbol "
+                "index so the agent can jump straight to the source.\n\n"
+                '``role`` defaults to ``"aiogram-handler"`` '
+                "(the legacy umbrella — expands to "
+                "``callback-handler`` / ``command-handler`` / "
+                "``fsm-message-handler`` / ``text-match-handler`` / "
+                "``catch-all-handler``). Pass another role for "
+                "project-specific handler taxonomies "
+                '(e.g. ``"webhook"``).\n\n'
+                "Returns ``[{name, role, file, line, kind}]`` sorted "
+                "by ``(file, line)``. Empty list = parity OK across "
+                "every handler."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "role": {
+                        "type": "string",
+                        "description": ("Handler role to audit. Default 'aiogram-handler'."),
+                    },
+                },
+            },
+        },
+        {
             "name": "classify_tests",
             "description": (
                 "Categorise every test_*.py file as 'unit', "
