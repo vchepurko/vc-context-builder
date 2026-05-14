@@ -12,7 +12,7 @@ git submodule add https://github.com/<you>/vc-context-builder .ai-context
 python3 .ai-context/agent_map.py
 
 # 3. Wire the MCP server in your editor (one of):
-#    Claude Code:  see MCP_SETUP.md
+#    Claude Code:  see docs/MCP_SETUP.md
 #    Cursor / Continue / Codex CLI / Aider: same file, copy-paste blocks.
 
 # 4. Your agent now has ~40 tools that answer in 50–250 tokens.
@@ -637,7 +637,7 @@ one.
 
 ## Wiring an MCP host
 
-See [`MCP_SETUP.md`](MCP_SETUP.md) — copy-paste blocks for Claude Code,
+See [`docs/MCP_SETUP.md`](docs/MCP_SETUP.md) — copy-paste blocks for Claude Code,
 Cursor, Codex CLI, Continue, and a generic stdio host.
 
 Smoke test (no agent needed):
@@ -768,7 +768,7 @@ Rule kinds:
 `severity`: `error` flips `vc-context lint` exit code; `warn` / `info`
 do not. Missing config = no rules = no error — opt-in by design.
 
-More worked examples in [`USAGE.md`](USAGE.md).
+More worked examples in [`docs/USAGE.md`](docs/USAGE.md).
 
 ### HTTP-clients config (Feature E)
 
