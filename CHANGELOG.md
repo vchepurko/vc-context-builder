@@ -10,6 +10,45 @@ bump the minor; fixes bump the patch.
 ## [Unreleased]
 
 ### Added
+- **`check_health`** — one-call code-health roll-up: `lint_violations` +
+  `mypy_violations` + `ruff_violations` + `ruff_format` bundled into a
+  single MCP round-trip. Real-session telemetry showed 33 calls split
+  11/11/11 between the three inspectors, almost always empty — this
+  collapses them. `summary=True` (default) keeps responses under
+  ~250 B when the codebase is clean.
+- **`find_doc_section` loose-lookup selectors** — `anchor="31"` (slug
+  prefix), `number=31` (numeric heading prefix), `heading="Unified User"`
+  (shortest-substring rank), plus the back-compat `header_pattern`
+  path. Priority: anchor > number > heading > header_pattern. Closes
+  the "I know the number, not the full slug" gap surfaced by the
+  Phase 2 markdown calibration trial.
+- **`search_doc_text`** — markdown-aware grep across indexed docs.
+  Each hit carries `section: {heading, anchor, level}` so the agent
+  sees "this mention is inside Phase 2 of IDEAS #28" without a
+  follow-up `read_slice`. Closes the "which docs mention X"
+  free-text query class that today drops to Bash `grep -rln`.
+- **`find_orphan_callbacks`** — anti-pattern detector: every literal
+  `callback_data="..."` reference with no matching
+  `@router.callback_query` handler. Set-difference between
+  AST-walked button references and the handler index; non-literal
+  call sites (f-strings, `.format()`, variables) are silently
+  skipped because they can't be statically resolved.
+  `include_tests` defaults to false.
+- **`find_in_file`** — surgical grep over a single file. Closes the
+  "I know the file, I'm hunting a string inside it" case
+  (`find_symbol` only reaches top-level shape; large monoliths like
+  `Checkout.js` are the typical motivator). Path is sandboxed
+  against `project_root`; files > 5 MB are skipped.
+- **`run_check` caching keyed on git state** — repeat invocations
+  with no source edits return in ~ms with `cached: true`. Hash
+  covers committed HEAD + staged + unstaged + untracked files via
+  `git status --porcelain`. Saves 10–20 s on `test-unit`. Pass
+  `nocache: true` to bypass; caching skipped on spawn failures (-3)
+  and on non-git projects.
+- **`_QuerySymbolsMixin` extraction** — moved 14 methods +
+  5 class constants out of `query_engine.py` (1923 → 1271 LOC) into
+  a new `_query_symbols.py`. Pure refactor — public surface
+  unchanged.
 - **`include_tests` knob on search/query tools** (default false). Hides
   test-file matches from `find_symbol` / `find_symbols` / `who_calls` /
   `find_call_sites` / `find_callback` / `get_decorated_with` /
