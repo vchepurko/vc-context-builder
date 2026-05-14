@@ -445,18 +445,24 @@ def cmd_init(args: argparse.Namespace) -> int:
             existing[key] = stub
             added.append(key)
 
+    is_new = not os.path.exists(out_path)
     os.makedirs(vc_dir, exist_ok=True)
     with open(out_path, "w", encoding="utf-8") as fh:
         json.dump(existing, fh, indent=2)
         fh.write("\n")
 
-    action = "updated" if os.path.exists(out_path) else "created"
-    print(f"vc-context init: {action} {out_path}")
+    if is_new:
+        action = "created"
+    elif added:
+        action = "updated"
+    else:
+        action = "no changes"
+    print(f"vc-context init: {action} — {out_path}")
     print(f"  stack detected : {stack}")
     if added:
         print(f"  keys added     : {added}")
     else:
-        print("  nothing to add (all keys already present; use --force to reset disabled_tool_groups)")
+        print("  all keys already present; use --force to reset disabled_tool_groups")
     print(f"  available groups (all): {_ALL_GROUPS}")
     return 0
 
