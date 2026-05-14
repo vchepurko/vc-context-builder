@@ -1,34 +1,44 @@
 #!/usr/bin/env node
 // TypeScript AST extractor for Angular decorator metadata.
 //
-// Invoked by parsers/_ts_ast.py.  Receives a file path on argv[2] and
-// emits one JSON record per exported Angular class on stdout:
+// Two modes:
 //
-//     {"name": "CartService", "role": "ng-service",
-//      "selector": null, "templateUrl": null, "styleUrls": [],
-//      "providedIn": "root", "standalone": null,
-//      "inputs": ["item"], "outputs": ["removed"]}
+//   1. One-shot (default) — `node extractor.mjs <ts-file> [project-root]`.
+//      Parses one file, prints the JSON record array, exits.
+//
+//   2. Server (--server) — `node extractor.mjs --server <project-root>`.
+//      Reads newline-delimited file paths from stdin, emits one JSON
+//      line per file (in the same order). Server mode is what
+//      `_ts_ast.py` uses for batch rebuilds — keeping the Node
+//      process alive amortises the ~50 ms startup cost across the
+//      whole walk (500+ files on lms-client → 25 s saved).
+//
+// Record shape per file: array of `{name, role, selector, templateUrl,
+// styleUrls, standalone, providedIn, pipeName, inputs, outputs}`.
 //
 // Failures (no typescript installed, file unreadable, etc.) print a
-// JSON error object to stdout and exit non-zero.  The Python wrapper
-// treats any non-zero exit as "AST unavailable, fall back to regex".
+// JSON error object to stdout. One-shot exits non-zero; server mode
+// emits a sentinel `{error: "..."}` line and keeps running.
 //
 // Designed to be loaded via the parent project's typescript install
 // (./node_modules/typescript) — vc-context itself ships zero npm
-// dependencies.  Falls back to the global typescript install if the
+// dependencies. Falls back to the global typescript install if the
 // local one isn't present.
 
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import path from 'node:path';
+import readline from 'node:readline';
 
 const argv = process.argv.slice(2);
-if (argv.length < 1) {
-  console.log(JSON.stringify({error: 'usage: extractor.mjs <ts-file> [project-root]'}));
+const serverMode = argv[0] === '--server';
+const projectRoot = serverMode ? (argv[1] || process.cwd()) : (argv[1] || process.cwd());
+const oneShotFile = serverMode ? null : argv[0];
+
+if (!serverMode && !oneShotFile) {
+  console.log(JSON.stringify({error: 'usage: extractor.mjs <ts-file> [project-root]  |  --server <project-root>'}));
   process.exit(2);
 }
-const filePath = argv[0];
-const projectRoot = argv[1] || process.cwd();
 
 let ts;
 try {
@@ -48,18 +58,6 @@ try {
     process.exit(3);
   }
 }
-
-let source;
-try {
-  source = readFileSync(filePath, 'utf8');
-} catch (e) {
-  console.log(JSON.stringify({error: 'read failed', detail: e.message}));
-  process.exit(4);
-}
-
-const sf = ts.createSourceFile(
-  filePath, source, ts.ScriptTarget.Latest, /*setParentNodes*/ true
-);
 
 const NG_ROLE = {
   Component: 'ng-component',
@@ -126,39 +124,76 @@ function memberDecoratorNames(member) {
   return names;
 }
 
-const records = [];
-function visit(node) {
-  if (ts.isClassDeclaration(node) && node.name) {
-    const className = node.name.text;
-    const decos = (ts.canHaveDecorators(node) ? ts.getDecorators(node) : null) || [];
-    for (const d of decos) {
-      const meta = decoratorMeta(d);
-      if (!meta) continue;
-      const inputs = [];
-      const outputs = [];
-      for (const m of node.members || []) {
-        const mname = m.name && (ts.isIdentifier(m.name) || ts.isStringLiteral(m.name)) ? m.name.text : null;
-        if (!mname) continue;
-        const dnames = memberDecoratorNames(m);
-        if (dnames.includes('Input'))  inputs.push(mname);
-        if (dnames.includes('Output')) outputs.push(mname);
-      }
-      records.push({
-        name: className,
-        role: meta.role,
-        selector: meta.props.selector ?? null,
-        templateUrl: meta.props.templateUrl ?? null,
-        styleUrls: meta.props.styleUrls ?? [],
-        standalone: typeof meta.props.standalone === 'boolean' ? meta.props.standalone : null,
-        providedIn: meta.props.providedIn ?? null,
-        pipeName: meta.role === 'ng-pipe' ? (meta.props.name ?? null) : null,
-        inputs,
-        outputs,
-      });
-      break;  // one Angular decorator per class is the convention.
-    }
+function parseOneFile(filePath) {
+  let source;
+  try {
+    source = readFileSync(filePath, 'utf8');
+  } catch (e) {
+    return {error: 'read failed', detail: e.message};
   }
-  ts.forEachChild(node, visit);
+  const sf = ts.createSourceFile(
+    filePath, source, ts.ScriptTarget.Latest, /*setParentNodes*/ true
+  );
+  const records = [];
+  function visit(node) {
+    if (ts.isClassDeclaration(node) && node.name) {
+      const className = node.name.text;
+      const decos = (ts.canHaveDecorators(node) ? ts.getDecorators(node) : null) || [];
+      for (const d of decos) {
+        const meta = decoratorMeta(d);
+        if (!meta) continue;
+        const inputs = [];
+        const outputs = [];
+        for (const m of node.members || []) {
+          const mname = m.name && (ts.isIdentifier(m.name) || ts.isStringLiteral(m.name)) ? m.name.text : null;
+          if (!mname) continue;
+          const dnames = memberDecoratorNames(m);
+          if (dnames.includes('Input'))  inputs.push(mname);
+          if (dnames.includes('Output')) outputs.push(mname);
+        }
+        records.push({
+          name: className,
+          role: meta.role,
+          selector: meta.props.selector ?? null,
+          templateUrl: meta.props.templateUrl ?? null,
+          styleUrls: meta.props.styleUrls ?? [],
+          standalone: typeof meta.props.standalone === 'boolean' ? meta.props.standalone : null,
+          providedIn: meta.props.providedIn ?? null,
+          pipeName: meta.role === 'ng-pipe' ? (meta.props.name ?? null) : null,
+          inputs,
+          outputs,
+        });
+        break;  // one Angular decorator per class is the convention.
+      }
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(sf);
+  return records;
 }
-visit(sf);
-process.stdout.write(JSON.stringify(records));
+
+if (serverMode) {
+  // Stdin loop: one path per line, one JSON line per file (in order).
+  // Error per-file is encoded as `{error: "..."}` object — caller
+  // detects and falls back.
+  const rl = readline.createInterface({input: process.stdin, terminal: false});
+  rl.on('line', (line) => {
+    const filePath = line.trim();
+    if (!filePath) return;
+    let out;
+    try {
+      out = parseOneFile(filePath);
+    } catch (e) {
+      out = {error: 'parse threw', detail: String(e && e.message || e)};
+    }
+    process.stdout.write(JSON.stringify(out) + '\n');
+  });
+  rl.on('close', () => process.exit(0));
+} else {
+  const result = parseOneFile(oneShotFile);
+  if (result && !Array.isArray(result) && result.error) {
+    console.log(JSON.stringify(result));
+    process.exit(4);
+  }
+  process.stdout.write(JSON.stringify(result));
+}
