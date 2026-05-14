@@ -16,6 +16,7 @@ subcommand:
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import subprocess
 import sys
@@ -350,6 +351,103 @@ def cmd_build(args: argparse.Namespace) -> int:
     cmd = [sys.executable, builder]
     proc = subprocess.run(cmd, cwd=args.root)
     return proc.returncode
+
+
+# ----------------------------------------------------------------------
+# Project initialisation
+# ----------------------------------------------------------------------
+
+# Groups advertised by mcp/server.py _TOOL_GROUPS — keep in sync.
+_ALL_GROUPS = ["angular", "locale", "fsm", "notify_log", "route", "docs"]
+
+# Which tool groups to disable for each detected project stack.
+_STACK_DISABLED: dict = {
+    "django":   ["angular", "locale", "fsm", "notify_log", "route"],
+    "fastapi":  ["angular", "locale", "fsm", "notify_log", "route"],
+    "flask":    ["angular", "locale", "fsm", "notify_log", "route"],
+    "angular":  ["fsm", "notify_log", "locale"],
+    "bot":      ["angular", "route"],      # keep fsm — bots use state machines
+    "generic":  ["fsm", "notify_log"],
+}
+
+
+def _detect_stack(root: str) -> str:
+    """Return a stack key based on files present in *root*."""
+    req = os.path.join(root, "requirements.txt")
+    pyproject = os.path.join(root, "pyproject.toml")
+    pkg = os.path.join(root, "package.json")
+
+    def _py_deps() -> str:
+        for path in (req, pyproject):
+            try:
+                text = open(path).read().lower()
+                if "django" in text:
+                    return "django"
+                if "fastapi" in text:
+                    return "fastapi"
+                if "flask" in text:
+                    return "flask"
+                if "aiogram" in text or "telebot" in text or "pyrogram" in text:
+                    return "bot"
+            except FileNotFoundError:
+                pass
+        return ""
+
+    if os.path.exists(req) or os.path.exists(pyproject):
+        stack = _py_deps()
+        if stack:
+            return stack
+        return "generic"
+
+    if os.path.exists(pkg):
+        try:
+            data = json.load(open(pkg))
+            deps = {**data.get("dependencies", {}), **data.get("devDependencies", {})}
+            if "@angular/core" in deps:
+                return "angular"
+        except (json.JSONDecodeError, OSError):
+            pass
+        return "generic"
+
+    return "generic"
+
+
+def cmd_init(args: argparse.Namespace) -> int:
+    """Generate .vc-context/conventions.json for a new project.
+
+    Detects the project stack from requirements.txt / package.json and
+    writes a starter conventions.json with appropriate disabled_tool_groups,
+    empty ignore_dirs, checks, and rules stubs ready to fill in.
+    """
+    root = args.root
+    vc_dir = os.path.join(root, ".vc-context")
+    out_path = os.path.join(vc_dir, "conventions.json")
+
+    if os.path.exists(out_path) and not getattr(args, "force", False):
+        print(f"vc-context init: {out_path} already exists — use --force to overwrite.")
+        return 1
+
+    stack = _detect_stack(root)
+    disabled = _STACK_DISABLED.get(stack, _STACK_DISABLED["generic"])
+
+    config = {
+        "disabled_tool_groups": disabled,
+        "ignore_dirs": [],
+        "checks": {},
+        "rules": [],
+    }
+
+    os.makedirs(vc_dir, exist_ok=True)
+    with open(out_path, "w", encoding="utf-8") as fh:
+        json.dump(config, fh, indent=2)
+        fh.write("\n")
+
+    print(f"vc-context init: created {out_path}")
+    print(f"  stack detected : {stack}")
+    print(f"  disabled groups: {disabled}")
+    print(f"  available groups (all): {_ALL_GROUPS}")
+    print("Edit disabled_tool_groups, ignore_dirs, checks, and rules to taste.")
+    return 0
 
 
 def cmd_lint(args: argparse.Namespace) -> int:

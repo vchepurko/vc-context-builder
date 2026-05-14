@@ -43,6 +43,7 @@ from cli_handlers import (
     cmd_decorated,
     cmd_file_card,
     cmd_find,
+    cmd_init,
     cmd_lint,
     cmd_module,
     cmd_modules,
@@ -190,6 +191,17 @@ def _build_parser() -> argparse.ArgumentParser:
 
     p_build = sub.add_parser("build", help="Run the builder (agent_map.py).")
     p_build.set_defaults(handler=cmd_build)
+
+    p_init = sub.add_parser(
+        "init",
+        help="Generate .vc-context/conventions.json for a new project.",
+    )
+    p_init.add_argument(
+        "--force",
+        action="store_true",
+        help="Overwrite existing conventions.json.",
+    )
+    p_init.set_defaults(handler=cmd_init)
 
     # Quality / lint / coverage / route / test subcommands ----------
     p_lint = sub.add_parser(

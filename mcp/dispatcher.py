@@ -40,6 +40,7 @@ class Dispatcher:
         self,
         engine: QueryEngine,
         metrics_writer: Optional[MetricsWriter] = None,
+        disabled_tools: Optional[list] = None,
     ) -> None:
         self.engine = engine
         self.metrics_writer = metrics_writer
@@ -107,6 +108,9 @@ class Dispatcher:
             "find_doc_xref": self._find_doc_xref,
             "docs_link_graph": self._docs_link_graph,
         }
+        self.disabled_tools: set = set(disabled_tools or [])
+        for t in self.disabled_tools:
+            self._handlers.pop(t, None)
 
     def call(self, name: str, args: Dict[str, Any]) -> Any:
         if self.metrics_writer is None:

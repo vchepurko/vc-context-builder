@@ -71,7 +71,8 @@ def handle_request(
         return None if is_notification else ok(req_id, result)
 
     if method == "tools/list":
-        return None if is_notification else ok(req_id, {"tools": tool_specs()})
+        specs = tool_specs(dispatcher.disabled_tools or None)
+        return None if is_notification else ok(req_id, {"tools": specs})
 
     if method == "tools/call":
         name = params.get("name")

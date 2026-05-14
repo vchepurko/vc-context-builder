@@ -14,18 +14,24 @@ handler in :mod:`mcp.dispatcher`. The parity test in
 
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, Set
 
 from . import angular, docs, project, symbols
 
 
-def tool_specs() -> List[Dict[str, Any]]:
-    """Concatenated spec list across every domain module."""
+def tool_specs(disabled: Optional[Set[str]] = None) -> List[Dict[str, Any]]:
+    """Concatenated spec list across every domain module.
+
+    Pass ``disabled`` (a set of tool names) to omit those entries from
+    the ``tools/list`` response so the client never sees them at all.
+    """
     out: List[Dict[str, Any]] = []
     out.extend(symbols.specs())
     out.extend(project.specs())
     out.extend(angular.specs())
     out.extend(docs.specs())
+    if disabled:
+        out = [t for t in out if t["name"] not in disabled]
     return out
 
 

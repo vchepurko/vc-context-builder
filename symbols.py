@@ -386,10 +386,13 @@ def extract_scheduler_jobs_from_codebase(
         ".vscode",
     }
 
+    def should_ignore(d: str) -> bool:
+        return d in ignore or d.startswith("venv")
+
     found: Set[str] = set()
 
     for cur, dirs, files in os.walk(root_dir):
-        dirs[:] = [d for d in dirs if d not in ignore]
+        dirs[:] = [d for d in dirs if not should_ignore(d)]
         for f in files:
             if not f.endswith(".py"):
                 continue

@@ -29,6 +29,41 @@ if _PARENT not in sys.path:
 
 from query_engine import QueryEngine
 
+# Maps group name → list of tool names it contains.
+# Declare a group here to let projects write one word in conventions.json
+# instead of listing every individual tool name.
+_TOOL_GROUPS: Dict[str, List[str]] = {
+    "angular": [
+        "ng_audit_component", "ng_uses_selector", "ng_overview",
+        "ng_inject_graph", "ng_list_routes", "ng_route_for_path",
+        "ng_routes_for_component", "ng_eslint_violations", "ng_find_module",
+        "ng_ts_class_shape", "ng_ajs_find", "ng_module_members",
+        "find_in_templates",
+    ],
+    "locale": ["list_locale_keys", "find_locale_key", "get_locale_key"],
+    "fsm": ["trace_fsm_flow"],
+    "notify_log": ["notify_log_search", "notify_log_stats"],
+    "route": ["route_callers", "route_for_js_call"],
+    "docs": ["get_doc_toc", "find_doc_section", "list_docs", "find_doc_xref", "docs_link_graph"],
+}
+
+
+def _load_disabled_tools(project_root: str) -> List[str]:
+    """Read ``disabled_tool_groups`` and ``disabled_tools`` from
+    ``.vc-context/conventions.json`` and expand to a flat tool-name list.
+    Returns an empty list when the file is absent or the keys are missing.
+    """
+    conv = os.path.join(project_root, ".vc-context", "conventions.json")
+    try:
+        with open(conv, encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
+    disabled: List[str] = list(data.get("disabled_tools", []))
+    for group in data.get("disabled_tool_groups", []):
+        disabled.extend(_TOOL_GROUPS.get(group, [group]))
+    return disabled
+
 
 def serve(
     project_root: str,
@@ -49,7 +84,8 @@ def serve(
     stdout = stdout or sys.stdout
     engine = QueryEngine(project_root)
     writer = MetricsWriter(project_root) if metrics else None
-    dispatcher = Dispatcher(engine, metrics_writer=writer)
+    disabled = _load_disabled_tools(project_root)
+    dispatcher = Dispatcher(engine, metrics_writer=writer, disabled_tools=disabled)
 
     for raw in stdin:
         raw = raw.strip()
