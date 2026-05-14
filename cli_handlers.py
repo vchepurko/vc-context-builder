@@ -413,40 +413,51 @@ def _detect_stack(root: str) -> str:
 
 
 def cmd_init(args: argparse.Namespace) -> int:
-    """Generate .vc-context/conventions.json for a new project.
+    """Generate or update .vc-context/conventions.json for a project.
 
-    Detects the project stack from requirements.txt / package.json and
-    writes a starter conventions.json with appropriate disabled_tool_groups,
-    empty ignore_dirs, checks, and rules stubs ready to fill in.
+    Idempotent by default: merges into an existing file, only adding keys
+    that are absent.  Use --force to overwrite disabled_tool_groups even
+    when it is already set.
     """
     root = args.root
     vc_dir = os.path.join(root, ".vc-context")
     out_path = os.path.join(vc_dir, "conventions.json")
 
-    if os.path.exists(out_path) and not getattr(args, "force", False):
-        print(f"vc-context init: {out_path} already exists — use --force to overwrite.")
-        return 1
-
     stack = _detect_stack(root)
     disabled = _STACK_DISABLED.get(stack, _STACK_DISABLED["generic"])
+    force = getattr(args, "force", False)
 
-    config = {
-        "disabled_tool_groups": disabled,
-        "ignore_dirs": [],
-        "checks": {},
-        "rules": [],
-    }
+    # Read existing config so we can merge instead of clobber.
+    existing: dict = {}
+    if os.path.exists(out_path):
+        try:
+            with open(out_path, encoding="utf-8") as fh:
+                existing = json.load(fh)
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    added: list = []
+    if "disabled_tool_groups" not in existing or force:
+        existing["disabled_tool_groups"] = disabled
+        added.append("disabled_tool_groups")
+    for key, stub in (("ignore_dirs", []), ("checks", {}), ("rules", [])):
+        if key not in existing:
+            existing[key] = stub
+            added.append(key)
 
     os.makedirs(vc_dir, exist_ok=True)
     with open(out_path, "w", encoding="utf-8") as fh:
-        json.dump(config, fh, indent=2)
+        json.dump(existing, fh, indent=2)
         fh.write("\n")
 
-    print(f"vc-context init: created {out_path}")
+    action = "updated" if os.path.exists(out_path) else "created"
+    print(f"vc-context init: {action} {out_path}")
     print(f"  stack detected : {stack}")
-    print(f"  disabled groups: {disabled}")
+    if added:
+        print(f"  keys added     : {added}")
+    else:
+        print("  nothing to add (all keys already present; use --force to reset disabled_tool_groups)")
     print(f"  available groups (all): {_ALL_GROUPS}")
-    print("Edit disabled_tool_groups, ignore_dirs, checks, and rules to taste.")
     return 0
 
 
