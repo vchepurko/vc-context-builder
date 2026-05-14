@@ -52,33 +52,63 @@ def specs() -> List[Dict[str, Any]]:
         {
             "name": "find_doc_section",
             "description": (
-                "Locate one section in ``file`` by heading text and "
-                "return {level, text, line, end_line, anchor}. Pair "
-                "with ``read_slice(file, start_line, end_line)`` for "
-                "a surgical read of just that section — replaces the "
-                "Bash 'grep -n ^## Foo && Read offset N limit M' "
-                "two-step. Default fuzzy match is case-insensitive "
-                "substring; set ``fuzzy: false`` for exact equality."
+                "Locate one section in ``file`` and return "
+                "{level, text, line, end_line, anchor}. Pair with "
+                "``read_slice(file, start_line, end_line)`` for a "
+                "surgical read of just that section.\n\n"
+                "Four selectors (priority: anchor > number > heading "
+                "> header_pattern):\n"
+                '  * ``anchor: "31"`` — slug prefix match (finds '
+                "``31-unified-user``).\n"
+                "  * ``number: 31`` — numeric heading prefix "
+                "(``## 31. Something``).\n"
+                '  * ``heading: "Unified User"`` — case-insensitive '
+                "substring on heading text, ranked shortest-first.\n"
+                '  * ``header_pattern: "..."`` — back-compat path; '
+                "case-insensitive substring (or exact equality when "
+                "``fuzzy: false``).\n\n"
+                "Replaces the Bash 'grep -n ^## Foo && Read offset N "
+                "limit M' two-step."
             ),
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "file": {"type": "string"},
+                    "anchor": {
+                        "type": "string",
+                        "description": (
+                            "Section slug prefix (case-insensitive). "
+                            "E.g. '31' → matches '31-unified-user'."
+                        ),
+                    },
+                    "number": {
+                        "type": "integer",
+                        "description": ("Numeric heading prefix. E.g. 31 finds '## 31. ...'."),
+                    },
+                    "heading": {
+                        "type": "string",
+                        "description": (
+                            "Case-insensitive substring on heading text. "
+                            "Ranked shortest-heading-first."
+                        ),
+                    },
                     "header_pattern": {
                         "type": "string",
                         "description": (
-                            "Substring (or exact text if ``fuzzy: false``) of the heading to match."
+                            "Back-compat substring (or exact text if "
+                            "``fuzzy: false``) of the heading to match."
                         ),
                     },
                     "fuzzy": {
                         "type": "boolean",
                         "description": (
-                            "Default true — case-insensitive substring. "
-                            "Set false for exact heading-text equality."
+                            "Default true — case-insensitive substring "
+                            "for ``header_pattern``. Set false for exact "
+                            "heading-text equality."
                         ),
                     },
                 },
-                "required": ["file", "header_pattern"],
+                "required": ["file"],
             },
         },
         {
@@ -125,6 +155,46 @@ def specs() -> List[Dict[str, Any]]:
                     },
                 },
                 "required": ["term"],
+            },
+        },
+        {
+            "name": "search_doc_text",
+            "description": (
+                "Markdown-aware grep across indexed docs. Returns "
+                "``[{file, line, snippet, section: {heading, anchor, "
+                "level}}]`` capped at ``max_results``. Each hit "
+                "carries its containing section so the agent sees "
+                "'this mention is inside Phase 2 of IDEAS #28' "
+                "without a follow-up ``read_slice``.\n\n"
+                "Closes the 'which docs mention X' free-text query "
+                "class that today drops to Bash ``grep -rln`` because "
+                "``find_doc_xref`` indexes only markdown-link syntax. "
+                "Optional ``file`` scopes to one doc; ``regex=true`` "
+                "treats ``query`` as a Python regex; "
+                "``case_sensitive`` defaults to false."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string"},
+                    "file": {
+                        "type": "string",
+                        "description": ("Optional repo-relative path to limit search to one doc."),
+                    },
+                    "regex": {
+                        "type": "boolean",
+                        "description": "Default false — substring match.",
+                    },
+                    "case_sensitive": {
+                        "type": "boolean",
+                        "description": "Default false.",
+                    },
+                    "max_results": {
+                        "type": "integer",
+                        "description": "Cap (default 50).",
+                    },
+                },
+                "required": ["query"],
             },
         },
         {

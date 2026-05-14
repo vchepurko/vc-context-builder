@@ -18,7 +18,7 @@ the code — if you spot an inconsistency, file an issue.
 - Self-index mode — index the submodule against itself for contributors
 
 ### Query surface
-- **MCP server** (~41 tools)
+- **MCP server** (~47 tools)
   - Symbol cards (`get_symbol_card`), file cards (`get_file_card`),
     repo map (`repo_map`)
   - Reverse / forward call lookup (`who_calls`, `get_callees`,
@@ -29,9 +29,23 @@ the code — if you spot an inconsistency, file an issue.
   - Git-aware: `get_changed_symbols`
   - Bounded source reads (`read_slice` + `find_symbol(include_body=true)`)
   - Lint / type / format / test runners (`run_check`,
-    `lint_violations`, `mypy_violations`, `ruff_violations`)
+    `lint_violations`, `mypy_violations`, `ruff_violations`,
+    `check_health` roll-up)
+  - File-level grep (`find_in_file`) — surgical single-file search
+  - Anti-pattern detection (`find_orphan_callbacks`) — dead-button
+    finder for aiogram projects
+  - Markdown navigation: `get_doc_toc`, `find_doc_section` (anchor /
+    number / heading / fuzzy selectors), `list_docs`, `find_doc_xref`,
+    `search_doc_text` (markdown-aware grep with section context),
+    `docs_link_graph`
   - Angular: components / routes / inject-graph / overview
   - Locales: list / find / get
+- **`run_check` caching keyed on git state** — repeat invocations
+  with no source edits return in ~ms with `cached: true`; saves
+  10–20 s on `test-unit`.
+- **`_QuerySymbolsMixin` extraction** — `query_engine.py` 1923 → 1271 LOC
+  by hoisting 14 symbol-fact methods + 5 class constants into the new
+  `_query_symbols.py`. Pure refactor, public surface unchanged.
 - **CLI** (`vc-context`) — full parity with the MCP surface
 - **JSON fallback** — read artifacts directly when no MCP / CLI
 - **`include_tests` knob (default false)** on search/query tools —
@@ -62,11 +76,16 @@ the code — if you spot an inconsistency, file an issue.
 
 ## 🔜 Planned (next 1–3 PRs)
 
+> **Recently shipped (2026-05-14)** — `_QuerySymbolsMixin` split,
+> `check_health` roll-up, `find_doc_section` loose selectors,
+> `search_doc_text`, `find_orphan_callbacks`, `find_in_file`,
+> git-state-keyed `run_check` caching. Their planned bullets
+> below stay as historical context; see CHANGELOG.md for the
+> per-tool record.
+
 ### Code quality
-- **Continue `query_engine.py` split** — symbols / cards / repo_map
-  / git / checks group still lives in the facade (~1500 LOC after
-  the first three mixins landed). Extract `_QuerySymbolsMixin` next
-  for the biggest remaining cluster.
+- ~~Continue `query_engine.py` split — extract `_QuerySymbolsMixin`.~~
+  ✅ Shipped 2026-05-14 — 1923 → 1271 LOC; new `_query_symbols.py`.
 - Replace inline `import re` / `import ast` with module-level imports
   where the perf benefit is negligible.
 

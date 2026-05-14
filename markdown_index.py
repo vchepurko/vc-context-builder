@@ -274,27 +274,72 @@ def get_toc(
 def find_section(
     index: Dict[str, Any],
     file: str,
-    header_pattern: str,
+    header_pattern: Optional[str] = None,
     *,
     fuzzy: bool = True,
+    number: Optional[int] = None,
+    heading: Optional[str] = None,
+    anchor: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
-    """Locate one section in ``file`` whose heading matches.
+    """Locate one section in ``file`` by one of four selectors.
 
-    Match rules (``fuzzy=True`` default):
-      * case-insensitive substring on the heading text;
-      * the first match wins (top-down).
+    Selector priority (first non-None wins):
 
-    ``fuzzy=False`` requires an exact case-insensitive equality with
-    the heading text — useful for round-trip queries.
+    1. ``anchor`` — case-insensitive **prefix** match on the section
+       slug. Pass ``"31"`` to find ``31-unified-user`` (covers the
+       common "I know the number, not the full slug" case).
+    2. ``number`` — match a numeric heading prefix, e.g.
+       ``number=31`` finds ``## 31. Something``.
+    3. ``heading`` — case-insensitive **substring** match on the
+       heading text, ranked shortest-heading-first (so a 4-word
+       heading beats a 40-word one for the same query).
+    4. ``header_pattern`` — back-compat path. With ``fuzzy=True``
+       (default) it's a case-insensitive substring (first match
+       wins, top-down). With ``fuzzy=False`` it's an exact
+       case-insensitive equality.
 
-    Returns ``{level, text, line, end_line, anchor}`` or None.
+    Returns ``{level, text, line, end_line, anchor}`` or ``None``.
     """
     sections = get_toc(index, file) or []
-    needle = header_pattern.strip().lower()
-    for sec in sections:
-        text_lower = sec["text"].lower()
-        if (fuzzy and needle in text_lower) or (not fuzzy and needle == text_lower):
-            return dict(sec)
+
+    if anchor is not None:
+        needle = anchor.strip().lower()
+        if not needle:
+            return None
+        for sec in sections:
+            sec_anchor = (sec.get("anchor") or "").lower()
+            if sec_anchor.startswith(needle):
+                return dict(sec)
+        return None
+
+    if number is not None:
+        prefix_re = re.compile(rf"^\s*{re.escape(str(number))}(?:\.|\s|$)")
+        for sec in sections:
+            text = sec.get("text") or ""
+            if prefix_re.match(text):
+                return dict(sec)
+        return None
+
+    if heading is not None:
+        needle = heading.strip().lower()
+        if not needle:
+            return None
+        matches = [sec for sec in sections if needle in sec["text"].lower()]
+        if not matches:
+            return None
+        matches.sort(key=lambda s: len(s["text"]))
+        return dict(matches[0])
+
+    if header_pattern is not None:
+        needle = header_pattern.strip().lower()
+        if not needle:
+            return None
+        for sec in sections:
+            text_lower = sec["text"].lower()
+            if (fuzzy and needle in text_lower) or (not fuzzy and needle == text_lower):
+                return dict(sec)
+        return None
+
     return None
 
 
@@ -359,6 +404,110 @@ def find_xref(
                         out.append({"file": rel, "line": i, "snippet": snippet})
                         if len(out) >= max_results:
                             break
+        except OSError:
+            continue
+    return out
+
+
+def _find_containing_section(
+    sections: List[Dict[str, Any]],
+    line: int,
+) -> Optional[Dict[str, Any]]:
+    """Pick the deepest section whose ``[line, end_line]`` range contains
+    ``line``. Returns ``{heading, anchor, level}`` or ``None`` when no
+    section contains the line (e.g. preamble before the first heading).
+    """
+    best: Optional[Dict[str, Any]] = None
+    for sec in sections:
+        sl = sec.get("line")
+        sel = sec.get("end_line")
+        if not isinstance(sl, int) or not isinstance(sel, int):
+            continue
+        if sl <= line <= sel:
+            # "Deepest" = highest level (## inside ## is more specific).
+            if best is None or sec.get("level", 0) >= best.get("level", 0):
+                best = sec
+    if best is None:
+        return None
+    return {
+        "heading": best.get("text"),
+        "anchor": best.get("anchor"),
+        "level": best.get("level"),
+    }
+
+
+def search_doc_text(
+    project_root: str,
+    index: Dict[str, Any],
+    query: str,
+    *,
+    file: Optional[str] = None,
+    regex: bool = False,
+    case_sensitive: bool = False,
+    max_results: int = 50,
+) -> List[Dict[str, Any]]:
+    """Markdown-aware grep across indexed docs — like ``find_xref``,
+    but each hit carries its **containing section** so the agent sees
+    "this mention is inside Phase 2 of IDEAS #28" without a follow-up
+    ``read_slice``.
+
+    Returns ``[{file, line, snippet, section: {heading, anchor, level}}]``
+    capped at ``max_results``. ``section`` is ``None`` for matches in
+    the preamble before any heading.
+
+    Args:
+      query: Substring (default) or Python regex when ``regex=True``.
+      file: Optional repo-relative path to scope the search to one doc.
+      regex: Treat ``query`` as a regex instead of a literal substring.
+      case_sensitive: Default ``False``.
+      max_results: Cap (default 50).
+
+    Closes the "which docs mention X" free-text query class that
+    today drops to Bash ``grep -rln`` because ``find_xref`` doesn't
+    attach section context.
+    """
+    docs = index.get("docs", {})
+    targets: List[str]
+    if file:
+        targets = [file] if file in docs else []
+    else:
+        targets = list(docs.keys())
+
+    if regex:
+        flags = 0 if case_sensitive else re.IGNORECASE
+        pattern = re.compile(query, flags)
+
+        def matches(line: str) -> bool:
+            return pattern.search(line) is not None
+    else:
+        needle = query if case_sensitive else query.lower()
+
+        def matches(line: str) -> bool:
+            hay = line if case_sensitive else line.lower()
+            return needle in hay
+
+    out: List[Dict[str, Any]] = []
+    for rel in targets:
+        if len(out) >= max_results:
+            break
+        sections = docs.get(rel, {}).get("sections") or []
+        full = os.path.join(project_root, rel)
+        try:
+            with open(full, encoding="utf-8") as fh:
+                for i, line in enumerate(fh, start=1):
+                    if not matches(line):
+                        continue
+                    snippet = line.rstrip()[:200]
+                    out.append(
+                        {
+                            "file": rel,
+                            "line": i,
+                            "snippet": snippet,
+                            "section": _find_containing_section(sections, i),
+                        }
+                    )
+                    if len(out) >= max_results:
+                        break
         except OSError:
             continue
     return out

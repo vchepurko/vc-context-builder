@@ -66,6 +66,7 @@ class Dispatcher:
             "route_callers": self._route_callers,
             "route_for_js_call": self._route_for_js_call,
             "find_callback": self._find_callback,
+            "find_orphan_callbacks": self._find_orphan_callbacks,
             "trace_fsm_flow": self._trace_fsm_flow,
             "coverage_for_role": self._coverage_for_role,
             "classify_tests": self._classify_tests,
@@ -89,6 +90,8 @@ class Dispatcher:
             "ruff_violations": self._ruff_violations,
             "ruff_format": self._ruff_format,
             "mypy_violations": self._mypy_violations,
+            "check_health": self._check_health,
+            "find_in_file": self._find_in_file,
             "find_in_templates": self._find_in_templates,
             "ng_audit_component": self._ng_audit_component,
             "ng_uses_selector": self._ng_uses_selector,
@@ -106,6 +109,7 @@ class Dispatcher:
             "find_doc_section": self._find_doc_section,
             "list_docs": self._list_docs,
             "find_doc_xref": self._find_doc_xref,
+            "search_doc_text": self._search_doc_text,
             "docs_link_graph": self._docs_link_graph,
         }
         self.disabled_tools: set = set(disabled_tools or [])
@@ -254,6 +258,11 @@ class Dispatcher:
             include_tests=self._include_tests(args),
         )
 
+    def _find_orphan_callbacks(self, args: Dict[str, Any]) -> Any:
+        return self.engine.find_orphan_callbacks(
+            include_tests=self._include_tests(args),
+        )
+
     def _trace_fsm_flow(self, args: Dict[str, Any]) -> Any:
         return self.engine.trace_fsm_flow(str(args.get("state", "")))
 
@@ -296,7 +305,8 @@ class Dispatcher:
         timeout_sec = (
             int(timeout_raw) if isinstance(timeout_raw, (int, float)) and timeout_raw > 0 else None
         )
-        return self.engine.run_check(name, timeout_sec=timeout_sec)
+        nocache = bool(args.get("nocache", False))
+        return self.engine.run_check(name, timeout_sec=timeout_sec, nocache=nocache)
 
     def _get_session_metrics(self, args: Dict[str, Any]) -> Any:
         kw: Dict[str, Any] = {}
@@ -483,6 +493,29 @@ class Dispatcher:
                 pass
         return self.engine.mypy_violations(**kw)
 
+    def _check_health(self, args: Dict[str, Any]) -> Any:
+        kw: Dict[str, Any] = {}
+        if "summary" in args:
+            kw["summary"] = bool(args["summary"])
+        return self.engine.check_health(**kw)
+
+    def _find_in_file(self, args: Dict[str, Any]) -> Any:
+        file = str(args.get("file", "")).strip()
+        pattern = str(args.get("pattern", ""))
+        if not file or not pattern:
+            return []
+        kw: Dict[str, Any] = {}
+        if "use_regex" in args:
+            kw["use_regex"] = bool(args["use_regex"])
+        if "case_sensitive" in args:
+            kw["case_sensitive"] = bool(args["case_sensitive"])
+        if "limit" in args:
+            try:
+                kw["limit"] = max(1, int(args["limit"]))
+            except (TypeError, ValueError):
+                pass
+        return self.engine.find_in_file(file, pattern, **kw)
+
     def _find_in_templates(self, args: Dict[str, Any]) -> Any:
         pattern = str(args.get("pattern", "")).strip()
         match_path = args.get("match_path")
@@ -564,11 +597,28 @@ class Dispatcher:
 
     def _find_doc_section(self, args: Dict[str, Any]) -> Any:
         file = str(args.get("file", "")).strip()
-        header_pattern = str(args.get("header_pattern", "")).strip()
-        if not file or not header_pattern:
+        if not file:
             return None
-        fuzzy = bool(args.get("fuzzy", True))
-        return self.engine.find_doc_section(file, header_pattern, fuzzy=fuzzy)
+        kw: Dict[str, Any] = {}
+        if "fuzzy" in args:
+            kw["fuzzy"] = bool(args["fuzzy"])
+        if "number" in args:
+            try:
+                kw["number"] = int(args["number"])
+            except (TypeError, ValueError):
+                pass
+        h = args.get("heading")
+        if isinstance(h, str) and h.strip():
+            kw["heading"] = h.strip()
+        a = args.get("anchor")
+        if isinstance(a, str) and a.strip():
+            kw["anchor"] = a.strip()
+        hp = args.get("header_pattern")
+        header_pattern = hp.strip() if isinstance(hp, str) and hp.strip() else None
+        if header_pattern is None and not any(k in kw for k in ("number", "heading", "anchor")):
+            # Nothing to match on — preserve the previous "empty result" contract.
+            return None
+        return self.engine.find_doc_section(file, header_pattern, **kw)
 
     def _list_docs(self, args: Dict[str, Any]) -> Any:
         path_prefix = args.get("path_prefix")
@@ -590,6 +640,25 @@ class Dispatcher:
             except (TypeError, ValueError):
                 pass
         return self.engine.find_doc_xref(term, **kw)
+
+    def _search_doc_text(self, args: Dict[str, Any]) -> Any:
+        query = str(args.get("query", "")).strip()
+        if not query:
+            return []
+        kw: Dict[str, Any] = {}
+        f = args.get("file")
+        if isinstance(f, str) and f.strip():
+            kw["file"] = f.strip()
+        if "regex" in args:
+            kw["regex"] = bool(args["regex"])
+        if "case_sensitive" in args:
+            kw["case_sensitive"] = bool(args["case_sensitive"])
+        if "max_results" in args:
+            try:
+                kw["max_results"] = max(1, int(args["max_results"]))
+            except (TypeError, ValueError):
+                pass
+        return self.engine.search_doc_text(query, **kw)
 
     def _docs_link_graph(self, args: Dict[str, Any]) -> Any:
         return self.engine.docs_link_graph()

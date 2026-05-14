@@ -225,6 +225,37 @@ def specs() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": "find_orphan_callbacks",
+            "description": (
+                "Anti-pattern detector — return every literal "
+                '``callback_data="..."`` reference (typically inside '
+                "``InlineKeyboardButton(...)``) with no matching "
+                "``@router.callback_query`` handler. Clicking such a "
+                "button does nothing.\n\n"
+                "Set-difference between AST-walked button references "
+                "and ``agent_callbacks.json``. Non-literal call sites "
+                "(f-strings, ``.format()``, variables) are silently "
+                "skipped because they can't be statically resolved. "
+                "``include_tests`` defaults to false — orphan refs in "
+                "``tests/`` are usually intentional fixtures.\n\n"
+                "Each record: ``{data, file, line}``, sorted by "
+                "``(file, line)``."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "include_tests": {
+                        "type": "boolean",
+                        "description": (
+                            "Default false — surface only production "
+                            "orphans. Set true to also list dead "
+                            "button refs in tests/."
+                        ),
+                    },
+                },
+            },
+        },
+        {
             "name": "trace_fsm_flow",
             "description": (
                 "Trace an aiogram FSM state's lifecycle: where it's "
@@ -299,15 +330,33 @@ def specs() -> List[Dict[str, Any]]:
                 "Execute a whitelisted check declared in "
                 ".vc-context/conventions.json. Returns "
                 "{returncode, duration_ms, stdout_tail, stderr_tail, "
-                "summary, error?}. Unknown name → returncode -2; "
-                "timeout → -1; spawn failure → -3. Use to run tests / "
-                "lint / typecheck without exposing arbitrary shell."
+                "summary, error?, cached?}. Unknown name → "
+                "returncode -2; timeout → -1; spawn failure → -3. "
+                "Use to run tests / lint / typecheck without "
+                "exposing arbitrary shell.\n\n"
+                "Results are memoised by ``(name, git_state_hash)`` "
+                "where the hash covers committed HEAD + staged + "
+                "unstaged + untracked files. A repeat call with no "
+                "source edits returns in ~ms with ``cached: true`` "
+                "(saves 10-20 s on test-unit). Pass ``nocache: true`` "
+                "to bypass the cache (e.g. when something outside "
+                "git changed — env vars, external services). "
+                "Caching is skipped on spawn failures (-3) and on "
+                "non-git projects."
             ),
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "name": {"type": "string"},
                     "timeout_sec": {"type": "integer", "minimum": 1},
+                    "nocache": {
+                        "type": "boolean",
+                        "description": (
+                            "Default false. Set true to bypass the "
+                            "memoised-by-git-state cache and force a "
+                            "fresh run."
+                        ),
+                    },
                 },
                 "required": ["name"],
             },
@@ -452,6 +501,49 @@ def specs() -> List[Dict[str, Any]]:
                     "limit": {"type": "integer", "default": 200},
                 },
                 "required": ["pattern"],
+            },
+        },
+        {
+            "name": "find_in_file",
+            "description": (
+                "Surgical grep over a single file. Returns "
+                "``[{line, text}]`` matches capped at ``limit`` "
+                "(default 20). ``text`` is right-trimmed and "
+                "truncated to 200 chars.\n\n"
+                "Closes the 'I know the file, I'm hunting a string "
+                "inside it' case that ``find_symbol`` can't help "
+                "with (top-level shape only) — large monolith files "
+                "like ``Checkout.js`` are the typical motivator. "
+                "Distinct from ``find_pattern_in_configs`` (config-"
+                "kind walk) and ``search_doc_text`` (markdown only).\n\n"
+                "``case_sensitive`` defaults to false; ``use_regex`` "
+                "treats ``pattern`` as a Python regex. Path is "
+                "resolved against ``project_root`` and rejected if "
+                "it escapes the tree."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "file": {
+                        "type": "string",
+                        "description": "Project-relative file path.",
+                    },
+                    "pattern": {"type": "string"},
+                    "use_regex": {
+                        "type": "boolean",
+                        "description": "Default false — substring match.",
+                    },
+                    "case_sensitive": {
+                        "type": "boolean",
+                        "description": "Default false.",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "description": "Cap on matches returned (default 20).",
+                    },
+                },
+                "required": ["file", "pattern"],
             },
         },
         {
@@ -702,6 +794,36 @@ def specs() -> List[Dict[str, Any]]:
                         "type": "integer",
                         "minimum": 0,
                         "description": "Cap the violations list. 0 = no cap.",
+                    },
+                },
+            },
+        },
+        {
+            "name": "check_health",
+            "description": (
+                "One-call code-health roll-up: lint + mypy + ruff + "
+                "ruff-format in a single MCP round-trip. Returns "
+                "{lint, mypy, ruff, format} where each is the same "
+                "shape its dedicated tool would return. ``summary`` "
+                "defaults to true so the response stays bounded "
+                "(~250 B when clean); pass summary=false to embed "
+                "the per-violation lists from each inspector. Use as "
+                "the cheapest 'is the codebase healthy?' check — "
+                "3× fewer round-trips than calling each tool in "
+                "sequence (observed: 33 calls split 11/11/11 between "
+                "lint/mypy/ruff in a single klodchickknifes session, "
+                "almost always empty)."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "summary": {
+                        "type": "boolean",
+                        "description": (
+                            "When true (default), each inspector "
+                            "returns counts only. Set false to embed "
+                            "the full per-violation lists."
+                        ),
                     },
                 },
             },

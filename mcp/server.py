@@ -52,7 +52,14 @@ _TOOL_GROUPS: Dict[str, List[str]] = {
     "fsm": ["trace_fsm_flow"],
     "notify_log": ["notify_log_search", "notify_log_stats"],
     "route": ["route_callers", "route_for_js_call"],
-    "docs": ["get_doc_toc", "find_doc_section", "list_docs", "find_doc_xref", "docs_link_graph"],
+    "docs": [
+        "get_doc_toc",
+        "find_doc_section",
+        "list_docs",
+        "find_doc_xref",
+        "search_doc_text",
+        "docs_link_graph",
+    ],
 }
 
 

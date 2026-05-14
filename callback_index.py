@@ -268,3 +268,71 @@ def find_callback(
     if longest is None:
         return []
     return [dict(r) for r in index[longest]]
+
+
+# ----------------------------------------------------------------------
+# Orphan detection — buttons referencing dead callback_data
+# ----------------------------------------------------------------------
+
+
+def _collect_callback_refs(file: str) -> List[Tuple[str, int]]:
+    """Return ``[(data, line), ...]`` for every literal-string
+    ``callback_data="..."`` keyword argument in ``file``.
+
+    Non-literal values (f-strings, ``.format()``, variables) are
+    skipped — they can't be statically resolved against the handler
+    index.
+    """
+    out: List[Tuple[str, int]] = []
+    try:
+        with open(file, encoding="utf-8") as fh:
+            source = fh.read()
+    except OSError:
+        return out
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return out
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        for kw in node.keywords or []:
+            if kw.arg != "callback_data":
+                continue
+            v = kw.value
+            if isinstance(v, ast.Constant) and isinstance(v.value, str) and v.value:
+                out.append((v.value, v.lineno))
+    return out
+
+
+def find_orphans(
+    project_root: str,
+    index: Dict[str, List[Dict[str, Any]]],
+    *,
+    include_tests: bool = False,
+) -> List[Dict[str, Any]]:
+    """Return every literal ``callback_data="..."`` reference with no
+    matching handler — clicking such a button does nothing.
+
+    Set-difference between AST-walked ``callback_data="..."``
+    references (in ``InlineKeyboardButton`` and similar calls) and
+    the handler index produced by :func:`collect_callbacks`.
+    Non-literal call sites (f-strings, ``.format()``, variables) are
+    silently skipped because they can't be statically resolved.
+
+    ``include_tests`` defaults to False — orphans in ``tests/`` are
+    usually intentional fixtures and would drown the production
+    signal.
+
+    Each record: ``{data, file, line}``, sorted by ``(file, line)``.
+    """
+    orphans: List[Dict[str, Any]] = []
+    for full in _iter_python_files(project_root):
+        rel = os.path.relpath(full, project_root).replace(os.sep, "/")
+        if not include_tests and (rel.startswith("tests/") or "/tests/" in f"/{rel}"):
+            continue
+        for data, line in _collect_callback_refs(full):
+            if not find_callback(index, data):
+                orphans.append({"data": data, "file": rel, "line": line})
+    orphans.sort(key=lambda r: (r["file"], r["line"]))
+    return orphans
