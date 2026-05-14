@@ -67,6 +67,66 @@ class _InspectorsMixin:
 
         return _get(self._load_locale_keys(), key)
 
+    def record_bash_usage(
+        self,
+        count: int = 1,
+        action: Optional[str] = None,
+        bytes_estimate: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Self-reported Bash usage marker — light-touch telemetry.
+
+        Agents call this after a shell-out so the dispatcher's
+        automatic metrics record (``record_bash_usage`` tool) shows
+        up alongside MCP calls in ``get_session_metrics``. The "true
+        MCP win" ratio is then accurate: today metrics see only the
+        MCP side, so Bash-grep / sed / node usage is invisible.
+
+        The method itself is a near no-op — it just echoes the input
+        so the auto-record captures ``count`` / ``action`` /
+        ``bytes_estimate`` in the JSONL line. The aggregation lives
+        in ``get_session_metrics`` (group_by=tool surfaces it as
+        ``by_tool['record_bash_usage']``).
+
+        Parameters
+        ----------
+        count: occurrence count (default 1) — agents can batch
+            multiple shell-outs into one call.
+        action: optional free-text hint (``"grep"``, ``"sed-bulk"``,
+            ``"node --check"``).
+        bytes_estimate: optional rough size of the Bash output for
+            baseline-savings calculations. Capped at 0 if negative.
+
+        Returns ``{ok, count, action?, bytes_estimate?}``.
+        """
+        out: Dict[str, Any] = {"ok": True, "count": max(1, int(count or 1))}
+        if action:
+            out["action"] = str(action)
+        if bytes_estimate is not None:
+            try:
+                out["bytes_estimate"] = max(0, int(bytes_estimate))
+            except (TypeError, ValueError):
+                pass
+        return out
+
+    def find_locale_drift(
+        self,
+        namespace: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Anti-pattern detector — every locale key present in one
+        language but missing in a sibling that owns the same namespace
+        file. Returns ``[{key, namespace, present, missing}, ...]``
+        sorted by ``(namespace, key)``.
+
+        Optional ``namespace`` scopes the audit to one namespace
+        (``"common"`` / ``"admin"`` / etc.). Empty list when every key
+        is fully translated — that's the parity-OK signal.
+
+        Drives translation review without a dedicated diff tool.
+        """
+        from locale_index import find_drift as _drift  # type: ignore[import-not-found]
+
+        return _drift(self._load_locale_keys(), namespace=namespace)
+
     # ------------------------------------------------------------------
     # Config-file pattern search (Feature C — gap-closer)
     # ------------------------------------------------------------------

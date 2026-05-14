@@ -10,6 +10,41 @@ bump the minor; fixes bump the patch.
 ## [Unreleased]
 
 ### Added
+- **`find_anti_patterns` registry** — new MCP tool plus
+  `list_anti_patterns`. First detector:
+  `aiogram-state-check-in-body` finds
+  ``@router.message(F.<...>)`` decorators without a state-filter
+  argument (the silent-dispatch killer pinned in CLAUDE.md). Pure
+  AST set-difference, stdlib-only; further rules slot into the
+  ``_DETECTORS`` registry as plain functions.
+- **`record_bash_usage`** — light-touch self-reported Bash usage
+  marker. Agents call it after a shell-out so the dispatcher's
+  auto-record adds the entry to
+  ``~/.vc-context/metrics/<repo>-<date>.jsonl``;
+  ``get_session_metrics`` then surfaces Bash counts alongside MCP
+  calls (``by_tool['record_bash_usage']``). Closes the "true MCP
+  win is understated" blind spot in the ROADMAP.
+
+### Fixed
+- **ng-component selector backfill** in `ts_js_parser` — long
+  imports or extensive `@Component(...)` metadata used to push
+  `selector` outside the primary regex path's 2 KB lookback
+  window, returning ``null`` for non-standalone declaration-based
+  components. New ``_backfill_ng_metadata`` does a no-window
+  rescan of the full file body and recovers
+  `selector` / `templateUrl` / `standalone` when missing.
+
+### Changed
+- **TS AST extractor uses a persistent Node worker** —
+  `_ts_ast_extractor.mjs` gained a ``--server`` mode that reads
+  file paths from stdin and emits one JSON line per file.
+  `parse(file, project_root)` routes through one long-lived worker
+  per project root, dropping the per-file cost from ~50 ms (spawn)
+  to ~1–3 ms (AST parse only). Closes the lms-client
+  "``rebuild_index`` always times out at 120 s with
+  `typescript_ast` enabled" gap. One-shot fallback preserves the
+  legacy contract for failed-worker / Node-missing cases.
+
 - **`check_health`** — one-call code-health roll-up: `lint_violations` +
   `mypy_violations` + `ruff_violations` + `ruff_format` bundled into a
   single MCP round-trip. Real-session telemetry showed 33 calls split
@@ -49,6 +84,31 @@ bump the minor; fixes bump the patch.
   5 class constants out of `query_engine.py` (1923 → 1271 LOC) into
   a new `_query_symbols.py`. Pure refactor — public surface
   unchanged.
+- **`find_locale_drift`** — parity audit: every locale key present in
+  one language but missing in a sibling that owns the same namespace
+  file. Returns ``[{key, namespace, present, missing}]`` sorted by
+  ``(namespace, key)``. Drives translation review without a dedicated
+  diff tool. Optional ``namespace`` scopes to one bucket.
+- **`find_handlers_without_tests`** — coverage gap detector: every
+  symbol with the given handler role (default ``aiogram-handler``)
+  that has no linked test entry. Sugar over
+  ``coverage_for_role(role)["missing"]`` enriched with ``line`` /
+  ``kind`` so the agent can jump straight to source. Empty list =
+  parity OK.
+- **TypeScript `interface` + `type` indexing** in `ts_js_parser` —
+  closes the 57.9% empty-ratio blind spot observed in real
+  lms-client sessions (``find_symbol('SectionState')`` was
+  consistently null because only ``class``/``func``/``async-func``
+  were indexed). Adds two regex matchers; ``interface`` records
+  carry ``kind: "interface"``, type aliases ``kind: "type"``.
+- **`inspect_class` cross-language fall-through** — TypeScript /
+  TSX classes now resolve to the same ``{name, file, line, doc,
+  bases, fields, methods}`` shape Python classes already do.
+  ``bases`` covers ``extends`` + ``implements``; ``fields`` includes
+  ``@Input`` / ``@Output`` / constructor DI params (tagged via
+  ``kind``); ``methods`` lists public methods (lifecycle hooks and
+  ``_``-prefixed members skipped). Replaces 3-4 manual
+  ``read_slice`` calls per Angular component audit.
 - **`include_tests` knob on search/query tools** (default false). Hides
   test-file matches from `find_symbol` / `find_symbols` / `who_calls` /
   `find_call_sites` / `find_callback` / `get_decorated_with` /

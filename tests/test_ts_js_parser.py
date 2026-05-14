@@ -40,6 +40,82 @@ class TsJsParserTests(unittest.TestCase):
     # Top-level only
     # ------------------------------------------------------------------
 
+    def test_ng_component_selector_backfilled_for_non_standalone(self):
+        """Reproduces the lms-client gap: ``standalone: false`` +
+        ``templateUrl`` with extensive imports above the decorator
+        used to push selector past the primary regex window. The
+        backfill must recover it from the full file body.
+        """
+        long_imports = "\n".join([f"import {{ Lib{i} }} from '@scope/pkg{i}';" for i in range(80)])
+        path = self._write(
+            "profile.component.ts",
+            f"""
+{long_imports}
+
+@Component({{
+  selector: 'app-profile-edit-groups',
+  templateUrl: './profile-edit-groups.component.html',
+  styleUrls: ['./profile-edit-groups.component.scss'],
+  standalone: false,
+}})
+export class ProfileEditGroupsComponent {{
+  doSave() {{}}
+}}
+""",
+        )
+        result = self.parser.extract(path)
+        comp = next(e for e in result["exports"] if e["name"] == "ProfileEditGroupsComponent")
+        self.assertEqual(comp.get("role"), "ng-component")
+        self.assertEqual(comp.get("ng_selector"), "app-profile-edit-groups")
+        self.assertEqual(comp.get("ng_template_url"), "./profile-edit-groups.component.html")
+        self.assertEqual(comp.get("ng_standalone"), False)
+
+    def test_typescript_interface_extracted_with_kind(self):
+        """Closes the 57.9% empty-ratio blind spot on TS interface
+        lookups observed in real lms-client sessions."""
+        path = self._write(
+            "shape.ts",
+            """
+export interface SectionState {
+  id: number;
+  name: string;
+}
+
+interface Internal<T> extends Base {
+  payload: T;
+}
+""",
+        )
+        result = self.parser.extract(path)
+        by_name = {e["name"]: e for e in result["exports"]}
+        self.assertIn("SectionState", by_name)
+        self.assertEqual(by_name["SectionState"]["kind"], "interface")
+        self.assertIn("Internal", by_name)
+        self.assertEqual(by_name["Internal"]["kind"], "interface")
+
+    def test_typescript_type_alias_extracted(self):
+        path = self._write(
+            "alias.ts",
+            """
+export type ID = string | number;
+type Pair<K, V> = { k: K; v: V };
+""",
+        )
+        result = self.parser.extract(path)
+        by_name = {e["name"]: e["kind"] for e in result["exports"]}
+        self.assertEqual(by_name.get("ID"), "type")
+        self.assertEqual(by_name.get("Pair"), "type")
+
+    def test_typescript_kinds_carry_line_numbers(self):
+        path = self._write(
+            "lines.ts",
+            "// preamble\n// preamble\nexport interface Foo { x: number }\ntype Bar = string;\n",
+        )
+        result = self.parser.extract(path)
+        by_name = {e["name"]: e["line"] for e in result["exports"]}
+        self.assertEqual(by_name["Foo"], 3)
+        self.assertEqual(by_name["Bar"], 4)
+
     def test_top_level_only_skips_nested(self):
         path = self._write(
             "a.js",

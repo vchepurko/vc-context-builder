@@ -225,6 +225,41 @@ def specs() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": "find_anti_patterns",
+            "description": (
+                "Run one registered anti-pattern detector. Returns "
+                "``[{rule, file, line, function?, evidence}]`` sorted "
+                "by ``(file, line)``. Empty list for unknown rule "
+                "names (use ``list_anti_patterns`` to enumerate) or "
+                "when the project is clean.\n\n"
+                "Detectors are AST-based, stdlib-only, no LLM. The "
+                "registry currently ships with:\n"
+                "  * ``aiogram-state-check-in-body`` — "
+                "``@router.message(F.<...>)`` without a state filter. "
+                "Silent-dispatch killer pinned in CLAUDE.md "
+                "(aiogram pitfalls)."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "rule": {
+                        "type": "string",
+                        "description": ("Detector name (see ``list_anti_patterns``)."),
+                    },
+                },
+                "required": ["rule"],
+            },
+        },
+        {
+            "name": "list_anti_patterns",
+            "description": (
+                "Enumerate registered anti-pattern detector names. "
+                "Use before ``find_anti_patterns(rule=...)`` to see "
+                "what rules are available without hard-coding names."
+            ),
+            "inputSchema": {"type": "object", "properties": {}},
+        },
+        {
             "name": "find_orphan_callbacks",
             "description": (
                 "Anti-pattern detector — return every literal "
@@ -286,6 +321,35 @@ def specs() -> List[Dict[str, Any]]:
                     "role": {
                         "type": "string",
                         "description": ("Optional role name. Omit for whole-project summary."),
+                    },
+                },
+            },
+        },
+        {
+            "name": "find_handlers_without_tests",
+            "description": (
+                "Anti-pattern detector — every symbol with the given "
+                "handler ``role`` that has no linked test entry. "
+                'Sugar over ``coverage_for_role(role)["missing"]`` '
+                "enriched with ``line`` / ``kind`` from the symbol "
+                "index so the agent can jump straight to the source.\n\n"
+                '``role`` defaults to ``"aiogram-handler"`` '
+                "(the legacy umbrella — expands to "
+                "``callback-handler`` / ``command-handler`` / "
+                "``fsm-message-handler`` / ``text-match-handler`` / "
+                "``catch-all-handler``). Pass another role for "
+                "project-specific handler taxonomies "
+                '(e.g. ``"webhook"``).\n\n'
+                "Returns ``[{name, role, file, line, kind}]`` sorted "
+                "by ``(file, line)``. Empty list = parity OK across "
+                "every handler."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "role": {
+                        "type": "string",
+                        "description": ("Handler role to audit. Default 'aiogram-handler'."),
                     },
                 },
             },
@@ -467,6 +531,74 @@ def specs() -> List[Dict[str, Any]]:
                     "key": {"type": "string"},
                 },
                 "required": ["key"],
+            },
+        },
+        {
+            "name": "record_bash_usage",
+            "description": (
+                "Self-reported Bash usage marker. Call after a "
+                "shell-out (grep / sed / node / etc.) so the "
+                "dispatcher's auto-record logs an entry — Bash usage "
+                "then shows up alongside MCP calls in "
+                "``get_session_metrics`` (look for "
+                "``by_tool['record_bash_usage']``).\n\n"
+                "Closes the 'true MCP win' blind spot pinned in the "
+                "submodule ROADMAP: today telemetry sees only MCP "
+                "calls, so the baseline-savings ratio is understated "
+                "whenever an agent shells out. Light-touch — no "
+                "mandatory schema, no client wrapper, just a tool "
+                "call. Returns ``{ok, count, action?, bytes_estimate?}``."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "description": (
+                            "Occurrence count (default 1). Batch multiple shell-outs into one call."
+                        ),
+                    },
+                    "action": {
+                        "type": "string",
+                        "description": (
+                            'Optional free-text hint ("grep", "sed-bulk", "node --check").'
+                        ),
+                    },
+                    "bytes_estimate": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": (
+                            "Optional rough size of the Bash output "
+                            "for baseline-savings comparison."
+                        ),
+                    },
+                },
+            },
+        },
+        {
+            "name": "find_locale_drift",
+            "description": (
+                "Anti-pattern detector — every locale key present in "
+                "one language but missing in a sibling that owns the "
+                "same namespace file. Returns "
+                "``[{key, namespace, present, missing}]`` sorted by "
+                "``(namespace, key)``. Drives translation review "
+                "without a dedicated diff tool.\n\n"
+                "Optional ``namespace`` scopes the audit to one "
+                'namespace (``"common"`` / ``"admin"`` / etc.). '
+                "Empty list = parity OK across every key."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "namespace": {
+                        "type": "string",
+                        "description": (
+                            "Optional namespace filter (the JSON filename without .json)."
+                        ),
+                    },
+                },
             },
         },
         {

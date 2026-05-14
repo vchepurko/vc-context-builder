@@ -662,9 +662,18 @@ class _QuerySymbolsMixin:
     def inspect_class(self, name: str) -> Optional[Dict[str, Any]]:
         """Resolve a class by name and return its structured summary
         (file, line, doc, bases, fields, methods). ``None`` for unknown
-        names or non-class symbols. Replaces grep-ing for class
-        definitions when you need the field shape (SQLAlchemy models,
-        pydantic schemas, dataclasses, plain classes).
+        names or non-class symbols.
+
+        Cross-language:
+          * Python classes — full AST walk via ``class_inspector``
+            (SQLAlchemy models, pydantic schemas, dataclasses, plain
+            classes).
+          * TypeScript classes — regex-based extraction adapted to the
+            same shape: ``bases`` from ``extends`` / ``implements``,
+            ``fields`` from ``@Input`` / ``@Output`` / ``constructor``
+            DI params (kind tag distinguishes them), ``methods`` from
+            public method signatures. Replaces 3-4 manual
+            ``read_slice`` calls per Angular component audit.
         """
         from class_inspector import inspect_class as _inspect  # type: ignore[import-not-found]
 
@@ -673,7 +682,70 @@ class _QuerySymbolsMixin:
             if os.path.isfile(_index_read(self.project_root, self.SYMBOLS_FILENAME))
             else {}
         )
-        return _inspect(self.project_root, name, symbols=symbols)
+        result = _inspect(self.project_root, name, symbols=symbols)
+        if result is not None:
+            return result
+        # Fall-through for TS / TSX classes — Python AST returns None,
+        # but ``ng_ts_class_shape`` can pull the same conceptual shape.
+        entry = symbols.get(name) or {}
+        file_rel = entry.get("file")
+        if not isinstance(file_rel, str) or not file_rel.endswith((".ts", ".tsx")):
+            return None
+        if entry.get("kind") != "class":
+            return None
+        shape = self.ng_ts_class_shape(name)  # type: ignore[attr-defined]
+        if shape is None:
+            return None
+        # Translate Angular-flavoured fields into inspect_class shape.
+        fields: List[Dict[str, Any]] = []
+        for p in shape.get("constructor_params") or []:
+            fields.append(
+                {
+                    "name": p.get("name"),
+                    "type": p.get("type"),
+                    "default": None,
+                    "kind": "ctor-param",
+                }
+            )
+        for inp in shape.get("inputs") or []:
+            fields.append({"name": inp, "type": None, "default": None, "kind": "input"})
+        for out in shape.get("outputs") or []:
+            fields.append({"name": out, "type": None, "default": None, "kind": "output"})
+        methods = [
+            {"name": m, "kind": "func", "params": None, "doc": None}
+            for m in shape.get("public_methods") or []
+        ]
+        bases: List[str] = []
+        try:
+            with open(os.path.join(self.project_root, file_rel), encoding="utf-8") as fh:
+                src = fh.read()
+            cls_re = re.compile(
+                r"(?:^|\n)\s*(?:export\s+(?:default\s+)?)?(?:abstract\s+)?"
+                r"class\s+" + re.escape(name) + r"\b(?P<heritage>[^{]*)\{"
+            )
+            m = cls_re.search(src)
+            if m:
+                heritage = m.group("heritage")
+                ext = re.search(r"extends\s+([^\s,{<]+(?:<[^>]*>)?)", heritage)
+                if ext:
+                    bases.append(ext.group(1).strip())
+                impl = re.search(r"implements\s+([^{]+)", heritage)
+                if impl:
+                    for b in impl.group(1).split(","):
+                        b = b.strip()
+                        if b:
+                            bases.append(b)
+        except OSError:
+            pass
+        return {
+            "name": name,
+            "file": file_rel,
+            "line": entry.get("line"),
+            "doc": entry.get("doc"),
+            "bases": bases,
+            "fields": fields,
+            "methods": methods,
+        }
 
     # ------------------------------------------------------------------
     # Internal: reverse-dependency index for who_calls
