@@ -486,6 +486,49 @@ def specs() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": "find_in_file",
+            "description": (
+                "Surgical grep over a single file. Returns "
+                "``[{line, text}]`` matches capped at ``limit`` "
+                "(default 20). ``text`` is right-trimmed and "
+                "truncated to 200 chars.\n\n"
+                "Closes the 'I know the file, I'm hunting a string "
+                "inside it' case that ``find_symbol`` can't help "
+                "with (top-level shape only) — large monolith files "
+                "like ``Checkout.js`` are the typical motivator. "
+                "Distinct from ``find_pattern_in_configs`` (config-"
+                "kind walk) and ``search_doc_text`` (markdown only).\n\n"
+                "``case_sensitive`` defaults to false; ``use_regex`` "
+                "treats ``pattern`` as a Python regex. Path is "
+                "resolved against ``project_root`` and rejected if "
+                "it escapes the tree."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "file": {
+                        "type": "string",
+                        "description": "Project-relative file path.",
+                    },
+                    "pattern": {"type": "string"},
+                    "use_regex": {
+                        "type": "boolean",
+                        "description": "Default false — substring match.",
+                    },
+                    "case_sensitive": {
+                        "type": "boolean",
+                        "description": "Default false.",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "description": "Cap on matches returned (default 20).",
+                    },
+                },
+                "required": ["file", "pattern"],
+            },
+        },
+        {
             "name": "list_config_kinds",
             "description": (
                 "Enumerate known config kinds usable with "

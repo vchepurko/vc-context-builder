@@ -91,6 +91,7 @@ class Dispatcher:
             "ruff_format": self._ruff_format,
             "mypy_violations": self._mypy_violations,
             "check_health": self._check_health,
+            "find_in_file": self._find_in_file,
             "find_in_templates": self._find_in_templates,
             "ng_audit_component": self._ng_audit_component,
             "ng_uses_selector": self._ng_uses_selector,
@@ -496,6 +497,23 @@ class Dispatcher:
         if "summary" in args:
             kw["summary"] = bool(args["summary"])
         return self.engine.check_health(**kw)
+
+    def _find_in_file(self, args: Dict[str, Any]) -> Any:
+        file = str(args.get("file", "")).strip()
+        pattern = str(args.get("pattern", ""))
+        if not file or not pattern:
+            return []
+        kw: Dict[str, Any] = {}
+        if "use_regex" in args:
+            kw["use_regex"] = bool(args["use_regex"])
+        if "case_sensitive" in args:
+            kw["case_sensitive"] = bool(args["case_sensitive"])
+        if "limit" in args:
+            try:
+                kw["limit"] = max(1, int(args["limit"]))
+            except (TypeError, ValueError):
+                pass
+        return self.engine.find_in_file(file, pattern, **kw)
 
     def _find_in_templates(self, args: Dict[str, Any]) -> Any:
         pattern = str(args.get("pattern", "")).strip()

@@ -339,6 +339,35 @@ class _InspectorsMixin:
     # Composite health roll-up — one call covers four inspectors
     # ------------------------------------------------------------------
 
+    def find_in_file(
+        self,
+        file: str,
+        pattern: str,
+        *,
+        use_regex: bool = False,
+        case_sensitive: bool = False,
+        limit: int = 20,
+    ) -> List[Dict[str, Any]]:
+        """Surgical grep over a single file — returns
+        ``[{line, text}]`` matches capped at ``limit``.
+
+        Closes the "I know the file, I'm hunting a string inside it"
+        case that ``find_symbol`` can't help with (top-level shape
+        only) and that today drops to Bash ``grep -n``. Path is
+        resolved against ``project_root`` and rejected if it escapes
+        the tree. Files larger than 5 MB are skipped to bound work.
+        """
+        from file_grep import grep_file  # type: ignore[import-not-found]
+
+        return grep_file(
+            self.project_root,
+            file,
+            pattern,
+            use_regex=use_regex,
+            case_sensitive=case_sensitive,
+            limit=limit,
+        )
+
     def check_health(self, *, summary: bool = True) -> Dict[str, Any]:
         """One-call code-health roll-up: lint + mypy + ruff + ruff-format
         in a single MCP round-trip.
