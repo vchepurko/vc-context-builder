@@ -364,9 +364,7 @@ def find_xref(
     return out
 
 
-def link_graph(
-    project_root: str, index: Dict[str, Any]
-) -> Dict[str, Any]:
+def link_graph(project_root: str, index: Dict[str, Any]) -> Dict[str, Any]:
     """Forward link adjacency + broken-link report.
 
     Returns::
@@ -404,9 +402,7 @@ def link_graph(
                 # Pure-anchor link (already handled) — defensive.
                 out_targets.append(target)
                 continue
-            resolved = os.path.normpath(
-                os.path.join(src_dir, target_path)
-            ).replace(os.sep, "/")
+            resolved = os.path.normpath(os.path.join(src_dir, target_path)).replace(os.sep, "/")
             out_targets.append(resolved)
             full = os.path.join(project_root, resolved)
             if not os.path.exists(full):

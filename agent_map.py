@@ -12,7 +12,6 @@ if _HERE not in sys.path:
 
 # Import our custom heuristic parser
 import parse_cache
-from paths import ensure_index_dir, index_path, index_read_path
 from callback_index import (
     CALLBACKS_FILENAME,
     collect_callbacks,
@@ -40,6 +39,7 @@ from ng_route_bridge import (
 )
 from parsers import get_parser, get_supported_extensions, get_supported_filenames
 from parsers.python_parser import PythonParser
+from paths import ensure_index_dir, index_path, index_read_path
 from route_bridge import ROUTES_FILENAME, build_route_index, write_route_index
 from symbols import extract_scheduler_jobs_from_codebase
 from test_classifier import (
@@ -810,9 +810,7 @@ class ContextBuilder:
             out = index_path(self.root_dir, self.docs_filename)
             with open(out, "w", encoding="utf-8") as fh:
                 json.dump(index, fh, indent=2, ensure_ascii=False)
-            sec_total = sum(
-                len((rec.get("sections") or [])) for rec in index["docs"].values()
-            )
+            sec_total = sum(len(rec.get("sections") or []) for rec in index["docs"].values())
             logging.info(
                 "Wrote docs index: %s (%d files, %d sections).",
                 self.docs_filename,

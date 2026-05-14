@@ -34,10 +34,18 @@ from query_engine import QueryEngine
 # instead of listing every individual tool name.
 _TOOL_GROUPS: Dict[str, List[str]] = {
     "angular": [
-        "ng_audit_component", "ng_uses_selector", "ng_overview",
-        "ng_inject_graph", "ng_list_routes", "ng_route_for_path",
-        "ng_routes_for_component", "ng_eslint_violations", "ng_find_module",
-        "ng_ts_class_shape", "ng_ajs_find", "ng_module_members",
+        "ng_audit_component",
+        "ng_uses_selector",
+        "ng_overview",
+        "ng_inject_graph",
+        "ng_list_routes",
+        "ng_route_for_path",
+        "ng_routes_for_component",
+        "ng_eslint_violations",
+        "ng_find_module",
+        "ng_ts_class_shape",
+        "ng_ajs_find",
+        "ng_module_members",
         "find_in_templates",
     ],
     "locale": ["list_locale_keys", "find_locale_key", "get_locale_key"],

@@ -34,8 +34,7 @@ def specs() -> List[Dict[str, Any]]:
                     "file": {
                         "type": "string",
                         "description": (
-                            "Repo-relative path to the ``.md`` file "
-                            "(e.g. 'docs/OPS.md')."
+                            "Repo-relative path to the ``.md`` file (e.g. 'docs/OPS.md')."
                         ),
                     },
                     "max_level": {
@@ -68,8 +67,7 @@ def specs() -> List[Dict[str, Any]]:
                     "header_pattern": {
                         "type": "string",
                         "description": (
-                            "Substring (or exact text if ``fuzzy: "
-                            "false``) of the heading to match."
+                            "Substring (or exact text if ``fuzzy: false``) of the heading to match."
                         ),
                     },
                     "fuzzy": {
@@ -98,8 +96,7 @@ def specs() -> List[Dict[str, Any]]:
                     "path_prefix": {
                         "type": "string",
                         "description": (
-                            "Optional repo-relative prefix filter "
-                            "(e.g. 'docs/', 'changelog/')."
+                            "Optional repo-relative prefix filter (e.g. 'docs/', 'changelog/')."
                         ),
                     },
                 },

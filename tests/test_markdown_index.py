@@ -66,12 +66,12 @@ class BuildIndexTests(unittest.TestCase):
             os.path.join(self.root, "doc.md"),
             "\n".join(
                 [
-                    "## A",        # line 1
-                    "a-body",      # 2
-                    "### A1",      # 3
-                    "a1-body",     # 4
-                    "## B",        # 5
-                    "b-body",      # 6
+                    "## A",  # line 1
+                    "a-body",  # 2
+                    "### A1",  # 3
+                    "a1-body",  # 4
+                    "## B",  # 5
+                    "b-body",  # 6
                 ]
             )
             + "\n",
@@ -102,8 +102,7 @@ class BuildIndexTests(unittest.TestCase):
     def test_links_split_into_internal_external(self) -> None:
         _write(
             os.path.join(self.root, "doc.md"),
-            "See [README](README.md), [docs](docs/x.md), "
-            "and [google](https://google.com).\n",
+            "See [README](README.md), [docs](docs/x.md), and [google](https://google.com).\n",
         )
         rec = markdown_index.build_index(self.root)["docs"]["doc.md"]
         targets = {(link["target"], link["external"]) for link in rec["links"]}
@@ -152,12 +151,7 @@ class QueryHelperTests(unittest.TestCase):
         # something to actually trim (OPS.md only has H1+H2).
         _write(
             os.path.join(self.root, "deep.md"),
-            "# Root\n\n"
-            "## Top A\n\n"
-            "### Sub A1\n\n"
-            "### Sub A2\n\n"
-            "## Top B\n\n"
-            "#### Deep B1\n\n",
+            "# Root\n\n## Top A\n\n### Sub A1\n\n### Sub A2\n\n## Top B\n\n#### Deep B1\n\n",
         )
         out = os.path.join(self.root, "agent_docs_index.json")
         with open(out, "w", encoding="utf-8") as fh:
@@ -188,12 +182,8 @@ class QueryHelperTests(unittest.TestCase):
     def test_find_doc_section_exact_mode_rejects_substring(self) -> None:
         """``fuzzy=False`` requires equality — substring 'log' should
         NOT match 'Logs'."""
-        self.assertIsNone(
-            self.engine.find_doc_section("docs/OPS.md", "log", fuzzy=False)
-        )
-        self.assertIsNotNone(
-            self.engine.find_doc_section("docs/OPS.md", "Logs", fuzzy=False)
-        )
+        self.assertIsNone(self.engine.find_doc_section("docs/OPS.md", "log", fuzzy=False))
+        self.assertIsNotNone(self.engine.find_doc_section("docs/OPS.md", "Logs", fuzzy=False))
 
     def test_list_docs_filters_by_prefix(self) -> None:
         # All docs

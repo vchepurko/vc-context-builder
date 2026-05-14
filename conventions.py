@@ -111,8 +111,7 @@ def load_rules(project_root: str) -> List[Dict[str, Any]]:
                 # No raw — drop this rule entirely if we couldn't compile
                 # AND the rule has no other rule keys.
                 if not any(
-                    r.get(k)
-                    for k in ("forbid_import", "forbid_import_symbol", "forbid_call")
+                    r.get(k) for k in ("forbid_import", "forbid_import_symbol", "forbid_call")
                 ):
                     continue
 
