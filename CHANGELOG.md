@@ -10,6 +10,41 @@ bump the minor; fixes bump the patch.
 ## [Unreleased]
 
 ### Added
+- **`find_anti_patterns` registry** — new MCP tool plus
+  `list_anti_patterns`. First detector:
+  `aiogram-state-check-in-body` finds
+  ``@router.message(F.<...>)`` decorators without a state-filter
+  argument (the silent-dispatch killer pinned in CLAUDE.md). Pure
+  AST set-difference, stdlib-only; further rules slot into the
+  ``_DETECTORS`` registry as plain functions.
+- **`record_bash_usage`** — light-touch self-reported Bash usage
+  marker. Agents call it after a shell-out so the dispatcher's
+  auto-record adds the entry to
+  ``~/.vc-context/metrics/<repo>-<date>.jsonl``;
+  ``get_session_metrics`` then surfaces Bash counts alongside MCP
+  calls (``by_tool['record_bash_usage']``). Closes the "true MCP
+  win is understated" blind spot in the ROADMAP.
+
+### Fixed
+- **ng-component selector backfill** in `ts_js_parser` — long
+  imports or extensive `@Component(...)` metadata used to push
+  `selector` outside the primary regex path's 2 KB lookback
+  window, returning ``null`` for non-standalone declaration-based
+  components. New ``_backfill_ng_metadata`` does a no-window
+  rescan of the full file body and recovers
+  `selector` / `templateUrl` / `standalone` when missing.
+
+### Changed
+- **TS AST extractor uses a persistent Node worker** —
+  `_ts_ast_extractor.mjs` gained a ``--server`` mode that reads
+  file paths from stdin and emits one JSON line per file.
+  `parse(file, project_root)` routes through one long-lived worker
+  per project root, dropping the per-file cost from ~50 ms (spawn)
+  to ~1–3 ms (AST parse only). Closes the lms-client
+  "``rebuild_index`` always times out at 120 s with
+  `typescript_ast` enabled" gap. One-shot fallback preserves the
+  legacy contract for failed-worker / Node-missing cases.
+
 - **`check_health`** — one-call code-health roll-up: `lint_violations` +
   `mypy_violations` + `ruff_violations` + `ruff_format` bundled into a
   single MCP round-trip. Real-session telemetry showed 33 calls split

@@ -81,9 +81,13 @@ the code — if you spot an inconsistency, file an issue.
 > `search_doc_text`, `find_orphan_callbacks`, `find_in_file`,
 > git-state-keyed `run_check` caching. Batch 2: `find_locale_drift`,
 > `find_handlers_without_tests`, TypeScript `interface`/`type`
-> indexing, cross-language `inspect_class` (TS fall-through). Their
-> planned bullets below stay as historical context; see CHANGELOG.md
-> for the per-tool record.
+> indexing, cross-language `inspect_class` (TS fall-through),
+> ng-component selector backfill (non-standalone fix),
+> `find_anti_patterns` registry with
+> `aiogram-state-check-in-body`, `record_bash_usage` telemetry
+> marker, TS AST persistent-worker (rebuild_index timeout fix).
+> Their planned bullets below stay as historical context; see
+> CHANGELOG.md for the per-tool record.
 
 ### Code quality
 - ~~Continue `query_engine.py` split — extract `_QuerySymbolsMixin`.~~
