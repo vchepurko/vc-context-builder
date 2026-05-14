@@ -13,6 +13,7 @@
   "find_handlers_without_tests",
   "find_in_file",
   "find_in_templates",
+  "find_local_agents_md",
   "find_locale_drift",
   "find_locale_key",
   "find_orm_field_usage",

@@ -534,6 +534,36 @@ def specs() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": "find_local_agents_md",
+            "description": (
+                "Walk up from ``path`` (file or directory) and "
+                "return every ``AGENTS.md`` along the way, "
+                "most-specific first. Use to discover folder-scoped "
+                "invariants without a filesystem walk — e.g. before "
+                "editing ``bot/handlers/admin.py`` ask "
+                '``find_local_agents_md("bot/handlers/admin.py")`` '
+                "to see the per-folder ``AGENTS.md`` plus any closer "
+                "or root-level rules.\n\n"
+                "Walks stop at ``project_root``; the top-level "
+                "``AGENTS.md`` (if any) is the most-general entry. "
+                "Each record: ``{file, size_bytes}`` ordered "
+                "closest-first. Empty list when the project doesn't "
+                "use the convention or ``path`` escapes the tree."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": (
+                            "Project-relative path (file or directory) to start the walk from."
+                        ),
+                    },
+                },
+                "required": ["path"],
+            },
+        },
+        {
             "name": "record_bash_usage",
             "description": (
                 "Self-reported Bash usage marker. Call after a "

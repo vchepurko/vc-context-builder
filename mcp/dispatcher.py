@@ -90,6 +90,7 @@ class Dispatcher:
             "get_locale_key": self._get_locale_key,
             "find_locale_drift": self._find_locale_drift,
             "record_bash_usage": self._record_bash_usage,
+            "find_local_agents_md": self._find_local_agents_md,
             "notify_log_search": self._notify_log_search,
             "notify_log_stats": self._notify_log_stats,
             "ruff_violations": self._ruff_violations,
@@ -444,6 +445,12 @@ class Dispatcher:
 
     def _get_locale_key(self, args: Dict[str, Any]) -> Any:
         return self.engine.get_locale_key(str(args.get("key", "")).strip())
+
+    def _find_local_agents_md(self, args: Dict[str, Any]) -> Any:
+        path = str(args.get("path", "")).strip()
+        if not path:
+            return []
+        return self.engine.find_local_agents_md(path)
 
     def _record_bash_usage(self, args: Dict[str, Any]) -> Any:
         try:
