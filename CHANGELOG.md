@@ -49,6 +49,31 @@ bump the minor; fixes bump the patch.
   5 class constants out of `query_engine.py` (1923 → 1271 LOC) into
   a new `_query_symbols.py`. Pure refactor — public surface
   unchanged.
+- **`find_locale_drift`** — parity audit: every locale key present in
+  one language but missing in a sibling that owns the same namespace
+  file. Returns ``[{key, namespace, present, missing}]`` sorted by
+  ``(namespace, key)``. Drives translation review without a dedicated
+  diff tool. Optional ``namespace`` scopes to one bucket.
+- **`find_handlers_without_tests`** — coverage gap detector: every
+  symbol with the given handler role (default ``aiogram-handler``)
+  that has no linked test entry. Sugar over
+  ``coverage_for_role(role)["missing"]`` enriched with ``line`` /
+  ``kind`` so the agent can jump straight to source. Empty list =
+  parity OK.
+- **TypeScript `interface` + `type` indexing** in `ts_js_parser` —
+  closes the 57.9% empty-ratio blind spot observed in real
+  lms-client sessions (``find_symbol('SectionState')`` was
+  consistently null because only ``class``/``func``/``async-func``
+  were indexed). Adds two regex matchers; ``interface`` records
+  carry ``kind: "interface"``, type aliases ``kind: "type"``.
+- **`inspect_class` cross-language fall-through** — TypeScript /
+  TSX classes now resolve to the same ``{name, file, line, doc,
+  bases, fields, methods}`` shape Python classes already do.
+  ``bases`` covers ``extends`` + ``implements``; ``fields`` includes
+  ``@Input`` / ``@Output`` / constructor DI params (tagged via
+  ``kind``); ``methods`` lists public methods (lifecycle hooks and
+  ``_``-prefixed members skipped). Replaces 3-4 manual
+  ``read_slice`` calls per Angular component audit.
 - **`include_tests` knob on search/query tools** (default false). Hides
   test-file matches from `find_symbol` / `find_symbols` / `who_calls` /
   `find_call_sites` / `find_callback` / `get_decorated_with` /

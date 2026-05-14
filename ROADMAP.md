@@ -76,12 +76,14 @@ the code — if you spot an inconsistency, file an issue.
 
 ## 🔜 Planned (next 1–3 PRs)
 
-> **Recently shipped (2026-05-14)** — `_QuerySymbolsMixin` split,
-> `check_health` roll-up, `find_doc_section` loose selectors,
+> **Recently shipped (2026-05-14)** — batch 1: `_QuerySymbolsMixin`
+> split, `check_health` roll-up, `find_doc_section` loose selectors,
 > `search_doc_text`, `find_orphan_callbacks`, `find_in_file`,
-> git-state-keyed `run_check` caching. Their planned bullets
-> below stay as historical context; see CHANGELOG.md for the
-> per-tool record.
+> git-state-keyed `run_check` caching. Batch 2: `find_locale_drift`,
+> `find_handlers_without_tests`, TypeScript `interface`/`type`
+> indexing, cross-language `inspect_class` (TS fall-through). Their
+> planned bullets below stay as historical context; see CHANGELOG.md
+> for the per-tool record.
 
 ### Code quality
 - ~~Continue `query_engine.py` split — extract `_QuerySymbolsMixin`.~~
