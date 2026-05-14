@@ -362,12 +362,12 @@ _ALL_GROUPS = ["angular", "locale", "fsm", "notify_log", "route", "docs"]
 
 # Which tool groups to disable for each detected project stack.
 _STACK_DISABLED: dict = {
-    "django":   ["angular", "locale", "fsm", "notify_log", "route"],
-    "fastapi":  ["angular", "locale", "fsm", "notify_log", "route"],
-    "flask":    ["angular", "locale", "fsm", "notify_log", "route"],
-    "angular":  ["fsm", "notify_log", "locale"],
-    "bot":      ["angular", "route"],      # keep fsm — bots use state machines
-    "generic":  ["fsm", "notify_log"],
+    "django": ["angular", "locale", "fsm", "notify_log", "route"],
+    "fastapi": ["angular", "locale", "fsm", "notify_log", "route"],
+    "flask": ["angular", "locale", "fsm", "notify_log", "route"],
+    "angular": ["fsm", "notify_log", "locale"],
+    "bot": ["angular", "route"],  # keep fsm — bots use state machines
+    "generic": ["fsm", "notify_log"],
 }
 
 
@@ -380,7 +380,8 @@ def _detect_stack(root: str) -> str:
     def _py_deps() -> str:
         for path in (req, pyproject):
             try:
-                text = open(path).read().lower()
+                with open(path) as fh:
+                    text = fh.read().lower()
                 if "django" in text:
                     return "django"
                 if "fastapi" in text:
@@ -401,7 +402,8 @@ def _detect_stack(root: str) -> str:
 
     if os.path.exists(pkg):
         try:
-            data = json.load(open(pkg))
+            with open(pkg) as fh:
+                data = json.load(fh)
             deps = {**data.get("dependencies", {}), **data.get("devDependencies", {})}
             if "@angular/core" in deps:
                 return "angular"

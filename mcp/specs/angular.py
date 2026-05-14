@@ -171,7 +171,9 @@ def specs() -> List[Dict[str, Any]]:
                 "properties": {
                     "name": {
                         "type": "string",
-                        "description": "Angular class name to locate (e.g. 'ProfileEditGroupsComponent').",
+                        "description": (
+                            "Angular class name to locate (e.g. 'ProfileEditGroupsComponent')."
+                        ),
                     },
                 },
                 "required": ["name"],
@@ -214,7 +216,9 @@ def specs() -> List[Dict[str, Any]]:
                 "properties": {
                     "name": {
                         "type": "string",
-                        "description": "AngularJS symbol name as registered (e.g. 'userProfileMenu').",
+                        "description": (
+                            "AngularJS symbol name as registered (e.g. 'userProfileMenu')."
+                        ),
                     },
                 },
                 "required": ["name"],

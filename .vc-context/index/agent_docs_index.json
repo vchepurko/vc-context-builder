@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generated_at": "2026-05-13T07:45:31+00:00",
+  "generated_at": "2026-05-14T19:58:00+00:00",
   "docs": {
     ".ai-context/AGENT_README.md": {
       "size_bytes": 3829,
@@ -438,99 +438,6 @@
       ],
       "links": []
     },
-    "ARCHITECTURE.md": {
-      "size_bytes": 10304,
-      "top_header": "Architecture",
-      "sections": [
-        {
-          "level": 1,
-          "text": "Architecture",
-          "line": 1,
-          "end_line": 179,
-          "anchor": "architecture"
-        },
-        {
-          "level": 2,
-          "text": "Layer 1 — Indexer (write side)",
-          "line": 72,
-          "end_line": 91,
-          "anchor": "layer-1-indexer-write-side"
-        },
-        {
-          "level": 2,
-          "text": "Layer 2 — Query engine (read side)",
-          "line": 92,
-          "end_line": 119,
-          "anchor": "layer-2-query-engine-read-side"
-        },
-        {
-          "level": 2,
-          "text": "Layer 3 — Surfaces (consumer side)",
-          "line": 120,
-          "end_line": 136,
-          "anchor": "layer-3-surfaces-consumer-side"
-        },
-        {
-          "level": 2,
-          "text": "Telemetry & quality (observability)",
-          "line": 137,
-          "end_line": 154,
-          "anchor": "telemetry-quality-observability"
-        },
-        {
-          "level": 2,
-          "text": "Conventions (project-specific behaviour)",
-          "line": 155,
-          "end_line": 169,
-          "anchor": "conventions-project-specific-behaviour"
-        },
-        {
-          "level": 2,
-          "text": "Where to look first",
-          "line": 170,
-          "end_line": 179,
-          "anchor": "where-to-look-first"
-        }
-      ],
-      "links": [
-        {
-          "text": "`CONTRIBUTING.md`",
-          "target": "CONTRIBUTING.md",
-          "line": 174,
-          "external": false
-        },
-        {
-          "text": "`CONTRIBUTING.md`",
-          "target": "CONTRIBUTING.md",
-          "line": 175,
-          "external": false
-        },
-        {
-          "text": "`playbooks/`",
-          "target": "playbooks/",
-          "line": 176,
-          "external": false
-        },
-        {
-          "text": "`MCP_SETUP.md`",
-          "target": "MCP_SETUP.md",
-          "line": 177,
-          "external": false
-        },
-        {
-          "text": "`CHANGELOG.md`",
-          "target": "CHANGELOG.md",
-          "line": 178,
-          "external": false
-        },
-        {
-          "text": "`ROADMAP.md`",
-          "target": "ROADMAP.md",
-          "line": 179,
-          "external": false
-        }
-      ]
-    },
     "CHANGELOG.md": {
       "size_bytes": 7793,
       "top_header": "Changelog",
@@ -793,78 +700,15 @@
         }
       ]
     },
-    "MCP_SETUP.md": {
-      "size_bytes": 3757,
-      "top_header": "Wiring `vc-context` into your MCP host",
-      "sections": [
-        {
-          "level": 1,
-          "text": "Wiring `vc-context` into your MCP host",
-          "line": 1,
-          "end_line": 159,
-          "anchor": "wiring-vc-context-into-your-mcp-host"
-        },
-        {
-          "level": 2,
-          "text": "Claude Code",
-          "line": 25,
-          "end_line": 54,
-          "anchor": "claude-code"
-        },
-        {
-          "level": 2,
-          "text": "Cursor",
-          "line": 55,
-          "end_line": 74,
-          "anchor": "cursor"
-        },
-        {
-          "level": 2,
-          "text": "Codex CLI",
-          "line": 75,
-          "end_line": 89,
-          "anchor": "codex-cli"
-        },
-        {
-          "level": 2,
-          "text": "Continue.dev",
-          "line": 90,
-          "end_line": 110,
-          "anchor": "continuedev"
-        },
-        {
-          "level": 2,
-          "text": "Generic stdio MCP host",
-          "line": 111,
-          "end_line": 123,
-          "anchor": "generic-stdio-mcp-host"
-        },
-        {
-          "level": 2,
-          "text": "Smoke test",
-          "line": 124,
-          "end_line": 145,
-          "anchor": "smoke-test"
-        },
-        {
-          "level": 2,
-          "text": "When the server reports `missing_artifact`",
-          "line": 146,
-          "end_line": 159,
-          "anchor": "when-the-server-reports-missing-artifact"
-        }
-      ],
-      "links": []
-    },
     "README.md": {
-      "size_bytes": 30172,
+      "size_bytes": 32076,
       "top_header": "🤖 vc-context-builder",
       "sections": [
         {
           "level": 1,
           "text": "🤖 vc-context-builder",
           "line": 1,
-          "end_line": 852,
+          "end_line": 902,
           "anchor": "vc-context-builder"
         },
         {
@@ -948,161 +792,168 @@
           "level": 2,
           "text": "Quickstart",
           "line": 264,
-          "end_line": 397,
+          "end_line": 402,
           "anchor": "quickstart"
         },
         {
           "level": 3,
           "text": "Want artifacts committed (team-wide)?",
-          "line": 285,
-          "end_line": 296,
+          "line": 290,
+          "end_line": 301,
           "anchor": "want-artifacts-committed-team-wide"
         },
         {
           "level": 3,
           "text": "Other flags (rarely needed)",
-          "line": 297,
-          "end_line": 308,
+          "line": 302,
+          "end_line": 313,
           "anchor": "other-flags-rarely-needed"
         },
         {
           "level": 3,
           "text": "Pulling new commands after a submodule bump",
-          "line": 309,
-          "end_line": 323,
+          "line": 314,
+          "end_line": 328,
           "anchor": "pulling-new-commands-after-a-submodule-bump"
         },
         {
           "level": 3,
           "text": "Indexing the submodule against itself (contributor mode)",
-          "line": 324,
-          "end_line": 368,
+          "line": 329,
+          "end_line": 373,
           "anchor": "indexing-the-submodule-against-itself-contributor-mode"
         },
         {
           "level": 3,
           "text": "Optional: TypeScript AST upgrade for Angular metadata",
-          "line": 369,
-          "end_line": 397,
+          "line": 374,
+          "end_line": 402,
           "anchor": "optional-typescript-ast-upgrade-for-angular-metadata"
         },
         {
           "level": 2,
           "text": "Quick taste — three ways to ask the same question",
-          "line": 398,
-          "end_line": 461,
+          "line": 403,
+          "end_line": 466,
           "anchor": "quick-taste-three-ways-to-ask-the-same-question"
         },
         {
           "level": 3,
           "text": "Token economy — paying only for what you ask",
-          "line": 413,
-          "end_line": 461,
+          "line": 418,
+          "end_line": 466,
           "anchor": "token-economy-paying-only-for-what-you-ask"
         },
         {
           "level": 2,
           "text": "Telemetry — see how the agent is using the MCP surface",
-          "line": 462,
-          "end_line": 524,
+          "line": 467,
+          "end_line": 529,
           "anchor": "telemetry-see-how-the-agent-is-using-the-mcp-surface"
         },
         {
           "level": 3,
           "text": "Quality findings — wasteful pairs, hot rereads, empty streaks",
-          "line": 490,
-          "end_line": 524,
+          "line": 495,
+          "end_line": 529,
           "anchor": "quality-findings-wasteful-pairs-hot-rereads-empty-streaks"
         },
         {
           "level": 2,
           "text": "Evidence-based answers — fact tools",
-          "line": 525,
-          "end_line": 554,
+          "line": 530,
+          "end_line": 559,
           "anchor": "evidence-based-answers-fact-tools"
         },
         {
           "level": 2,
           "text": "Card-shaped tools — one-call answers",
-          "line": 555,
-          "end_line": 615,
+          "line": 560,
+          "end_line": 620,
           "anchor": "card-shaped-tools-one-call-answers"
         },
         {
           "level": 2,
           "text": "Playbooks — task-shaped MCP recipes",
-          "line": 616,
-          "end_line": 632,
+          "line": 621,
+          "end_line": 637,
           "anchor": "playbooks-task-shaped-mcp-recipes"
         },
         {
           "level": 2,
           "text": "Wiring an MCP host",
-          "line": 633,
-          "end_line": 648,
+          "line": 638,
+          "end_line": 653,
           "anchor": "wiring-an-mcp-host"
         },
         {
           "level": 2,
           "text": "CLI cheatsheet",
-          "line": 649,
-          "end_line": 773,
+          "line": 654,
+          "end_line": 823,
           "anchor": "cli-cheatsheet"
         },
         {
           "level": 3,
           "text": "Conventions config (Feature A)",
-          "line": 677,
-          "end_line": 722,
+          "line": 686,
+          "end_line": 772,
           "anchor": "conventions-config-feature-a"
+        },
+        {
+          "level": 4,
+          "text": "Filtering MCP tools per project",
+          "line": 692,
+          "end_line": 772,
+          "anchor": "filtering-mcp-tools-per-project"
         },
         {
           "level": 3,
           "text": "HTTP-clients config (Feature E)",
-          "line": 723,
-          "end_line": 745,
+          "line": 773,
+          "end_line": 795,
           "anchor": "http-clients-config-feature-e"
         },
         {
           "level": 3,
           "text": "Whitelisted check runner (Feature J)",
-          "line": 746,
-          "end_line": 773,
+          "line": 796,
+          "end_line": 823,
           "anchor": "whitelisted-check-runner-feature-j"
         },
         {
           "level": 2,
           "text": "Extending the parsers",
-          "line": 774,
-          "end_line": 798,
+          "line": 824,
+          "end_line": 848,
           "anchor": "extending-the-parsers"
         },
         {
           "level": 2,
           "text": "How big is the win",
-          "line": 799,
-          "end_line": 838,
+          "line": 849,
+          "end_line": 888,
           "anchor": "how-big-is-the-win"
         },
         {
           "level": 3,
           "text": "Per-command savings (slash commands)",
-          "line": 813,
-          "end_line": 838,
+          "line": 863,
+          "end_line": 888,
           "anchor": "per-command-savings-slash-commands"
         },
         {
           "level": 2,
           "text": "What this tool is **not**",
-          "line": 839,
-          "end_line": 849,
+          "line": 889,
+          "end_line": 899,
           "anchor": "what-this-tool-is-not"
         },
         {
           "level": 2,
           "text": "License & contributing",
-          "line": 850,
-          "end_line": 852,
+          "line": 900,
+          "end_line": 902,
           "anchor": "license-contributing"
         }
       ],
@@ -1116,37 +967,37 @@
         {
           "text": "Bug investigation",
           "target": "playbooks/bug_investigation.md",
-          "line": 621,
+          "line": 626,
           "external": false
         },
         {
           "text": "Impact analysis",
           "target": "playbooks/impact_analysis.md",
-          "line": 623,
+          "line": 628,
           "external": false
         },
         {
           "text": "Refactoring review",
           "target": "playbooks/refactoring_review.md",
-          "line": 625,
+          "line": 630,
           "external": false
         },
         {
           "text": "playbooks/README.md",
           "target": "playbooks/README.md",
-          "line": 628,
+          "line": 633,
           "external": false
         },
         {
-          "text": "`MCP_SETUP.md`",
-          "target": "MCP_SETUP.md",
-          "line": 635,
+          "text": "`docs/MCP_SETUP.md`",
+          "target": "docs/MCP_SETUP.md",
+          "line": 640,
           "external": false
         },
         {
-          "text": "`USAGE.md`",
-          "target": "USAGE.md",
-          "line": 721,
+          "text": "`docs/USAGE.md`",
+          "target": "docs/USAGE.md",
+          "line": 771,
           "external": false
         }
       ]
@@ -1367,7 +1218,163 @@
         }
       ]
     },
-    "USAGE.md": {
+    "docs/ARCHITECTURE.md": {
+      "size_bytes": 10304,
+      "top_header": "Architecture",
+      "sections": [
+        {
+          "level": 1,
+          "text": "Architecture",
+          "line": 1,
+          "end_line": 179,
+          "anchor": "architecture"
+        },
+        {
+          "level": 2,
+          "text": "Layer 1 — Indexer (write side)",
+          "line": 72,
+          "end_line": 91,
+          "anchor": "layer-1-indexer-write-side"
+        },
+        {
+          "level": 2,
+          "text": "Layer 2 — Query engine (read side)",
+          "line": 92,
+          "end_line": 119,
+          "anchor": "layer-2-query-engine-read-side"
+        },
+        {
+          "level": 2,
+          "text": "Layer 3 — Surfaces (consumer side)",
+          "line": 120,
+          "end_line": 136,
+          "anchor": "layer-3-surfaces-consumer-side"
+        },
+        {
+          "level": 2,
+          "text": "Telemetry & quality (observability)",
+          "line": 137,
+          "end_line": 154,
+          "anchor": "telemetry-quality-observability"
+        },
+        {
+          "level": 2,
+          "text": "Conventions (project-specific behaviour)",
+          "line": 155,
+          "end_line": 169,
+          "anchor": "conventions-project-specific-behaviour"
+        },
+        {
+          "level": 2,
+          "text": "Where to look first",
+          "line": 170,
+          "end_line": 179,
+          "anchor": "where-to-look-first"
+        }
+      ],
+      "links": [
+        {
+          "text": "`CONTRIBUTING.md`",
+          "target": "CONTRIBUTING.md",
+          "line": 174,
+          "external": false
+        },
+        {
+          "text": "`CONTRIBUTING.md`",
+          "target": "CONTRIBUTING.md",
+          "line": 175,
+          "external": false
+        },
+        {
+          "text": "`playbooks/`",
+          "target": "playbooks/",
+          "line": 176,
+          "external": false
+        },
+        {
+          "text": "`MCP_SETUP.md`",
+          "target": "MCP_SETUP.md",
+          "line": 177,
+          "external": false
+        },
+        {
+          "text": "`CHANGELOG.md`",
+          "target": "CHANGELOG.md",
+          "line": 178,
+          "external": false
+        },
+        {
+          "text": "`ROADMAP.md`",
+          "target": "ROADMAP.md",
+          "line": 179,
+          "external": false
+        }
+      ]
+    },
+    "docs/MCP_SETUP.md": {
+      "size_bytes": 3757,
+      "top_header": "Wiring `vc-context` into your MCP host",
+      "sections": [
+        {
+          "level": 1,
+          "text": "Wiring `vc-context` into your MCP host",
+          "line": 1,
+          "end_line": 159,
+          "anchor": "wiring-vc-context-into-your-mcp-host"
+        },
+        {
+          "level": 2,
+          "text": "Claude Code",
+          "line": 25,
+          "end_line": 54,
+          "anchor": "claude-code"
+        },
+        {
+          "level": 2,
+          "text": "Cursor",
+          "line": 55,
+          "end_line": 74,
+          "anchor": "cursor"
+        },
+        {
+          "level": 2,
+          "text": "Codex CLI",
+          "line": 75,
+          "end_line": 89,
+          "anchor": "codex-cli"
+        },
+        {
+          "level": 2,
+          "text": "Continue.dev",
+          "line": 90,
+          "end_line": 110,
+          "anchor": "continuedev"
+        },
+        {
+          "level": 2,
+          "text": "Generic stdio MCP host",
+          "line": 111,
+          "end_line": 123,
+          "anchor": "generic-stdio-mcp-host"
+        },
+        {
+          "level": 2,
+          "text": "Smoke test",
+          "line": 124,
+          "end_line": 145,
+          "anchor": "smoke-test"
+        },
+        {
+          "level": 2,
+          "text": "When the server reports `missing_artifact`",
+          "line": 146,
+          "end_line": 159,
+          "anchor": "when-the-server-reports-missing-artifact"
+        }
+      ],
+      "links": []
+    },
+    "docs/USAGE.md": {
       "size_bytes": 4778,
       "top_header": "Worked examples",
       "sections": [

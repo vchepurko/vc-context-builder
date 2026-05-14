@@ -134,9 +134,7 @@ class QueryEngineIntegrationTests(unittest.TestCase):
         default = eng.find_symbols(["make_cart", "cart_fixture"])
         self.assertIsNotNone(default["make_cart"])
         self.assertIsNone(default["cart_fixture"])
-        opted_in = eng.find_symbols(
-            ["make_cart", "cart_fixture"], include_tests=True
-        )
+        opted_in = eng.find_symbols(["make_cart", "cart_fixture"], include_tests=True)
         self.assertIsNotNone(opted_in["cart_fixture"])
 
 
