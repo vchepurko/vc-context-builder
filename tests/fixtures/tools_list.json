@@ -57,6 +57,7 @@
   "notify_log_stats",
   "read_slice",
   "rebuild_index",
+  "record_bash_usage",
   "repo_map",
   "route_callers",
   "route_for_js_call",

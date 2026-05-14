@@ -89,6 +89,7 @@ class Dispatcher:
             "find_orm_field_usage": self._find_orm_field_usage,
             "get_locale_key": self._get_locale_key,
             "find_locale_drift": self._find_locale_drift,
+            "record_bash_usage": self._record_bash_usage,
             "notify_log_search": self._notify_log_search,
             "notify_log_stats": self._notify_log_stats,
             "ruff_violations": self._ruff_violations,
@@ -443,6 +444,22 @@ class Dispatcher:
 
     def _get_locale_key(self, args: Dict[str, Any]) -> Any:
         return self.engine.get_locale_key(str(args.get("key", "")).strip())
+
+    def _record_bash_usage(self, args: Dict[str, Any]) -> Any:
+        try:
+            count = max(1, int(args.get("count", 1)))
+        except (TypeError, ValueError):
+            count = 1
+        kw: Dict[str, Any] = {"count": count}
+        action = args.get("action")
+        if isinstance(action, str) and action.strip():
+            kw["action"] = action.strip()
+        if "bytes_estimate" in args:
+            try:
+                kw["bytes_estimate"] = max(0, int(args["bytes_estimate"]))
+            except (TypeError, ValueError):
+                pass
+        return self.engine.record_bash_usage(**kw)
 
     def _find_locale_drift(self, args: Dict[str, Any]) -> Any:
         ns = args.get("namespace")

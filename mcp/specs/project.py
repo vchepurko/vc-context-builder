@@ -534,6 +534,49 @@ def specs() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": "record_bash_usage",
+            "description": (
+                "Self-reported Bash usage marker. Call after a "
+                "shell-out (grep / sed / node / etc.) so the "
+                "dispatcher's auto-record logs an entry — Bash usage "
+                "then shows up alongside MCP calls in "
+                "``get_session_metrics`` (look for "
+                "``by_tool['record_bash_usage']``).\n\n"
+                "Closes the 'true MCP win' blind spot pinned in the "
+                "submodule ROADMAP: today telemetry sees only MCP "
+                "calls, so the baseline-savings ratio is understated "
+                "whenever an agent shells out. Light-touch — no "
+                "mandatory schema, no client wrapper, just a tool "
+                "call. Returns ``{ok, count, action?, bytes_estimate?}``."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "description": (
+                            "Occurrence count (default 1). Batch multiple shell-outs into one call."
+                        ),
+                    },
+                    "action": {
+                        "type": "string",
+                        "description": (
+                            'Optional free-text hint ("grep", "sed-bulk", "node --check").'
+                        ),
+                    },
+                    "bytes_estimate": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "description": (
+                            "Optional rough size of the Bash output "
+                            "for baseline-savings comparison."
+                        ),
+                    },
+                },
+            },
+        },
+        {
             "name": "find_locale_drift",
             "description": (
                 "Anti-pattern detector — every locale key present in "
