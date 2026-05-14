@@ -107,6 +107,7 @@ class Dispatcher:
             "find_doc_section": self._find_doc_section,
             "list_docs": self._list_docs,
             "find_doc_xref": self._find_doc_xref,
+            "search_doc_text": self._search_doc_text,
             "docs_link_graph": self._docs_link_graph,
         }
         self.disabled_tools: set = set(disabled_tools or [])
@@ -614,6 +615,25 @@ class Dispatcher:
             except (TypeError, ValueError):
                 pass
         return self.engine.find_doc_xref(term, **kw)
+
+    def _search_doc_text(self, args: Dict[str, Any]) -> Any:
+        query = str(args.get("query", "")).strip()
+        if not query:
+            return []
+        kw: Dict[str, Any] = {}
+        f = args.get("file")
+        if isinstance(f, str) and f.strip():
+            kw["file"] = f.strip()
+        if "regex" in args:
+            kw["regex"] = bool(args["regex"])
+        if "case_sensitive" in args:
+            kw["case_sensitive"] = bool(args["case_sensitive"])
+        if "max_results" in args:
+            try:
+                kw["max_results"] = max(1, int(args["max_results"]))
+            except (TypeError, ValueError):
+                pass
+        return self.engine.search_doc_text(query, **kw)
 
     def _docs_link_graph(self, args: Dict[str, Any]) -> Any:
         return self.engine.docs_link_graph()

@@ -268,6 +268,27 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
 
         return _list(self._load_docs_index(), path_prefix=path_prefix)
 
+    def search_doc_text(
+        self,
+        query: str,
+        *,
+        file: Optional[str] = None,
+        regex: bool = False,
+        case_sensitive: bool = False,
+        max_results: int = 50,
+    ) -> List[Dict[str, Any]]:
+        from markdown_index import search_doc_text as _search
+
+        return _search(
+            self.project_root,
+            self._load_docs_index(),
+            query,
+            file=file,
+            regex=regex,
+            case_sensitive=case_sensitive,
+            max_results=max_results,
+        )
+
     def find_doc_xref(
         self,
         term: str,

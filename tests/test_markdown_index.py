@@ -240,6 +240,45 @@ class QueryHelperTests(unittest.TestCase):
         assert ranked is not None
         self.assertEqual(ranked["text"], "28.1 Sub-step")
 
+    def test_search_doc_text_attaches_section_context(self) -> None:
+        """Hits in ``## Rotation`` carry section metadata."""
+        results = self.engine.search_doc_text("ACTING_USER_HMAC_KEY")
+        self.assertEqual(len(results), 1)
+        hit = results[0]
+        self.assertEqual(hit["file"], "docs/OPS.md")
+        self.assertIn("ACTING_USER_HMAC_KEY", hit["snippet"])
+        self.assertIsNotNone(hit["section"])
+        self.assertEqual(hit["section"]["heading"], "Rotation")
+        self.assertEqual(hit["section"]["level"], 2)
+
+    def test_search_doc_text_file_scope(self) -> None:
+        """``file=`` restricts search to one doc; unknown file → []."""
+        results = self.engine.search_doc_text("the", file="docs/OPS.md")
+        self.assertTrue(all(r["file"] == "docs/OPS.md" for r in results))
+        self.assertEqual(self.engine.search_doc_text("foo", file="nope.md"), [])
+
+    def test_search_doc_text_regex_mode(self) -> None:
+        """``regex=True`` honours Python regex semantics."""
+        engine = self._ideas_engine()
+        results = engine.search_doc_text(r"^## 2[78]\.", regex=True, file="IDEAS.md")
+        # Three section openers begin with '## 27.' / '## 28.' (28.1 starts with '## 28.1', regex
+        # ^## 2[78]\. requires '.' after digit so 28.1 doesn't match).
+        texts = {r["snippet"] for r in results}
+        self.assertTrue(any(t.startswith("## 27.") for t in texts))
+        self.assertTrue(any(t.startswith("## 28.") for t in texts))
+
+    def test_search_doc_text_case_sensitive(self) -> None:
+        """``case_sensitive=True`` rejects different-case hits."""
+        self.assertEqual(
+            self.engine.search_doc_text("rotation", case_sensitive=True),
+            [],
+        )
+        results = self.engine.search_doc_text("Rotation", case_sensitive=True)
+        # The heading line itself matches.
+        self.assertTrue(
+            any(r["section"] and r["section"]["heading"] == "Rotation" for r in results),
+        )
+
     def test_find_doc_section_selector_priority_anchor_wins(self) -> None:
         """When multiple selectors are passed, ``anchor`` wins."""
         engine = self._ideas_engine()

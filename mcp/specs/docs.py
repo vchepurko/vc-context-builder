@@ -158,6 +158,46 @@ def specs() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": "search_doc_text",
+            "description": (
+                "Markdown-aware grep across indexed docs. Returns "
+                "``[{file, line, snippet, section: {heading, anchor, "
+                "level}}]`` capped at ``max_results``. Each hit "
+                "carries its containing section so the agent sees "
+                "'this mention is inside Phase 2 of IDEAS #28' "
+                "without a follow-up ``read_slice``.\n\n"
+                "Closes the 'which docs mention X' free-text query "
+                "class that today drops to Bash ``grep -rln`` because "
+                "``find_doc_xref`` indexes only markdown-link syntax. "
+                "Optional ``file`` scopes to one doc; ``regex=true`` "
+                "treats ``query`` as a Python regex; "
+                "``case_sensitive`` defaults to false."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string"},
+                    "file": {
+                        "type": "string",
+                        "description": ("Optional repo-relative path to limit search to one doc."),
+                    },
+                    "regex": {
+                        "type": "boolean",
+                        "description": "Default false — substring match.",
+                    },
+                    "case_sensitive": {
+                        "type": "boolean",
+                        "description": "Default false.",
+                    },
+                    "max_results": {
+                        "type": "integer",
+                        "description": "Cap (default 50).",
+                    },
+                },
+                "required": ["query"],
+            },
+        },
+        {
             "name": "docs_link_graph",
             "description": (
                 "Forward link adjacency for every doc + broken-link "
