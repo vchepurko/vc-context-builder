@@ -85,7 +85,8 @@ the code — if you spot an inconsistency, file an issue.
 > ng-component selector backfill (non-standalone fix),
 > `find_anti_patterns` registry with
 > `aiogram-state-check-in-body`, `record_bash_usage` telemetry
-> marker, TS AST persistent-worker (rebuild_index timeout fix).
+> marker, TS AST persistent-worker (rebuild_index timeout fix),
+> `find_local_agents_md` per-folder rules helper.
 > Their planned bullets below stay as historical context; see
 > CHANGELOG.md for the per-tool record.
 
