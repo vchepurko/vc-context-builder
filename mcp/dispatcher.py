@@ -66,6 +66,7 @@ class Dispatcher:
             "route_callers": self._route_callers,
             "route_for_js_call": self._route_for_js_call,
             "find_callback": self._find_callback,
+            "find_orphan_callbacks": self._find_orphan_callbacks,
             "trace_fsm_flow": self._trace_fsm_flow,
             "coverage_for_role": self._coverage_for_role,
             "classify_tests": self._classify_tests,
@@ -253,6 +254,11 @@ class Dispatcher:
     def _find_callback(self, args: Dict[str, Any]) -> Any:
         return self.engine.find_callback(
             str(args.get("data", "")),
+            include_tests=self._include_tests(args),
+        )
+
+    def _find_orphan_callbacks(self, args: Dict[str, Any]) -> Any:
+        return self.engine.find_orphan_callbacks(
             include_tests=self._include_tests(args),
         )
 

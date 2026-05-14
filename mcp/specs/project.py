@@ -225,6 +225,37 @@ def specs() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": "find_orphan_callbacks",
+            "description": (
+                "Anti-pattern detector — return every literal "
+                '``callback_data="..."`` reference (typically inside '
+                "``InlineKeyboardButton(...)``) with no matching "
+                "``@router.callback_query`` handler. Clicking such a "
+                "button does nothing.\n\n"
+                "Set-difference between AST-walked button references "
+                "and ``agent_callbacks.json``. Non-literal call sites "
+                "(f-strings, ``.format()``, variables) are silently "
+                "skipped because they can't be statically resolved. "
+                "``include_tests`` defaults to false — orphan refs in "
+                "``tests/`` are usually intentional fixtures.\n\n"
+                "Each record: ``{data, file, line}``, sorted by "
+                "``(file, line)``."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "include_tests": {
+                        "type": "boolean",
+                        "description": (
+                            "Default false — surface only production "
+                            "orphans. Set true to also list dead "
+                            "button refs in tests/."
+                        ),
+                    },
+                },
+            },
+        },
+        {
             "name": "trace_fsm_flow",
             "description": (
                 "Trace an aiogram FSM state's lifecycle: where it's "

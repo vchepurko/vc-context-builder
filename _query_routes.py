@@ -24,6 +24,8 @@ class _RoutesMixin:
     """
 
     # Type stubs so mypy knows what the host class provides.
+    project_root: str
+
     def _load_routes(self) -> Dict[str, Dict[str, Any]]:
         raise NotImplementedError  # pragma: no cover
 
@@ -116,6 +118,31 @@ class _RoutesMixin:
 
         hits = _find(self._load_callbacks(), data)
         return filter_test_records(hits, include_tests=include_tests)
+
+    def find_orphan_callbacks(
+        self,
+        *,
+        include_tests: bool = False,
+    ) -> List[Dict[str, Any]]:
+        """Anti-pattern detector — every literal ``callback_data="..."``
+        reference with no matching ``@router.callback_query`` handler.
+
+        Set-difference between AST-walked ``callback_data="..."``
+        button references and the handler index. Non-literal call
+        sites (f-strings, ``.format()``, variables) are silently
+        skipped. ``include_tests`` defaults to False — orphan refs
+        in ``tests/`` are usually intentional fixtures.
+
+        Each record: ``{data, file, line}``, sorted by
+        ``(file, line)``.
+        """
+        from callback_index import find_orphans as _orphans  # type: ignore[import-not-found]
+
+        return _orphans(
+            self.project_root,
+            self._load_callbacks(),
+            include_tests=include_tests,
+        )
 
     # ------------------------------------------------------------------
     # Feature F — aiogram FSM flow graph
