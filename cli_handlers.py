@@ -405,6 +405,42 @@ def cmd_coverage(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_ng_ajs_find(args: argparse.Namespace) -> int:
+    """Find an AngularJS symbol in app/ by registration name."""
+    engine = _engine(args)
+    result = engine.ng_ajs_find(args.name)
+    if args.json:
+        _emit_json(result)
+        return 0 if result else 1
+    if not result:
+        print(f"AJS symbol not found: {args.name!r}", file=sys.stderr)
+        return 1
+    print(f"{result['kind']}  {result['name']}")
+    print(f"  {result['file']}:{result['line']}")
+    return 0
+
+
+def cmd_ng_module_members(args: argparse.Namespace) -> int:
+    """List declarations/imports/exports/providers of an NgModule."""
+    engine = _engine(args)
+    result = engine.ng_module_members(args.name)
+    if args.json:
+        _emit_json(result)
+        return 0 if result else 1
+    if not result:
+        print(f"NgModule not found: {args.name!r}", file=sys.stderr)
+        return 1
+    print(f"NgModule  {result['module']}")
+    print(f"  {result['file']}")
+    for section in ("declarations", "imports", "exports", "providers"):
+        items = result.get(section) or []
+        if items:
+            print(f"\n  {section} ({len(items)}):")
+            for item in items:
+                print(f"    {item}")
+    return 0
+
+
 def cmd_route(args: argparse.Namespace) -> int:
     engine = _engine(args)
     entry = engine.find_route(args.path)

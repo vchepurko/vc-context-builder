@@ -46,6 +46,8 @@ from cli_handlers import (
     cmd_lint,
     cmd_module,
     cmd_modules,
+    cmd_ng_ajs_find,
+    cmd_ng_module_members,
     cmd_raises,
     cmd_repo_map,
     cmd_role,
@@ -222,6 +224,20 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p_rcal.add_argument("path")
     p_rcal.set_defaults(handler=cmd_route_callers)
+
+    p_ajs = sub.add_parser(
+        "ng-ajs-find",
+        help="Find an AngularJS symbol (.component/.service/.directive) in app/ by name.",
+    )
+    p_ajs.add_argument("name", help="AJS registration name (e.g. userProfileMenu).")
+    p_ajs.set_defaults(handler=cmd_ng_ajs_find)
+
+    p_ngmod = sub.add_parser(
+        "ng-module-members",
+        help="List declarations/imports/exports/providers of an NgModule.",
+    )
+    p_ngmod.add_argument("name", help="NgModule class name (e.g. MyProfileModule).")
+    p_ngmod.set_defaults(handler=cmd_ng_module_members)
 
     p_stats = sub.add_parser(
         "stats",
