@@ -99,6 +99,28 @@ _RE_CONST_FUNCEXPR = re.compile(
     re.M,
 )
 
+# `interface Foo extends Bar { ... }` — TypeScript only. Type params
+# (``<T, U>``) and ``extends Base[, Base2]`` are optional. Body is a
+# brace block we balance like the function case.
+_RE_INTERFACE = re.compile(
+    r"^(?P<lead>(?:export\s+(?:default\s+)?)?)"
+    r"interface\s+(?P<name>[A-Za-z_$][A-Za-z0-9_$]*)"
+    r"\s*(?:<[^>]*>)?"
+    r"(?:\s+extends\s+[^{]+)?\s*\{",
+    re.M,
+)
+
+# `type Foo = ...` / `export type Foo<T> = ...` — TypeScript type
+# aliases. The RHS can be a union / object literal / generic / etc.;
+# we read it as an "expression until ; or newline" via ``_take_expression``.
+_RE_TYPE_ALIAS = re.compile(
+    r"^(?P<lead>(?:export\s+(?:default\s+)?)?)"
+    r"type\s+(?P<name>[A-Za-z_$][A-Za-z0-9_$]*)"
+    r"\s*(?:<[^>]*>)?"
+    r"\s*=\s*",
+    re.M,
+)
+
 # Imports: `import X from 'pkg'`, `import { X } from 'pkg'`,
 # `import * as X from 'pkg'`, `import 'pkg'`, plus `require('pkg')`.
 _RE_IMPORT_FROM = re.compile(
@@ -324,6 +346,34 @@ class TsJsParser(BaseParser):
                 "name": m.group("name"),
                 "kind": kind,
                 "params": "(" + m.group("params").strip() + ")",
+                "_anchor": _line_start(text, m.start()),
+                "_body": body,
+                "_register_call": "",
+            }
+
+        # TypeScript: ``interface Foo { ... }``. Always emitted —
+        # regex-only cost is microseconds per TS file and the closed
+        # blind spot (57.9% empty ratio on TS lookups observed in a
+        # real lms-client session) is worth far more than the index
+        # bytes. Non-TS files don't carry interfaces so nothing fires.
+        for m in _RE_INTERFACE.finditer(text):
+            body, _end = _balance_braces(text, m.end() - 1)
+            yield {
+                "name": m.group("name"),
+                "kind": "interface",
+                "_anchor": _line_start(text, m.start()),
+                "_body": body,
+                "_register_call": "",
+            }
+
+        # TypeScript: ``type Foo = ...`` aliases. RHS read as an
+        # expression — terminates at ``;`` / newline / top-level
+        # boundary handled by ``_take_expression``.
+        for m in _RE_TYPE_ALIAS.finditer(text):
+            body = _take_expression(text, m.end())
+            yield {
+                "name": m.group("name"),
+                "kind": "type",
                 "_anchor": _line_start(text, m.start()),
                 "_body": body,
                 "_register_call": "",
