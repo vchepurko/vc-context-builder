@@ -85,6 +85,7 @@ class Dispatcher:
             "devops_card": self._devops_card,
             "find_orm_field_usage": self._find_orm_field_usage,
             "get_locale_key": self._get_locale_key,
+            "find_locale_drift": self._find_locale_drift,
             "notify_log_search": self._notify_log_search,
             "notify_log_stats": self._notify_log_stats,
             "ruff_violations": self._ruff_violations,
@@ -424,6 +425,12 @@ class Dispatcher:
 
     def _get_locale_key(self, args: Dict[str, Any]) -> Any:
         return self.engine.get_locale_key(str(args.get("key", "")).strip())
+
+    def _find_locale_drift(self, args: Dict[str, Any]) -> Any:
+        ns = args.get("namespace")
+        if isinstance(ns, str) and ns.strip():
+            return self.engine.find_locale_drift(namespace=ns.strip())
+        return self.engine.find_locale_drift()
 
     def _notify_log_search(self, args: Dict[str, Any]) -> Any:
         kw: Dict[str, Any] = {}

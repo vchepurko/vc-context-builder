@@ -470,6 +470,31 @@ def specs() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": "find_locale_drift",
+            "description": (
+                "Anti-pattern detector — every locale key present in "
+                "one language but missing in a sibling that owns the "
+                "same namespace file. Returns "
+                "``[{key, namespace, present, missing}]`` sorted by "
+                "``(namespace, key)``. Drives translation review "
+                "without a dedicated diff tool.\n\n"
+                "Optional ``namespace`` scopes the audit to one "
+                'namespace (``"common"`` / ``"admin"`` / etc.). '
+                "Empty list = parity OK across every key."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "namespace": {
+                        "type": "string",
+                        "description": (
+                            "Optional namespace filter (the JSON filename without .json)."
+                        ),
+                    },
+                },
+            },
+        },
+        {
             "name": "find_pattern_in_configs",
             "description": (
                 "Substring or regex search across non-code config "

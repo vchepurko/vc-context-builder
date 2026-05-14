@@ -67,6 +67,25 @@ class _InspectorsMixin:
 
         return _get(self._load_locale_keys(), key)
 
+    def find_locale_drift(
+        self,
+        namespace: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Anti-pattern detector — every locale key present in one
+        language but missing in a sibling that owns the same namespace
+        file. Returns ``[{key, namespace, present, missing}, ...]``
+        sorted by ``(namespace, key)``.
+
+        Optional ``namespace`` scopes the audit to one namespace
+        (``"common"`` / ``"admin"`` / etc.). Empty list when every key
+        is fully translated — that's the parity-OK signal.
+
+        Drives translation review without a dedicated diff tool.
+        """
+        from locale_index import find_drift as _drift  # type: ignore[import-not-found]
+
+        return _drift(self._load_locale_keys(), namespace=namespace)
+
     # ------------------------------------------------------------------
     # Config-file pattern search (Feature C — gap-closer)
     # ------------------------------------------------------------------
