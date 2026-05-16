@@ -395,10 +395,15 @@ def specs() -> List[Dict[str, Any]]:
                 ".vc-context/conventions.json. Returns "
                 "{returncode, duration_ms, stdout_tail, stderr_tail, "
                 "summary, error?, cached?}. Unknown name → "
-                "returncode -2; timeout → -1; spawn failure → -3. "
+                "returncode -2; timeout → -1; spawn failure → -3; "
+                "refused extra args → -4. "
                 "Use to run tests / lint / typecheck without "
                 "exposing arbitrary shell.\n\n"
-                "Results are memoised by ``(name, git_state_hash)`` "
+                "Optional ``args`` are appended only when the check is "
+                "declared with an ``args_policy`` in conventions.json; "
+                "fixed list-style checks refuse extra args. This allows "
+                "safe targeted runs such as pytest on selected test files.\n\n"
+                "Results are memoised by ``(name, args, git_state_hash)`` "
                 "where the hash covers committed HEAD + staged + "
                 "unstaged + untracked files. A repeat call with no "
                 "source edits returns in ~ms with ``cached: true`` "
@@ -412,6 +417,15 @@ def specs() -> List[Dict[str, Any]]:
                 "type": "object",
                 "properties": {
                     "name": {"type": "string"},
+                    "args": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": (
+                            "Optional argv suffix. Accepted only for "
+                            "checks whose conventions.json entry declares "
+                            "an args_policy that allows every token."
+                        ),
+                    },
                     "timeout_sec": {"type": "integer", "minimum": 1},
                     "nocache": {
                         "type": "boolean",

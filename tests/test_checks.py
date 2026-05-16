@@ -42,6 +42,10 @@ class TestLoadChecks(unittest.TestCase):
             {
                 "checks": {
                     "test": ["python", "-m", "pytest", "-q"],
+                    "targeted": {
+                        "cmd": ["python", "-m", "pytest"],
+                        "args_policy": {"allow_paths": True, "path_roots": ["tests"]},
+                    },
                     "broken": "python -m pytest",  # str → ignored
                     "empty": [],  # empty → ignored
                     "non-string-token": ["sh", 1],  # bad token → ignored
@@ -50,8 +54,9 @@ class TestLoadChecks(unittest.TestCase):
         )
         try:
             checks = load_checks(fx.root)
-            self.assertEqual(set(checks), {"test"})
+            self.assertEqual(set(checks), {"test", "targeted"})
             self.assertEqual(checks["test"], ["python", "-m", "pytest", "-q"])
+            self.assertEqual(checks["targeted"], ["python", "-m", "pytest"])
         finally:
             fx.cleanup()
 
@@ -131,6 +136,74 @@ class TestRunCheck(unittest.TestCase):
         finally:
             fx.cleanup()
 
+    def test_fixed_check_refuses_extra_args(self) -> None:
+        fx = _Fixture({"checks": {"echo": ["python3", "-c", "print('ok')"]}})
+        try:
+            out = run_check(fx.root, "echo", args=["tests/test_one.py"])
+            self.assertEqual(out["returncode"], -4)
+            self.assertIn("extra args refused", out["error"])
+        finally:
+            fx.cleanup()
+
+    def test_policy_allows_paths_under_roots(self) -> None:
+        fx = _Fixture(
+            {
+                "checks": {
+                    "echo": {
+                        "cmd": ["python3", "-c", "import sys; print('|'.join(sys.argv[1:]))"],
+                        "args_policy": {
+                            "allow_paths": True,
+                            "path_roots": ["tests"],
+                            "allow_flags": ["-q"],
+                        },
+                    }
+                }
+            }
+        )
+        try:
+            os.makedirs(os.path.join(fx.root, "tests"), exist_ok=True)
+            out = run_check(fx.root, "echo", args=["-q", "tests/test_one.py"])
+            self.assertEqual(out["returncode"], 0)
+            self.assertIn("-q|tests/test_one.py", out["stdout_tail"])
+        finally:
+            fx.cleanup()
+
+    def test_policy_rejects_paths_outside_roots(self) -> None:
+        fx = _Fixture(
+            {
+                "checks": {
+                    "echo": {
+                        "cmd": ["python3", "-c", "print('should not run')"],
+                        "args_policy": {"allow_paths": True, "path_roots": ["tests"]},
+                    }
+                }
+            }
+        )
+        try:
+            out = run_check(fx.root, "echo", args=["../secrets.txt"])
+            self.assertEqual(out["returncode"], -4)
+            self.assertIn("not allowed", out["error"])
+        finally:
+            fx.cleanup()
+
+    def test_policy_allows_flag_values(self) -> None:
+        fx = _Fixture(
+            {
+                "checks": {
+                    "echo": {
+                        "cmd": ["python3", "-c", "import sys; print('|'.join(sys.argv[1:]))"],
+                        "args_policy": {"allow_flag_values": ["-k", "--maxfail"]},
+                    }
+                }
+            }
+        )
+        try:
+            out = run_check(fx.root, "echo", args=["-k", "locales", "--maxfail=1"])
+            self.assertEqual(out["returncode"], 0)
+            self.assertIn("-k|locales|--maxfail=1", out["stdout_tail"])
+        finally:
+            fx.cleanup()
+
 
 class TestQueryEngineWiring(unittest.TestCase):
     def test_round_trip_via_engine(self) -> None:
@@ -154,6 +227,7 @@ class TestMcpToolWiring(unittest.TestCase):
     def test_run_check_requires_name(self) -> None:
         spec = next(s for s in _tool_specs() if s["name"] == "run_check")
         self.assertEqual(spec["inputSchema"].get("required", []), ["name"])
+        self.assertIn("args", spec["inputSchema"].get("properties", {}))
 
     def test_list_checks_takes_no_args(self) -> None:
         spec = next(s for s in _tool_specs() if s["name"] == "list_checks")
