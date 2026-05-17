@@ -37,7 +37,7 @@ import json
 import os
 import subprocess
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, cast
 
 CONFIG_RELATIVE_PATH = os.path.join(".vc-context", "conventions.json")
 
@@ -90,17 +90,18 @@ def load_check_specs(project_root: str) -> Dict[str, CheckSpec]:
         if not isinstance(name, str) or not name:
             continue
         if _valid_argv(spec):
-            out[name] = {"cmd": list(spec), "args_policy": {}}
+            out[name] = {"cmd": list(cast(List[str], spec)), "args_policy": {}}
             continue
         if not isinstance(spec, dict):
             continue
         cmd = spec.get("cmd")
         if not _valid_argv(cmd):
             continue
+        cmd_tokens = cast(List[str], cmd)
         policy = spec.get("args_policy", {})
         if not isinstance(policy, dict):
             policy = {}
-        out[name] = {"cmd": list(cmd), "args_policy": dict(policy)}
+        out[name] = {"cmd": list(cmd_tokens), "args_policy": dict(policy)}
     return out
 
 
