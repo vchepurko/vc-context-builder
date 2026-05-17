@@ -395,10 +395,15 @@ def specs() -> List[Dict[str, Any]]:
                 ".vc-context/conventions.json. Returns "
                 "{returncode, duration_ms, stdout_tail, stderr_tail, "
                 "summary, error?, cached?}. Unknown name → "
-                "returncode -2; timeout → -1; spawn failure → -3. "
+                "returncode -2; timeout → -1; spawn failure → -3; "
+                "refused extra args → -4. "
                 "Use to run tests / lint / typecheck without "
                 "exposing arbitrary shell.\n\n"
-                "Results are memoised by ``(name, git_state_hash)`` "
+                "Optional ``args`` are appended only when the check is "
+                "declared with an ``args_policy`` in conventions.json; "
+                "fixed list-style checks refuse extra args. This allows "
+                "safe targeted runs such as pytest on selected test files.\n\n"
+                "Results are memoised by ``(name, args, git_state_hash)`` "
                 "where the hash covers committed HEAD + staged + "
                 "unstaged + untracked files. A repeat call with no "
                 "source edits returns in ~ms with ``cached: true`` "
@@ -412,6 +417,15 @@ def specs() -> List[Dict[str, Any]]:
                 "type": "object",
                 "properties": {
                     "name": {"type": "string"},
+                    "args": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": (
+                            "Optional argv suffix. Accepted only for "
+                            "checks whose conventions.json entry declares "
+                            "an args_policy that allows every token."
+                        ),
+                    },
                     "timeout_sec": {"type": "integer", "minimum": 1},
                     "nocache": {
                         "type": "boolean",
@@ -531,6 +545,36 @@ def specs() -> List[Dict[str, Any]]:
                     "key": {"type": "string"},
                 },
                 "required": ["key"],
+            },
+        },
+        {
+            "name": "find_local_agents_md",
+            "description": (
+                "Walk up from ``path`` (file or directory) and "
+                "return every ``AGENTS.md`` along the way, "
+                "most-specific first. Use to discover folder-scoped "
+                "invariants without a filesystem walk — e.g. before "
+                "editing ``bot/handlers/admin.py`` ask "
+                '``find_local_agents_md("bot/handlers/admin.py")`` '
+                "to see the per-folder ``AGENTS.md`` plus any closer "
+                "or root-level rules.\n\n"
+                "Walks stop at ``project_root``; the top-level "
+                "``AGENTS.md`` (if any) is the most-general entry. "
+                "Each record: ``{file, size_bytes}`` ordered "
+                "closest-first. Empty list when the project doesn't "
+                "use the convention or ``path`` escapes the tree."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "path": {
+                        "type": "string",
+                        "description": (
+                            "Project-relative path (file or directory) to start the walk from."
+                        ),
+                    },
+                },
+                "required": ["path"],
             },
         },
         {

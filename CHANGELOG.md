@@ -10,6 +10,12 @@ bump the minor; fixes bump the patch.
 ## [Unreleased]
 
 ### Added
+- **`find_local_agents_md(path)`** — walks up from ``path`` (file or
+  directory) and returns every ``AGENTS.md`` along the way,
+  most-specific first. Discovers folder-scoped invariants without a
+  filesystem walk. Each record: ``{file, size_bytes}``. Walks stop
+  at ``project_root``; the top-level ``AGENTS.md`` is the
+  most-general entry.
 - **`find_anti_patterns` registry** — new MCP tool plus
   `list_anti_patterns`. First detector:
   `aiogram-state-check-in-body` finds

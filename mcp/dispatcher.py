@@ -90,6 +90,7 @@ class Dispatcher:
             "get_locale_key": self._get_locale_key,
             "find_locale_drift": self._find_locale_drift,
             "record_bash_usage": self._record_bash_usage,
+            "find_local_agents_md": self._find_local_agents_md,
             "notify_log_search": self._notify_log_search,
             "notify_log_stats": self._notify_log_stats,
             "ruff_violations": self._ruff_violations,
@@ -321,12 +322,30 @@ class Dispatcher:
 
     def _run_check(self, args: Dict[str, Any]) -> Any:
         name = str(args.get("name", "")).strip()
+        extra_raw = args.get("args")
+        if extra_raw is None:
+            extra_args = None
+        elif isinstance(extra_raw, list) and all(isinstance(v, str) for v in extra_raw):
+            extra_args = list(extra_raw)
+        else:
+            return {
+                "name": name,
+                "command": [],
+                "returncode": -4,
+                "duration_ms": 0,
+                "stdout_tail": "",
+                "stderr_tail": "",
+                "summary": None,
+                "error": "args must be a list of strings",
+            }
         timeout_raw = args.get("timeout_sec")
         timeout_sec = (
             int(timeout_raw) if isinstance(timeout_raw, (int, float)) and timeout_raw > 0 else None
         )
         nocache = bool(args.get("nocache", False))
-        return self.engine.run_check(name, timeout_sec=timeout_sec, nocache=nocache)
+        return self.engine.run_check(
+            name, timeout_sec=timeout_sec, args=extra_args, nocache=nocache
+        )
 
     def _get_session_metrics(self, args: Dict[str, Any]) -> Any:
         kw: Dict[str, Any] = {}
@@ -444,6 +463,12 @@ class Dispatcher:
 
     def _get_locale_key(self, args: Dict[str, Any]) -> Any:
         return self.engine.get_locale_key(str(args.get("key", "")).strip())
+
+    def _find_local_agents_md(self, args: Dict[str, Any]) -> Any:
+        path = str(args.get("path", "")).strip()
+        if not path:
+            return []
+        return self.engine.find_local_agents_md(path)
 
     def _record_bash_usage(self, args: Dict[str, Any]) -> Any:
         try:

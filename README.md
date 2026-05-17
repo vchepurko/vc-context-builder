@@ -819,6 +819,37 @@ style summary line when one is recognisable. Unknown name → `-2`,
 timeout → `-1`, spawn failure → `-3`. No `checks` block → `list_checks`
 returns `[]`.
 
+For targeted checks, use the object form and declare which extra argv
+tokens are safe. Fixed argv-list checks refuse `args`; object checks
+append `run_check(args=[...])` only after every token passes
+`args_policy`:
+
+```json
+{
+  "checks": {
+    "pytest": {
+      "cmd": ["uv", "run", "pytest"],
+      "args_policy": {
+        "allow_paths": true,
+        "path_roots": ["tests"],
+        "allow_flags": ["-q", "-x"],
+        "allow_flag_values": ["-k", "--maxfail"],
+        "deny_flags": ["--pdb"]
+      }
+    }
+  }
+}
+```
+
+Example MCP call:
+
+```json
+{"name": "pytest", "args": ["-q", "tests/test_locales.py", "-k", "placeholders"]}
+```
+
+Refused extra args return `-4`. Cache keys include `(name, args,
+git_state_hash)`, so targeted runs do not collide with each other.
+
 ---
 
 ## Extending the parsers

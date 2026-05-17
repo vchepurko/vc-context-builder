@@ -67,6 +67,55 @@ class _InspectorsMixin:
 
         return _get(self._load_locale_keys(), key)
 
+    def find_local_agents_md(self, path: str) -> List[Dict[str, Any]]:
+        """Walk up from ``path`` (file or directory) and return every
+        ``AGENTS.md`` along the way, most-specific first.
+
+        Use to discover folder-scoped invariants without a filesystem
+        walk — e.g. before editing ``bot/handlers/admin.py`` ask
+        ``find_local_agents_md("bot/handlers/admin.py")`` to see the
+        per-folder ``AGENTS.md`` plus any closer / deeper rules.
+
+        ``path`` is resolved against ``project_root`` and rejected if
+        it escapes the tree. Walks stop at the project root — the
+        top-level ``AGENTS.md`` (if any) is the most-general entry.
+
+        Each record: ``{file, size_bytes}``, ordered closest-first.
+        Empty list when nothing is found (project doesn't use the
+        convention) or the path is outside the project.
+        """
+        import os as _os  # local — avoid mixin-module name collision
+
+        if not path:
+            return []
+        project_root = _os.path.abspath(self.project_root)
+        abs_path = _os.path.abspath(_os.path.join(project_root, path))
+        try:
+            if _os.path.commonpath([project_root, abs_path]) != project_root:
+                return []
+        except ValueError:
+            return []
+        cur = abs_path if _os.path.isdir(abs_path) else _os.path.dirname(abs_path)
+        if not cur:
+            cur = project_root
+        out: List[Dict[str, Any]] = []
+        while True:
+            candidate = _os.path.join(cur, "AGENTS.md")
+            if _os.path.isfile(candidate):
+                try:
+                    size = _os.path.getsize(candidate)
+                except OSError:
+                    size = 0
+                rel = _os.path.relpath(candidate, project_root).replace(_os.sep, "/")
+                out.append({"file": rel, "size_bytes": size})
+            if cur == project_root:
+                break
+            parent = _os.path.dirname(cur)
+            if parent == cur:
+                break
+            cur = parent
+        return out
+
     def record_bash_usage(
         self,
         count: int = 1,
