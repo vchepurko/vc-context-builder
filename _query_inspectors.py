@@ -67,6 +67,115 @@ class _InspectorsMixin:
 
         return _get(self._load_locale_keys(), key)
 
+    def find_local_agents_md(self, path: str) -> List[Dict[str, Any]]:
+        """Walk up from ``path`` (file or directory) and return every
+        ``AGENTS.md`` along the way, most-specific first.
+
+        Use to discover folder-scoped invariants without a filesystem
+        walk — e.g. before editing ``bot/handlers/admin.py`` ask
+        ``find_local_agents_md("bot/handlers/admin.py")`` to see the
+        per-folder ``AGENTS.md`` plus any closer / deeper rules.
+
+        ``path`` is resolved against ``project_root`` and rejected if
+        it escapes the tree. Walks stop at the project root — the
+        top-level ``AGENTS.md`` (if any) is the most-general entry.
+
+        Each record: ``{file, size_bytes}``, ordered closest-first.
+        Empty list when nothing is found (project doesn't use the
+        convention) or the path is outside the project.
+        """
+        import os as _os  # local — avoid mixin-module name collision
+
+        if not path:
+            return []
+        project_root = _os.path.abspath(self.project_root)
+        abs_path = _os.path.abspath(_os.path.join(project_root, path))
+        try:
+            if _os.path.commonpath([project_root, abs_path]) != project_root:
+                return []
+        except ValueError:
+            return []
+        cur = abs_path if _os.path.isdir(abs_path) else _os.path.dirname(abs_path)
+        if not cur:
+            cur = project_root
+        out: List[Dict[str, Any]] = []
+        while True:
+            candidate = _os.path.join(cur, "AGENTS.md")
+            if _os.path.isfile(candidate):
+                try:
+                    size = _os.path.getsize(candidate)
+                except OSError:
+                    size = 0
+                rel = _os.path.relpath(candidate, project_root).replace(_os.sep, "/")
+                out.append({"file": rel, "size_bytes": size})
+            if cur == project_root:
+                break
+            parent = _os.path.dirname(cur)
+            if parent == cur:
+                break
+            cur = parent
+        return out
+
+    def record_bash_usage(
+        self,
+        count: int = 1,
+        action: Optional[str] = None,
+        bytes_estimate: Optional[int] = None,
+    ) -> Dict[str, Any]:
+        """Self-reported Bash usage marker — light-touch telemetry.
+
+        Agents call this after a shell-out so the dispatcher's
+        automatic metrics record (``record_bash_usage`` tool) shows
+        up alongside MCP calls in ``get_session_metrics``. The "true
+        MCP win" ratio is then accurate: today metrics see only the
+        MCP side, so Bash-grep / sed / node usage is invisible.
+
+        The method itself is a near no-op — it just echoes the input
+        so the auto-record captures ``count`` / ``action`` /
+        ``bytes_estimate`` in the JSONL line. The aggregation lives
+        in ``get_session_metrics`` (group_by=tool surfaces it as
+        ``by_tool['record_bash_usage']``).
+
+        Parameters
+        ----------
+        count: occurrence count (default 1) — agents can batch
+            multiple shell-outs into one call.
+        action: optional free-text hint (``"grep"``, ``"sed-bulk"``,
+            ``"node --check"``).
+        bytes_estimate: optional rough size of the Bash output for
+            baseline-savings calculations. Capped at 0 if negative.
+
+        Returns ``{ok, count, action?, bytes_estimate?}``.
+        """
+        out: Dict[str, Any] = {"ok": True, "count": max(1, int(count or 1))}
+        if action:
+            out["action"] = str(action)
+        if bytes_estimate is not None:
+            try:
+                out["bytes_estimate"] = max(0, int(bytes_estimate))
+            except (TypeError, ValueError):
+                pass
+        return out
+
+    def find_locale_drift(
+        self,
+        namespace: Optional[str] = None,
+    ) -> List[Dict[str, Any]]:
+        """Anti-pattern detector — every locale key present in one
+        language but missing in a sibling that owns the same namespace
+        file. Returns ``[{key, namespace, present, missing}, ...]``
+        sorted by ``(namespace, key)``.
+
+        Optional ``namespace`` scopes the audit to one namespace
+        (``"common"`` / ``"admin"`` / etc.). Empty list when every key
+        is fully translated — that's the parity-OK signal.
+
+        Drives translation review without a dedicated diff tool.
+        """
+        from locale_index import find_drift as _drift  # type: ignore[import-not-found]
+
+        return _drift(self._load_locale_keys(), namespace=namespace)
+
     # ------------------------------------------------------------------
     # Config-file pattern search (Feature C — gap-closer)
     # ------------------------------------------------------------------

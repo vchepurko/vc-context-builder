@@ -67,8 +67,11 @@ class Dispatcher:
             "route_for_js_call": self._route_for_js_call,
             "find_callback": self._find_callback,
             "find_orphan_callbacks": self._find_orphan_callbacks,
+            "find_anti_patterns": self._find_anti_patterns,
+            "list_anti_patterns": self._list_anti_patterns,
             "trace_fsm_flow": self._trace_fsm_flow,
             "coverage_for_role": self._coverage_for_role,
+            "find_handlers_without_tests": self._find_handlers_without_tests,
             "classify_tests": self._classify_tests,
             "tests_by_category": self._tests_by_category,
             "find_call_sites": self._find_call_sites,
@@ -85,6 +88,9 @@ class Dispatcher:
             "devops_card": self._devops_card,
             "find_orm_field_usage": self._find_orm_field_usage,
             "get_locale_key": self._get_locale_key,
+            "find_locale_drift": self._find_locale_drift,
+            "record_bash_usage": self._record_bash_usage,
+            "find_local_agents_md": self._find_local_agents_md,
             "notify_log_search": self._notify_log_search,
             "notify_log_stats": self._notify_log_stats,
             "ruff_violations": self._ruff_violations,
@@ -263,6 +269,15 @@ class Dispatcher:
             include_tests=self._include_tests(args),
         )
 
+    def _find_anti_patterns(self, args: Dict[str, Any]) -> Any:
+        rule = str(args.get("rule", "")).strip()
+        if not rule:
+            return []
+        return self.engine.find_anti_patterns(rule)
+
+    def _list_anti_patterns(self, args: Dict[str, Any]) -> Any:
+        return self.engine.list_anti_patterns()
+
     def _trace_fsm_flow(self, args: Dict[str, Any]) -> Any:
         return self.engine.trace_fsm_flow(str(args.get("state", "")))
 
@@ -272,6 +287,12 @@ class Dispatcher:
         role = args.get("role")
         role_arg = str(role).strip() if isinstance(role, str) and role.strip() else None
         return self.engine.coverage_for_role(role_arg)
+
+    def _find_handlers_without_tests(self, args: Dict[str, Any]) -> Any:
+        role = args.get("role")
+        if isinstance(role, str) and role.strip():
+            return self.engine.find_handlers_without_tests(role.strip())
+        return self.engine.find_handlers_without_tests()
 
     def _classify_tests(self, args: Dict[str, Any]) -> Any:
         return self.engine.classify_tests()
@@ -301,12 +322,30 @@ class Dispatcher:
 
     def _run_check(self, args: Dict[str, Any]) -> Any:
         name = str(args.get("name", "")).strip()
+        extra_raw = args.get("args")
+        if extra_raw is None:
+            extra_args = None
+        elif isinstance(extra_raw, list) and all(isinstance(v, str) for v in extra_raw):
+            extra_args = list(extra_raw)
+        else:
+            return {
+                "name": name,
+                "command": [],
+                "returncode": -4,
+                "duration_ms": 0,
+                "stdout_tail": "",
+                "stderr_tail": "",
+                "summary": None,
+                "error": "args must be a list of strings",
+            }
         timeout_raw = args.get("timeout_sec")
         timeout_sec = (
             int(timeout_raw) if isinstance(timeout_raw, (int, float)) and timeout_raw > 0 else None
         )
         nocache = bool(args.get("nocache", False))
-        return self.engine.run_check(name, timeout_sec=timeout_sec, nocache=nocache)
+        return self.engine.run_check(
+            name, timeout_sec=timeout_sec, args=extra_args, nocache=nocache
+        )
 
     def _get_session_metrics(self, args: Dict[str, Any]) -> Any:
         kw: Dict[str, Any] = {}
@@ -424,6 +463,34 @@ class Dispatcher:
 
     def _get_locale_key(self, args: Dict[str, Any]) -> Any:
         return self.engine.get_locale_key(str(args.get("key", "")).strip())
+
+    def _find_local_agents_md(self, args: Dict[str, Any]) -> Any:
+        path = str(args.get("path", "")).strip()
+        if not path:
+            return []
+        return self.engine.find_local_agents_md(path)
+
+    def _record_bash_usage(self, args: Dict[str, Any]) -> Any:
+        try:
+            count = max(1, int(args.get("count", 1)))
+        except (TypeError, ValueError):
+            count = 1
+        kw: Dict[str, Any] = {"count": count}
+        action = args.get("action")
+        if isinstance(action, str) and action.strip():
+            kw["action"] = action.strip()
+        if "bytes_estimate" in args:
+            try:
+                kw["bytes_estimate"] = max(0, int(args["bytes_estimate"]))
+            except (TypeError, ValueError):
+                pass
+        return self.engine.record_bash_usage(**kw)
+
+    def _find_locale_drift(self, args: Dict[str, Any]) -> Any:
+        ns = args.get("namespace")
+        if isinstance(ns, str) and ns.strip():
+            return self.engine.find_locale_drift(namespace=ns.strip())
+        return self.engine.find_locale_drift()
 
     def _notify_log_search(self, args: Dict[str, Any]) -> Any:
         kw: Dict[str, Any] = {}

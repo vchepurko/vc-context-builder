@@ -179,6 +179,48 @@ class _TestsMixin:
             "covered": covered,
         }
 
+    def find_handlers_without_tests(
+        self,
+        role: str = "aiogram-handler",
+    ) -> List[Dict[str, Any]]:
+        """Anti-pattern detector — every symbol with the given handler
+        ``role`` that has no linked test entry.
+
+        Sugar over ``coverage_for_role(role)["missing"]``, enriched with
+        ``line`` / ``kind`` from the symbol index so the agent can jump
+        straight to the source without a follow-up ``find_symbol``.
+
+        ``role`` defaults to ``"aiogram-handler"`` (the legacy umbrella
+        — expands to ``callback-handler`` / ``command-handler`` /
+        ``fsm-message-handler`` / ``text-match-handler`` /
+        ``catch-all-handler``). Pass another role for project-specific
+        handler taxonomies (e.g. ``"webhook"``).
+
+        Each record: ``{name, role, file, line, kind}``, sorted by
+        ``(file, line)``. Empty list when every handler has coverage —
+        the parity-OK signal.
+        """
+        coverage = self.coverage_for_role(role)
+        missing = coverage.get("missing") or []
+        symbols = self._load_symbols()
+        out: List[Dict[str, Any]] = []
+        for rec in missing:
+            name = rec.get("name")
+            if not name:
+                continue
+            entry = symbols.get(name) or {}
+            out.append(
+                {
+                    "name": name,
+                    "role": role,
+                    "file": rec.get("file") or entry.get("file"),
+                    "line": entry.get("line"),
+                    "kind": entry.get("kind"),
+                }
+            )
+        out.sort(key=lambda r: (r.get("file") or "", r.get("line") or 0))
+        return out
+
     # ------------------------------------------------------------------
     # Feature H — test categorisation (unit / integration / unknown)
     # ------------------------------------------------------------------

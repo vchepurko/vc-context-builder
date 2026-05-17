@@ -1,22 +1,21 @@
 """Optional TypeScript AST extractor for Angular decorator metadata.
 
-Spawns ``node parsers/_ts_ast_extractor.mjs <file>`` against the
-target project's local ``typescript`` install and parses the JSON
-output. When Node or ``typescript`` is missing, ``parse`` returns
-``None`` and the caller falls back to the regex parser.
+Talks to ``parsers/_ts_ast_extractor.mjs`` over a persistent Node
+worker. The first ``parse(file, project_root)`` call spawns the
+worker; subsequent calls pipe file paths through its stdin and
+receive one JSON line per file on stdout. Per-file cost drops from
+~50 ms (process spawn) to ~1–3 ms (AST parse only), which closes
+the lms-client "rebuild_index always times out" gap pinned in the
+submodule ROADMAP.
+
+Falls back to one-shot subprocess (legacy behaviour) when the
+worker can't be started OR when called on a project whose worker
+has died.
 
 Why opt-in: vc-context's hard contract is "stdlib-only Python, zero
-runtime deps". Node + typescript are deps of the *target* project, not
-of vc-context, so we can rely on them only when the target project
-already has them installed. Detection is per-call, cheap (a single
-``which node`` + a path stat); the result is cached for the process
-lifetime.
-
-Performance: each ``parse`` call spawns a Node process (~50 ms on a
-warm cache). For now, agent_map.py invokes this only for files that
-look like Angular sources (``.ts`` with a class containing a
-``@Component`` / ``@Injectable`` / ``@Directive`` / ``@Pipe`` /
-``@NgModule`` decorator marker). Batch mode is a future optimisation.
+runtime deps". Node + typescript are deps of the *target* project,
+not of vc-context, so we can rely on them only when the target
+project already has them installed.
 
 Enable in ``.vc-context/conventions.json``::
 
@@ -28,10 +27,12 @@ remains the default and stays fast.
 
 from __future__ import annotations
 
+import atexit
 import json
 import os
 import shutil
 import subprocess
+import threading
 from typing import Any, Dict, List, Optional
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -42,6 +43,11 @@ _NODE_TIMEOUT_SEC = 5.0
 # `shutil.which` and `os.path.isdir` are cheap but called per file
 # during a full agent_map scan would still pile up.
 _AVAIL_CACHE: Dict[str, bool] = {}
+
+# Persistent worker subprocesses, one per project_root. Spawned lazily
+# on the first parse() call; closed by atexit hook.
+_WORKERS: Dict[str, _TSWorker] = {}  # populated lazily; class defined below
+_WORKERS_LOCK = threading.Lock()
 
 
 def is_enabled(project_root: str) -> bool:
@@ -96,20 +102,128 @@ def is_available(project_root: str) -> bool:
     return _AVAIL_CACHE[project_root]
 
 
+class _TSWorker:
+    """Persistent Node subprocess running ``extractor.mjs --server``.
+
+    One worker per project_root. Each ``parse(file_path)`` writes the
+    path to stdin and reads one JSON line from stdout. The lock keeps
+    concurrent callers from interleaving writes; reads are
+    single-threaded.
+
+    When the worker dies (Node crash, OS kill) we mark it ``dead``
+    and the next call lazily respawns.
+    """
+
+    def __init__(self, project_root: str) -> None:
+        self.project_root = project_root
+        self.dead = False
+        self.lock = threading.Lock()
+        try:
+            self.proc: Optional[subprocess.Popen] = subprocess.Popen(
+                ["node", _EXTRACTOR, "--server", project_root],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                bufsize=1,  # line-buffered text mode
+            )
+        except OSError:
+            self.proc = None
+            self.dead = True
+
+    def parse(self, file_path: str) -> Optional[List[Dict[str, Any]]]:
+        if self.dead or self.proc is None:
+            return None
+        if self.proc.poll() is not None:
+            self.dead = True
+            return None
+        with self.lock:
+            try:
+                assert self.proc.stdin is not None and self.proc.stdout is not None
+                self.proc.stdin.write(file_path + "\n")
+                self.proc.stdin.flush()
+                line = self.proc.stdout.readline()
+            except (OSError, BrokenPipeError, AssertionError):
+                self.dead = True
+                return None
+        if not line:
+            self.dead = True
+            return None
+        try:
+            data = json.loads(line)
+        except json.JSONDecodeError:
+            return None
+        if isinstance(data, list):
+            return data
+        # Per-file errors come back as `{error: "..."}` — caller falls
+        # back to the regex path for THAT file but the worker stays
+        # alive for the rest.
+        return None
+
+    def close(self) -> None:
+        if self.proc is None:
+            return
+        try:
+            if self.proc.stdin is not None and not self.proc.stdin.closed:
+                self.proc.stdin.close()
+        except OSError:
+            pass
+        try:
+            self.proc.terminate()
+            self.proc.wait(timeout=1.0)
+        except (OSError, subprocess.TimeoutExpired):
+            try:
+                self.proc.kill()
+            except OSError:
+                pass
+        self.dead = True
+
+
+def _get_worker(project_root: str) -> Optional[_TSWorker]:
+    with _WORKERS_LOCK:
+        worker = _WORKERS.get(project_root)
+        if worker is not None and not worker.dead:
+            return worker
+        worker = _TSWorker(project_root)
+        if worker.dead:
+            return None
+        _WORKERS[project_root] = worker
+        return worker
+
+
+def _close_all_workers() -> None:
+    with _WORKERS_LOCK:
+        for worker in list(_WORKERS.values()):
+            worker.close()
+        _WORKERS.clear()
+
+
+atexit.register(_close_all_workers)
+
+
 def parse(file_path: str, project_root: str) -> Optional[List[Dict[str, Any]]]:
     """Extract Angular decorator metadata from one TS file via the AST.
 
+    Routes through the persistent worker (per project_root). On any
+    worker failure, falls back to a one-shot subprocess that matches
+    the original pre-batching contract.
+
     Returns a list of records (one per Angular class) on success, or
     ``None`` on any failure — the caller should fall back to regex.
-    Each record matches the shape emitted by ``_ts_ast_extractor.mjs``::
-
-        {"name": "CartService", "role": "ng-service",
-         "selector": null, "templateUrl": null, "styleUrls": [],
-         "standalone": null, "providedIn": "root", "pipeName": null,
-         "inputs": [], "outputs": []}
     """
     if not is_available(project_root):
         return None
+    worker = _get_worker(project_root)
+    if worker is not None:
+        result = worker.parse(file_path)
+        if result is not None:
+            return result
+        # If the worker died mid-call, drop the cached reference so the
+        # next invocation respawns instead of hammering a dead socket.
+        if worker.dead:
+            with _WORKERS_LOCK:
+                _WORKERS.pop(project_root, None)
+    # One-shot fallback (legacy path).
     try:
         proc = subprocess.run(
             ["node", _EXTRACTOR, file_path, project_root],

@@ -76,6 +76,13 @@ class RunCheckCacheTests(unittest.TestCase):
             self.engine.run_check("test-unit", nocache=True)
         self.assertEqual(run.call_count, 2)
 
+    def test_args_are_part_of_cache_key(self) -> None:
+        with self._stub() as run:
+            self.engine.run_check("test-unit", args=["tests/test_a.py"])
+            self.engine.run_check("test-unit", args=["tests/test_a.py"])
+            self.engine.run_check("test-unit", args=["tests/test_b.py"])
+        self.assertEqual(run.call_count, 2)
+
     def test_spawn_failure_not_cached(self) -> None:
         """A returncode -3 (spawn failure) is *not* memoised — retry
         once env is fixed should reach the runner again."""

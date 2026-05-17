@@ -195,3 +195,40 @@ def get_key(
     """Full entry for one key, or None when missing."""
     entry = index.get(key)
     return entry
+
+
+def find_drift(
+    index: Dict[str, Dict[str, Any]],
+    namespace: Optional[str] = None,
+) -> List[Dict[str, Any]]:
+    """Return every key whose ``missing`` list is non-empty — a parity
+    audit hook.
+
+    A key drifts when it's present in one language file but absent in
+    a sibling language that owns the same namespace file. The
+    underlying ``missing`` field is already computed by
+    :func:`build_locale_index`; this is the public roll-up.
+
+    Optional ``namespace`` scopes the audit to one namespace
+    (``"common"`` / ``"admin"`` / etc.).
+
+    Each record: ``{key, namespace, present, missing}``, sorted by
+    ``(namespace, key)`` for stable diffing.
+    """
+    out: List[Dict[str, Any]] = []
+    for key, entry in index.items():
+        if namespace and entry.get("namespace") != namespace:
+            continue
+        missing = entry.get("missing") or []
+        if not missing:
+            continue
+        out.append(
+            {
+                "key": key,
+                "namespace": entry.get("namespace"),
+                "present": sorted(entry.get("languages") or []),
+                "missing": list(missing),
+            }
+        )
+    out.sort(key=lambda r: (r["namespace"] or "", r["key"]))
+    return out

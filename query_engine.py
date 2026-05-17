@@ -90,11 +90,11 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
         self._test_categories: Optional[Dict[str, Dict[str, Any]]] = None
         self._locale_keys: Optional[Dict[str, Dict[str, Any]]] = None
         self._docs_index: Optional[Dict[str, Any]] = None
-        # Memoised ``run_check`` results keyed on (name, git_state_hash).
+        # Memoised ``run_check`` results keyed on (name, args, git_state_hash).
         # Survives across MCP calls in the long-lived server process so
         # repeated ``test-unit`` invocations without source edits return
         # in ~ms instead of re-running pytest.
-        self._check_cache: Dict[Tuple[str, str], Dict[str, Any]] = {}
+        self._check_cache: Dict[Tuple[str, Tuple[str, ...], str], Dict[str, Any]] = {}
 
     # ------------------------------------------------------------------
     # Cache invalidation — used after an in-process rebuild so the next
@@ -811,6 +811,7 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
         self,
         name: str,
         timeout_sec: Optional[int] = None,
+        args: Optional[List[str]] = None,
         *,
         nocache: bool = False,
     ) -> Dict[str, Any]:
@@ -819,7 +820,7 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
         stderr_tail, summary, error?, cached?}``. Refuses unknown names
         with returncode -2.
 
-        Results are memoised by ``(name, git_state_hash)`` so a repeat
+        Results are memoised by ``(name, args, git_state_hash)`` so a repeat
         invocation with no source edits returns in ~ms with
         ``cached: True``. The hash covers committed HEAD + staged +
         unstaged + untracked changes via ``git status --porcelain``.
@@ -830,14 +831,15 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
         """
         from checks import run_check as _run  # type: ignore[import-not-found]
 
+        extra_args = tuple(args or [])
         if not nocache:
             state = self._git_state_hash()
             if state is not None:
-                cached = self._check_cache.get((name, state))
+                cached = self._check_cache.get((name, extra_args, state))
                 if cached is not None:
                     return {**cached, "cached": True}
 
-        result = _run(self.project_root, name, timeout_sec=timeout_sec)
+        result = _run(self.project_root, name, timeout_sec=timeout_sec, args=args)
 
         # Cache only successful spawns — re-running after a spawn
         # failure (returncode -3) should give a fresh try once the env
@@ -845,7 +847,7 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
         if not nocache and result.get("returncode") != -3:
             state = self._git_state_hash()
             if state is not None:
-                self._check_cache[(name, state)] = dict(result)
+                self._check_cache[(name, extra_args, state)] = dict(result)
         return result
 
     def _git_state_hash(self) -> Optional[str]:
