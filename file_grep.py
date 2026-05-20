@@ -58,6 +58,18 @@ def grep_file(
     if size > _BODY_BYTE_CAP:
         return []
 
+    # Auto-promote to regex when the pattern contains regex metacharacters
+    # that would be meaningless as a literal (| \b \d \w ^ $).
+    # Prevents silent empty results when the caller passes "A|B|C" expecting
+    # alternation but forgets use_regex=true (observed 81 % empty rate).
+    _REGEX_HINTS = re.compile(r"[|\\^$*+?{}\[\]()]")
+    if not use_regex and _REGEX_HINTS.search(pattern):
+        try:
+            re.compile(pattern)   # validate — fallback to literal on bad regex
+            use_regex = True
+        except re.error:
+            pass
+
     flags = 0 if case_sensitive else re.IGNORECASE
     matcher: Optional[re.Pattern[str]] = re.compile(pattern, flags) if use_regex else None
     needle = pattern if case_sensitive else pattern.lower()
