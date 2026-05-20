@@ -21,13 +21,12 @@ def specs() -> List[Dict[str, Any]]:
                 "`end_line` are 1-indexed; `end_line` is Python-only "
                 "(JS/TS only carries `line`).\n\n"
                 "Token economy:\n"
-                "- Pass `fields: ['file', 'line']` for a 'jump to X' "
-                "answer (~40 tokens) — agent can Read(file, "
-                "offset=line, limit=20) immediately, no follow-up grep.\n"
-                "- Pass `include_body: true` to embed the function/class "
-                "source in the response and skip the Read entirely.\n"
-                "- For multiple symbols, prefer `find_symbols` (one "
-                "round-trip vs N)."
+                "- Need the body? Pass `include_body: true` — ONE call "
+                "instead of find_symbol + read_slice. DEFAULT choice "
+                "when you plan to read the source next.\n"
+                "- Only need the location? Pass `fields: ['file', 'line']` "
+                "(~40 tokens) and skip the body.\n"
+                "- Multiple symbols? Use `find_symbols` (one round-trip vs N)."
             ),
             "inputSchema": {
                 "type": "object",
@@ -48,9 +47,10 @@ def specs() -> List[Dict[str, Any]]:
                     "include_body": {
                         "type": "boolean",
                         "description": (
-                            "Embed verbatim source body (Python: AST "
-                            "segment; JS/TS: line-based slice). "
-                            "Saves a Read."
+                            "Embed verbatim source body and skip the "
+                            "follow-up read_slice. Use this whenever "
+                            "you need to see the implementation — "
+                            "it is cheaper than find_symbol + read_slice."
                         ),
                     },
                     "include_tests": {
