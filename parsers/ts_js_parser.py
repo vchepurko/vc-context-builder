@@ -135,6 +135,25 @@ _RE_REQUIRE = re.compile(
     r'\brequire\s*\(\s*["\']([^"\']+)["\']\s*\)',
 )
 
+# TypeScript `enum Name { ... }` and `const enum Name { ... }`
+_RE_ENUM = re.compile(
+    r"^(?P<lead>(?:export\s+(?:default\s+)?)?(?:const\s+)?)"
+    r"enum\s+(?P<name>[A-Za-z_$][A-Za-z0-9_$]*)"
+    r"\s*\{",
+    re.M,
+)
+
+# `export const X = { ... }` — object-literal form (action sets, config maps, etc.)
+# Does NOT conflict with _RE_CONST_ARROW / _RE_CONST_FUNCEXPR — those run first
+# and populate `seen`, so object-literal consts only land here when truly new.
+_RE_CONST_OBJ = re.compile(
+    r"^(?P<lead>(?:export\s+)?)"
+    r"(?:const|let)\s+(?P<name>[A-Za-z_$][A-Za-z0-9_$]*)"
+    r"(?:\s*:\s*[^=\n]+)?"
+    r"\s*=\s*\{",
+    re.M,
+)
+
 # JSDoc — `/** ... */` block, multi-line.
 _RE_JSDOC = re.compile(r"/\*\*([\s\S]*?)\*/")
 
@@ -382,6 +401,31 @@ class TsJsParser(BaseParser):
             yield {
                 "name": m.group("name"),
                 "kind": "type",
+                "_anchor": _line_start(text, m.start()),
+                "_body": body,
+                "_register_call": "",
+            }
+
+        # TypeScript: ``enum Name { ... }`` and ``const enum Name { ... }``.
+        # Fixes the 46 % empty ratio on TS enum lookups (e.g. CourseRegistrationActionName).
+        for m in _RE_ENUM.finditer(text):
+            body, _end = _balance_braces(text, m.end() - 1)
+            yield {
+                "name": m.group("name"),
+                "kind": "enum",
+                "_anchor": _line_start(text, m.start()),
+                "_body": body,
+                "_register_call": "",
+            }
+
+        # ``export const X = { ... }`` — object-literal consts (action sets,
+        # config maps, DI tokens). Only fires when _RE_CONST_ARROW /
+        # _RE_CONST_FUNCEXPR haven't already claimed the name via `seen`.
+        for m in _RE_CONST_OBJ.finditer(text):
+            body, _end = _balance_braces(text, m.end() - 1)
+            yield {
+                "name": m.group("name"),
+                "kind": "const",
                 "_anchor": _line_start(text, m.start()),
                 "_body": body,
                 "_register_call": "",

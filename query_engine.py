@@ -95,6 +95,14 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
         # repeated ``test-unit`` invocations without source edits return
         # in ~ms instead of re-running pytest.
         self._check_cache: Dict[Tuple[str, Tuple[str, ...], str], Dict[str, Any]] = {}
+        # File-content cache for read_slice — keyed by abs_path,
+        # value is (mtime, lines). Hot files read 10–20× per session
+        # (observed in lms-client Angular work) return from RAM after
+        # the first disk read. Mtime check keeps stale entries out.
+        # Eviction: when the dict exceeds _FILE_CACHE_MAX entries, the
+        # oldest half is dropped (dict insertion order, Python 3.7+).
+        self._file_cache: Dict[str, Tuple[float, List[str]]] = {}
+        self._FILE_CACHE_MAX = 64
 
     # ------------------------------------------------------------------
     # Cache invalidation — used after an in-process rebuild so the next
@@ -118,6 +126,7 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
         self._test_categories = None
         self._locale_keys = None
         self._docs_index = None
+        self._file_cache.clear()
 
     # ------------------------------------------------------------------
     # Lazy loaders
@@ -419,14 +428,20 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
         cap_end = min(end, start + self.SLICE_MAX_LINES - 1)
         truncated = cap_end < end
         try:
-            with open(abs_path, encoding="utf-8", errors="replace") as fh:
-                collected: List[str] = []
-                for lineno, raw in enumerate(fh, 1):
-                    if lineno < start:
-                        continue
-                    if lineno > cap_end:
-                        break
-                    collected.append(raw.rstrip("\n"))
+            mtime = os.path.getmtime(abs_path)
+            cached = self._file_cache.get(abs_path)
+            if cached is not None and cached[0] == mtime:
+                all_lines = cached[1]
+            else:
+                with open(abs_path, encoding="utf-8", errors="replace") as fh:
+                    all_lines = [raw.rstrip("\n") for raw in fh]
+                # Evict oldest half when cache is full.
+                if len(self._file_cache) >= self._FILE_CACHE_MAX:
+                    evict = list(self._file_cache)[: self._FILE_CACHE_MAX // 2]
+                    for k in evict:
+                        del self._file_cache[k]
+                self._file_cache[abs_path] = (mtime, all_lines)
+            collected = all_lines[start - 1 : cap_end]
         except OSError:
             return None
 

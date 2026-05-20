@@ -276,12 +276,13 @@ def specs() -> List[Dict[str, Any]]:
         {
             "name": "find_call_sites",
             "description": (
-                "Reverse call-site lookup. Return every Call(...) site "
-                "in the project whose target matches a given callable. "
+                "Reverse call-site lookup. Return every call site "
+                "where a callable is invoked. Auto-detects language: "
+                "Python AST (precise) for *.py paths, regex scanner "
+                "for TypeScript/JavaScript (src/**, *.ts, *.tsx). "
                 "Accepts a plain name ('foo') or dotted path ('x.y'). "
-                "Optional match_path is an fnmatch-style glob "
-                "('services/**', 'bot/handlers/*.py'). Use to find who "
-                "calls state.clear / session.commit / cache.delete / etc."
+                "match_path is an fnmatch glob — use 'src/**' for Angular, "
+                "'services/**' for Python. No match_path = scan both."
             ),
             "inputSchema": {
                 "type": "object",

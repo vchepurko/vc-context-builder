@@ -24,6 +24,7 @@ from __future__ import annotations
 import ast
 import fnmatch
 import os
+import re
 from collections.abc import Iterable
 from typing import Any, Dict, List, Optional
 
@@ -43,12 +44,87 @@ IGNORE_DIRS = {
 }
 
 
+_TS_EXTS = frozenset({".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"})
+
+# Heuristic: detect enclosing TS method/function by scanning forward.
+# Matches: `function name(`, `async name(`, `methodName(` at start of line,
+# `name = (` arrow, or class `name(` shorthand.
+_TS_FN_OPEN = re.compile(
+    r"(?:(?:async\s+)?function\s+(\w+)\s*\(|"
+    r"(?:(?:public|private|protected|static|override|async)\s+)*(\w+)\s*\([^)]*\)\s*(?::\s*\S+\s*)?\s*\{|"
+    r"(?:const|let)\s+(\w+)\s*=\s*(?:async\s+)?\([^)]*\)\s*(?::\s*\S+\s*)?\s*=>)"
+)
+
+
 def _iter_python_files(project_root: str) -> Iterable[str]:
     for cur, dirs, files in os.walk(project_root):
         dirs[:] = [d for d in dirs if d not in IGNORE_DIRS]
         for f in files:
             if f.endswith(".py"):
                 yield os.path.join(cur, f)
+
+
+def _iter_ts_files(project_root: str) -> Iterable[str]:
+    for cur, dirs, files in os.walk(project_root):
+        dirs[:] = [d for d in dirs if d not in IGNORE_DIRS]
+        for f in files:
+            if os.path.splitext(f)[1].lower() in _TS_EXTS:
+                yield os.path.join(cur, f)
+
+
+def _find_ts_call_sites(
+    project_root: str,
+    callable_name: str,
+    match_path: Optional[str] = None,
+    include_tests: bool = False,
+) -> List[Dict[str, Any]]:
+    """Regex-based call-site finder for TypeScript/JavaScript.
+
+    Matches ``name(`` and ``.name(`` (method and free-function calls).
+    For dotted names like ``"service.launch"``, matches the full
+    ``service.launch(`` chain as well as the bare ``launch(`` leaf so
+    injected-service calls are found without knowing the variable name.
+    """
+    name_part = callable_name.split(".")[-1]
+    call_re = re.compile(r"(?<!\w)" + re.escape(name_part) + r"\s*\(")
+
+    out: List[Dict[str, Any]] = []
+    for full in _iter_ts_files(project_root):
+        rel = os.path.relpath(full, project_root).replace(os.sep, "/")
+        if not include_tests and (".spec." in rel or ".test." in rel or "/tests/" in rel):
+            continue
+        if match_path and not fnmatch.fnmatch(rel, match_path):
+            continue
+        try:
+            with open(full, encoding="utf-8", errors="replace") as fh:
+                lines = fh.readlines()
+        except OSError:
+            continue
+
+        current_fn = "<module>"
+        for lineno, line in enumerate(lines, 1):
+            stripped = line.strip()
+            # Track enclosing function context (forward scan).
+            fn_m = _TS_FN_OPEN.search(line)
+            if fn_m:
+                found = next((g for g in fn_m.groups() if g), None)
+                if found:
+                    current_fn = found
+            # Skip imports, exports, and comment-only lines.
+            if stripped.startswith(("import ", "export {", "//", "* ", "/*", " *")):
+                continue
+            if call_re.search(line):
+                out.append(
+                    {
+                        "file": rel,
+                        "line": lineno,
+                        "function": current_fn,
+                        "raw": stripped[:120],
+                    }
+                )
+
+    out.sort(key=lambda r: (r["file"], r["line"]))
+    return out
 
 
 def _build_parents(tree: ast.AST) -> Dict[int, ast.AST]:
@@ -107,59 +183,83 @@ def find_call_sites(
     project_root: str,
     callable_name: str,
     match_path: Optional[str] = None,
+    include_tests: bool = False,
 ) -> List[Dict[str, Any]]:
-    """Scan every ``.py`` file under ``project_root`` and return the
-    list of call sites where ``callable_name`` is invoked.
+    """Scan source files and return every call site where ``callable_name``
+    is invoked.
+
+    Auto-detects language from ``match_path`` extension or project layout:
+    - ``*.py`` / ``services/**`` → Python AST (precise, zero false positives).
+    - ``*.ts`` / ``src/**`` / ``*.tsx`` etc. → TypeScript regex scanner.
+    - No ``match_path`` → scans both and merges results.
 
     Each record: ``{file, line, function, raw}``.
-    * ``function`` — name of the enclosing function/coroutine, or
-      ``"<module>"`` for module-level calls.
-    * ``raw`` — first 120 chars of the call expression (``ast.unparse``).
-
-    ``callable_name`` accepts ``"foo"`` (matches any ``foo()`` /
-    ``x.foo()`` call), or ``"x.foo"`` / ``"a.b.c"`` (matches the full
-    suffix). Empty input → empty list.
-
-    ``match_path`` — optional fnmatch-style glob to restrict the scan
-    (e.g. ``"services/**"`` or ``"bot/handlers/*.py"``).
+    ``callable_name`` accepts ``"foo"`` (any ``foo()`` / ``x.foo()``)
+    or ``"x.foo"`` / ``"a.b.c"`` (full suffix match).
     """
     if not callable_name:
         return []
-    target_parts = callable_name.split(".")
+
+    # Determine which languages to scan.
+    want_py = True
+    want_ts = True
+    if match_path:
+        ext = os.path.splitext(match_path)[1].lower()
+        if ext == ".py":
+            want_ts = False
+        elif ext in _TS_EXTS:
+            want_py = False
+        elif any(seg in match_path for seg in ("src/", "app/", "libs/", "projects/")):
+            # Angular / TS project layout hints.
+            want_py = False
 
     out: List[Dict[str, Any]] = []
-    for full in _iter_python_files(project_root):
-        rel = os.path.relpath(full, project_root).replace(os.sep, "/")
-        if match_path and not fnmatch.fnmatch(rel, match_path):
-            continue
-        try:
-            with open(full, encoding="utf-8") as fh:
-                source = fh.read()
-            tree = ast.parse(source)
-        except (OSError, SyntaxError):
-            continue
 
-        parents = _build_parents(tree)
-        for node in ast.walk(tree):
-            if not isinstance(node, ast.Call):
+    if want_py:
+        target_parts = callable_name.split(".")
+        for full in _iter_python_files(project_root):
+            rel = os.path.relpath(full, project_root).replace(os.sep, "/")
+            if not include_tests and rel.startswith("tests/"):
                 continue
-            if not _matches(node, target_parts):
+            if match_path and not fnmatch.fnmatch(rel, match_path):
                 continue
             try:
-                raw = ast.unparse(node)
-            except Exception:
-                raw = "?"
-            if len(raw) > 120:
-                raw = raw[:117] + "..."
-            fn = _enclosing_function(parents, node) or "<module>"
-            out.append(
-                {
-                    "file": rel,
-                    "line": getattr(node, "lineno", 0),
-                    "function": fn,
-                    "raw": raw,
-                }
+                with open(full, encoding="utf-8") as fh:
+                    source = fh.read()
+                tree = ast.parse(source)
+            except (OSError, SyntaxError):
+                continue
+            parents = _build_parents(tree)
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.Call):
+                    continue
+                if not _matches(node, target_parts):
+                    continue
+                try:
+                    raw = ast.unparse(node)
+                except Exception:
+                    raw = "?"
+                if len(raw) > 120:
+                    raw = raw[:117] + "..."
+                fn = _enclosing_function(parents, node) or "<module>"
+                out.append(
+                    {
+                        "file": rel,
+                        "line": getattr(node, "lineno", 0),
+                        "function": fn,
+                        "raw": raw,
+                    }
+                )
+
+    if want_ts:
+        out.extend(
+            _find_ts_call_sites(
+                project_root,
+                callable_name,
+                match_path=match_path,
+                include_tests=include_tests,
             )
+        )
 
     out.sort(key=lambda r: (r["file"], r["line"]))
     return out
