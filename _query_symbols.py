@@ -618,16 +618,24 @@ class _QuerySymbolsMixin:
         index = self._build_reverse_index()
         seen: Dict[str, Dict[str, str]] = {}
 
-        # Direct hits on the symbol name.
+        # Direct hits on the symbol name in deps index.
         for hit in index.get(symbol, []):
             seen[hit["file"]] = hit
-        # Hits on the defining package — only when we know it.
-        if target_pkg:
-            for hit in index.get(target_pkg, []):
-                # Don't list the defining file as its own caller.
-                if symbol_entry and hit["file"] == symbol_entry.get("file"):
-                    continue
+
+        # Language-aware caller lookup:
+        # - TypeScript/JS: grep import lines for symbol name (precise).
+        #   Package-level heuristic (target_pkg='src') is too broad for
+        #   Angular projects — any file importing from 'src/' would match.
+        # - Python: use package-level reverse-dep index (fast, good enough).
+        if symbol_entry and symbol_entry.get("file", "").endswith((".ts", ".tsx", ".js", ".jsx")):
+            for hit in self._find_ts_importers(symbol, include_tests=include_tests):
                 seen.setdefault(hit["file"], hit)
+        else:
+            if target_pkg:
+                for hit in index.get(target_pkg, []):
+                    if symbol_entry and hit["file"] == symbol_entry.get("file"):
+                        continue
+                    seen.setdefault(hit["file"], hit)
 
         callers = sorted(seen.values(), key=lambda r: r["file"])
         return filter_test_records(callers, include_tests=include_tests)
@@ -791,6 +799,46 @@ class _QuerySymbolsMixin:
             bucket.sort(key=lambda r: r["file"])
         self._reverse_deps = index
         return index
+
+    _TS_IGNORE_DIRS = frozenset({
+        ".git", "node_modules", "vendor", "__pycache__", "dist", "build",
+        ".venv", "venv", ".ai-context", ".vc-context",
+    })
+    _TS_EXTS = frozenset({".ts", ".tsx", ".js", ".jsx", ".mjs"})
+
+    def _find_ts_importers(
+        self,
+        symbol: str,
+        *,
+        include_tests: bool = False,
+    ) -> List[Dict[str, str]]:
+        """Grep all TS/JS files for ``import ... SymbolName ...`` lines.
+
+        Returns ``[{file, kind}]`` — much more precise than the
+        package-level heuristic for Angular/TS projects where a broad
+        top-level dir like ``src`` matches every consumer.
+        """
+        import_re = re.compile(r"\bimport\b[^;]*\b" + re.escape(symbol) + r"\b")
+        results: List[Dict[str, str]] = []
+        for cur, dirs, files in os.walk(self.project_root):
+            dirs[:] = [d for d in dirs if d not in self._TS_IGNORE_DIRS]
+            for fname in files:
+                if os.path.splitext(fname)[1].lower() not in self._TS_EXTS:
+                    continue
+                full = os.path.join(cur, fname)
+                rel = os.path.relpath(full, self.project_root).replace(os.sep, "/")
+                if not include_tests and (".spec." in rel or ".test." in rel):
+                    continue
+                try:
+                    with open(full, encoding="utf-8", errors="replace") as fh:
+                        for line in fh:
+                            if import_re.search(line):
+                                results.append({"file": rel, "kind": "file"})
+                                break
+                except OSError:
+                    continue
+        results.sort(key=lambda r: r["file"])
+        return results
 
     # ------------------------------------------------------------------
     # Internal: cheap symbol-record getter (used by other mixins)
