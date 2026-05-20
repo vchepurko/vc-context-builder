@@ -111,6 +111,11 @@ class _QuerySymbolsMixin:
         include_body: bool = False,
         include_tests: bool = False,
     ) -> Optional[Dict[str, Any]]:
+        # Project-level override via .vc-context/conventions.json:
+        #   { "find_symbol_include_body": true }
+        # Allows opting in without changing every call site.
+        if not include_body and hasattr(self, "_read_convention"):
+            include_body = bool(self._read_convention("find_symbol_include_body", False))
         """Return the symbol record from ``agent_symbols.json``.
 
         Parameters

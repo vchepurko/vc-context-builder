@@ -103,6 +103,23 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
         # oldest half is dropped (dict insertion order, Python 3.7+).
         self._file_cache: Dict[str, Tuple[float, List[str]]] = {}
         self._FILE_CACHE_MAX = 64
+        # Cached conventions.json values — keyed by setting name.
+        self._conventions_cache: Optional[Dict[str, Any]] = None
+
+    def _read_convention(self, key: str, default: Any = None) -> Any:
+        """Return a value from ``.vc-context/conventions.json``.
+
+        Cached after the first read. Call ``invalidate_caches()`` to
+        force a re-read (e.g. after the user edits the file).
+        """
+        if self._conventions_cache is None:
+            conv_path = os.path.join(self.project_root, ".vc-context", "conventions.json")
+            try:
+                with open(conv_path, encoding="utf-8") as fh:
+                    self._conventions_cache = json.load(fh)
+            except (OSError, json.JSONDecodeError):
+                self._conventions_cache = {}
+        return self._conventions_cache.get(key, default)
 
     # ------------------------------------------------------------------
     # Cache invalidation — used after an in-process rebuild so the next
@@ -127,6 +144,7 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
         self._locale_keys = None
         self._docs_index = None
         self._file_cache.clear()
+        self._conventions_cache = None
 
     # ------------------------------------------------------------------
     # Lazy loaders
