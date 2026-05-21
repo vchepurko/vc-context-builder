@@ -218,7 +218,13 @@ def specs() -> List[Dict[str, Any]]:
                 "Find an AngularJS symbol definition in the legacy app/ tree. "
                 "Searches for .component(), .service(), .directive(), "
                 ".filter(), .factory(), .controller() registrations by name. "
-                "Returns {name, kind, file, line} or null. "
+                "Three-pass lookup:\n"
+                "1. Exact case-sensitive match → {name, kind, file, line}.\n"
+                "2. Case-insensitive fallback — handles 'myService' vs 'MyService' "
+                "mismatches. Returns canonical name from file + queried_as field.\n"
+                "3. Not found → {found: false, note, suggestions:[{name, kind, file, line}]} "
+                "with up to 5 closest AJS registrations by substring/prefix similarity. "
+                "Never returns null — always actionable.\n\n"
                 "Use this instead of find_symbol for AJS symbols — "
                 "find_symbol has a 54%+ miss rate on the app/ directory."
             ),
@@ -228,7 +234,8 @@ def specs() -> List[Dict[str, Any]]:
                     "name": {
                         "type": "string",
                         "description": (
-                            "AngularJS symbol name as registered (e.g. 'userProfileMenu')."
+                            "AngularJS symbol name as registered (e.g. 'userProfileMenu'). "
+                            "Case-insensitive fallback is applied automatically."
                         ),
                     },
                 },

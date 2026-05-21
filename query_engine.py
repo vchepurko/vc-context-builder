@@ -1380,45 +1380,125 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
         import re as _re
 
         kinds = ["component", "service", "directive", "filter", "factory", "controller"]
-        pattern = _re.compile(
-            r"\.\s*(" + "|".join(kinds) + r")\s*\(\s*['\"]" + _re.escape(name) + r"['\"]"
+        _kinds_pat = "|".join(kinds)
+
+        def _make_pattern(sym: str, flags: int = 0) -> "_re.Pattern[str]":
+            return _re.compile(
+                r"\.\s*(" + _kinds_pat + r")\s*\(\s*['\"]" + _re.escape(sym) + r"['\"]",
+                flags,
+            )
+
+        # Collect all candidate files once so we can reuse for fallback passes.
+        def _candidate_files() -> List[str]:
+            paths: List[str] = []
+            app_root = os.path.join(self.project_root, "app")
+            if os.path.isdir(app_root):
+                for dp, dirs, files in os.walk(app_root):
+                    dirs[:] = [d for d in dirs if d not in {"node_modules", "__pycache__"}]
+                    for fn in files:
+                        if fn.endswith((".ts", ".js")):
+                            paths.append(os.path.join(dp, fn))
+            src_root = os.path.join(self.project_root, "src")
+            if os.path.isdir(src_root):
+                for dp, dirs, files in os.walk(src_root):
+                    dirs[:] = [d for d in dirs if d not in {"node_modules", "__pycache__"}]
+                    for fn in files:
+                        if fn.endswith(".ajs.ts") or fn.endswith(".ajs.js"):
+                            paths.append(os.path.join(dp, fn))
+            return paths
+
+        # canonical_pat extracts the actual registered name from the match line.
+        _canonical_pat = _re.compile(
+            r"\.\s*(?:" + _kinds_pat + r")\s*\(\s*['\"](\w+)['\"]"
         )
 
-        def _scan(abs_path: str) -> Optional[Dict[str, Any]]:
+        def _scan_one(abs_path: str, pat: "_re.Pattern[str]", sym: str) -> Optional[Dict[str, Any]]:
             rel = os.path.relpath(abs_path, self.project_root).replace("\\", "/")
             try:
                 with open(abs_path, encoding="utf-8", errors="replace") as fh:
                     for lineno, line in enumerate(fh, 1):
-                        m = pattern.search(line)
+                        m = pat.search(line)
                         if m:
-                            return {"name": name, "kind": m.group(1), "file": rel, "line": lineno}
+                            # Use canonical name from the file (handles case-insensitive hits).
+                            cm = _canonical_pat.search(line)
+                            canonical = cm.group(1) if cm else sym
+                            result = {"name": canonical, "kind": m.group(1), "file": rel, "line": lineno}
+                            if canonical != sym:
+                                result["queried_as"] = sym
+                            return result
             except OSError:
                 pass
             return None
 
-        # Pass 1: app/ — all .ts / .js
-        app_root = os.path.join(self.project_root, "app")
-        if os.path.isdir(app_root):
-            for dirpath, _dirs, files in os.walk(app_root):
-                _dirs[:] = [d for d in _dirs if d not in {"node_modules", "__pycache__"}]
-                for fname in files:
-                    if not fname.endswith((".ts", ".js")):
-                        continue
-                    hit = _scan(os.path.join(dirpath, fname))
-                    if hit:
-                        return hit
+        # Collect files once for all passes.
+        files = _candidate_files()
 
-        # Pass 2: src/ — only *.ajs.ts / *.ajs.js bridge files
-        src_root = os.path.join(self.project_root, "src")
-        if os.path.isdir(src_root):
-            for dirpath, _dirs, files in os.walk(src_root):
-                _dirs[:] = [d for d in _dirs if d not in {"node_modules", "__pycache__"}]
-                for fname in files:
-                    if not (fname.endswith(".ajs.ts") or fname.endswith(".ajs.js")):
-                        continue
-                    hit = _scan(os.path.join(dirpath, fname))
-                    if hit:
-                        return hit
+        # Pass 1: exact case-sensitive match.
+        exact_pat = _make_pattern(name)
+        for fpath in files:
+            hit = _scan_one(fpath, exact_pat, name)
+            if hit:
+                return hit
+
+        # Pass 2: case-insensitive fallback — handles common mistake of passing
+        # "learningObjectRegistration" when the AJS token is "LearningObjectRegistration".
+        ci_pat = _make_pattern(name, _re.IGNORECASE)
+        for fpath in files:
+            hit = _scan_one(fpath, ci_pat, name)
+            if hit:
+                # Use the canonical name from the file, not the query.
+                return hit
+
+        # Pass 3: nothing found — collect all AJS registrations and suggest
+        # the closest ones so the agent can correct the query.
+        all_reg_pat = _re.compile(
+            r"\.\s*(" + _kinds_pat + r")\s*\(\s*['\"](\w+)['\"]"
+        )
+        all_names: List[Dict[str, Any]] = []
+        for fpath in files:
+            rel = os.path.relpath(fpath, self.project_root).replace("\\", "/")
+            try:
+                with open(fpath, encoding="utf-8", errors="replace") as fh:
+                    for lineno, line in enumerate(fh, 1):
+                        m = all_reg_pat.search(line)
+                        if m:
+                            all_names.append({"name": m.group(2), "kind": m.group(1),
+                                              "file": rel, "line": lineno})
+            except OSError:
+                pass
+
+        # Score by substring containment (both directions) then by shared prefix length.
+        query_lower = name.lower()
+
+        def _score(reg_name: str) -> int:
+            rn = reg_name.lower()
+            if query_lower == rn:
+                return 100
+            if query_lower in rn or rn in query_lower:
+                return 50
+            # shared prefix length
+            prefix = 0
+            for a, b in zip(query_lower, rn):
+                if a == b:
+                    prefix += 1
+                else:
+                    break
+            return prefix
+
+        candidates = sorted(all_names, key=lambda r: -_score(r["name"]))
+        top = [r for r in candidates if _score(r["name"]) > 0][:5]
+
+        if top:
+            return {
+                "name": name,
+                "found": False,
+                "note": (
+                    f"No AJS registration found for '{name}'. "
+                    "It may not exist in the legacy app/ tree, or it is an Angular-only symbol. "
+                    "Closest registrations:"
+                ),
+                "suggestions": top,
+            }
 
         return None
 

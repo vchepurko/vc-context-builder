@@ -4,6 +4,7 @@
   "coverage_for_role",
   "devops_card",
   "docs_link_graph",
+  "export_config",
   "find_anti_patterns",
   "find_by_role",
   "find_call_sites",
