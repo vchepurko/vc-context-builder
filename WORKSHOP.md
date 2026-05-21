@@ -106,34 +106,40 @@ Each task answered two ways: MCP tool call vs the equivalent Bash command an age
 
 | # | Task | Difficulty | MCP | Bash | Saved | Speed |
 |---|---|---|---|---|---|---|
-| 1 | Where is a service defined? | easy | 85 T / 1 ms ¹ | 37 T / 1123 ms | n/a ¹ | **87×** |
-| 2 | Find interface by `I`-prefix | easy | 50 T / 1 ms ¹ | 31 T / 639 ms | n/a ¹ | **769×** |
-| 3 | Find symbol by camelCase | easy | 35 T / 1 ms | 31 T / 818 ms | −4 T | **922×** |
-| 4 | Where is a service injected? (DI) | medium | 719 T / 184 ms | 513 T / 22 ms | −206 T | 0.1× ² |
-| 5 | Angular component audit | medium | **96 T** / 1 ms | 600 T / 11 ms | **+504 T** | 14× |
-| 6 | NgModule members | medium | **292 T** / 1 ms | 1307 T / 12 ms | **+1015 T** | 12× |
-| 7 | Find AJS registration | medium | 1 T / 468 ms | 0 T / 1848 ms | — | 4× |
-| 8 | Code health (lint + type + format) | hard | **105 T** / 15 ms | ~1 T / **30,007 ms** | — ³ | **2024×** |
-| 9 | Who uses this service? (whole project) | hard | **283 T** / 3010 ms | 799 T / 278 ms | **+516 T** | 0.1× ⁴ |
+| 1 | Where is a service defined? | easy | 85 T / 7 ms ¹ | 37 T / 875 ms | n/a ¹ | **123×** |
+| 2 | Find interface by `I`-prefix | easy | 50 T / 1 ms ¹ | 31 T / 660 ms | n/a ¹ | **781×** |
+| 3 | Find symbol by camelCase | easy | 35 T / 1 ms | 31 T / 823 ms | −4 T | **808×** |
+| 4 | Where is a service injected? (DI) | medium | 719 T / 194 ms | 513 T / 24 ms | −206 T | 0.1× ² |
+| 5 | Angular component audit | medium | **96 T** / 1 ms | 600 T / 10 ms | **+504 T** | 12× |
+| 6 | NgModule members | medium | **292 T** / 1 ms | 1307 T / 10 ms | **+1015 T** | 8× |
+| 7 | Find AJS registration | medium | 1 T / 405 ms | 0 T / 1892 ms | — | 5× |
+| 8 | Code health (lint + type + format) | hard | **105 T** / 4 ms | ~1 T / **30,005 ms** | — ³ | **6855×** |
+| 9 | Who uses this service? (whole project) | hard | **283 T** / 2875 ms | 799 T / 295 ms | **+516 T** | 0.1× ⁴ |
+| 10 | Full DI inject graph for a module | hard | 2703 T / 9 ms ⁵ | 540 T / 37 ms | −2163 T | 4× |
 
 **Notes:**
 
 ¹ Tasks 1–2: `find_symbol_include_body: true` is set in this project's conventions.json — MCP
 returns the full source body (1912T / 1142T). Without body the response is 85T / 50T.
 This is a deliberate tradeoff: the developer gets source on every lookup without a follow-up read.
-Honest tokens with body: **worse than grep**. Without body: 2× better + 87–769× faster.
+Honest tokens with body: **worse than grep**. Without body: 2× better + 123–781× faster.
 
 ² Task 4: Bash `grep` on a subtree is faster than MCP scanning the same tree for DI patterns.
 MCP returns **structured data** (`{file, line, kind: "di"|"inject"|"call"}`) — Bash returns raw text.
 The agent doesn't need to parse the grep output manually.
 
 ³ Task 8: Bash ran `npm run lint` which takes **30 seconds** and returned only 1 token (timeout truncation).
-MCP `check_health()` ran in 15 ms and returned lint + TypeScript + format results bundled.
-Token count isn't the story here — **time is**: 2024× faster, 30 seconds saved per call.
+MCP `check_health()` ran in 4 ms and returned lint + TypeScript + format results bundled.
+Token count isn't the story here — **time is**: 6855× faster, 30 seconds saved per call.
 
 ⁴ Task 9: `who_calls` builds a reverse-dependency index on the first call (~3s cold).
 Subsequent calls on the same session are instant (cached). Bash grep is faster on first call
 but returns raw import lines the agent has to interpret.
+
+⁵ Task 10: `ng_inject_graph` in **module mode** returns 60 structured records — every injection
+point in the module tree with `{file, line, kind, service}`. Bash `grep` returns 540T of raw
+constructor/inject lines the agent must parse. MCP uses 5× more tokens but the data is immediately
+actionable: 21 unique services identified, each with DI kind and location.
 
 ---
 
@@ -143,8 +149,9 @@ but returns raw import lines the agent has to interpret.
 |---|---|---|---|
 | Component audit | 96 T | 600 T | Reads whole file vs structured facts |
 | Module members | 292 T | 1307 T | Reads whole module vs extracted lists |
-| Code health | 15 ms | 30,000 ms | Pre-wired check runner vs npm overhead |
+| Code health | 4 ms | 30,000 ms | Pre-wired check runner vs npm overhead |
 | Project-wide usage | 283 T | 799 T | Structured + filtered vs raw grep flood |
+| Full module DI graph | 60 records / 9 ms | raw grep / 37 ms | 21 unique services, typed — grep returns lines to parse |
 
 ### Where Bash wins (and why that's expected)
 
@@ -153,6 +160,7 @@ but returns raw import lines the agent has to interpret.
 | Single-line grep (`class Foo`) | Grep returns 1 line; MCP returns full record |
 | DI scan on large subtree | Bash grep is faster for raw file walks |
 | First `who_calls` call | 3s index build vs instant grep |
+| Symbol body lookup | `find_symbol_include_body: true` inflates MCP 20× vs 1-line grep |
 
 ### The body convention tradeoff
 
