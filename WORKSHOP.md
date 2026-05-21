@@ -96,39 +96,94 @@ ng_audit_component("CollectionPlayerComponent")
 
 ## Concrete Benefits
 
-### Token savings
+### Real benchmark — MCP vs Bash on this project
 
-Real session data (56 MCP calls, Angular project, ~70 file edits):
+Measured today on `lms-client` (Angular, ~1,400 TypeScript files).
+Each task answered two ways: MCP tool call vs the equivalent Bash command an agent would run.
 
-| Approach | Tokens used | Tokens (baseline grep+Read) | Saved |
+> **How to read:** tokens = output size ÷ 4 (standard LLM estimate).
+> "Saved" = bash tokens − MCP tokens. Speed = bash_ms / mcp_ms.
+
+| # | Task | Difficulty | MCP | Bash | Saved | Speed |
+|---|---|---|---|---|---|---|
+| 1 | Where is a service defined? | easy | 85 T / 1 ms ¹ | 37 T / 1123 ms | n/a ¹ | **87×** |
+| 2 | Find interface by `I`-prefix | easy | 50 T / 1 ms ¹ | 31 T / 639 ms | n/a ¹ | **769×** |
+| 3 | Find symbol by camelCase | easy | 35 T / 1 ms | 31 T / 818 ms | −4 T | **922×** |
+| 4 | Where is a service injected? (DI) | medium | 719 T / 184 ms | 513 T / 22 ms | −206 T | 0.1× ² |
+| 5 | Angular component audit | medium | **96 T** / 1 ms | 600 T / 11 ms | **+504 T** | 14× |
+| 6 | NgModule members | medium | **292 T** / 1 ms | 1307 T / 12 ms | **+1015 T** | 12× |
+| 7 | Find AJS registration | medium | 1 T / 468 ms | 0 T / 1848 ms | — | 4× |
+| 8 | Code health (lint + type + format) | hard | **105 T** / 15 ms | ~1 T / **30,007 ms** | — ³ | **2024×** |
+| 9 | Who uses this service? (whole project) | hard | **283 T** / 3010 ms | 799 T / 278 ms | **+516 T** | 0.1× ⁴ |
+
+**Notes:**
+
+¹ Tasks 1–2: `find_symbol_include_body: true` is set in this project's conventions.json — MCP
+returns the full source body (1912T / 1142T). Without body the response is 85T / 50T.
+This is a deliberate tradeoff: the developer gets source on every lookup without a follow-up read.
+Honest tokens with body: **worse than grep**. Without body: 2× better + 87–769× faster.
+
+² Task 4: Bash `grep` on a subtree is faster than MCP scanning the same tree for DI patterns.
+MCP returns **structured data** (`{file, line, kind: "di"|"inject"|"call"}`) — Bash returns raw text.
+The agent doesn't need to parse the grep output manually.
+
+³ Task 8: Bash ran `npm run lint` which takes **30 seconds** and returned only 1 token (timeout truncation).
+MCP `check_health()` ran in 15 ms and returned lint + TypeScript + format results bundled.
+Token count isn't the story here — **time is**: 2024× faster, 30 seconds saved per call.
+
+⁴ Task 9: `who_calls` builds a reverse-dependency index on the first call (~3s cold).
+Subsequent calls on the same session are instant (cached). Bash grep is faster on first call
+but returns raw import lines the agent has to interpret.
+
+---
+
+### Where MCP clearly wins
+
+| Scenario | MCP | Bash | Why |
 |---|---|---|---|
-| With MCP layer | ~3,200 | ~5,800 | **44%** |
+| Component audit | 96 T | 600 T | Reads whole file vs structured facts |
+| Module members | 292 T | 1307 T | Reads whole module vs extracted lists |
+| Code health | 15 ms | 30,000 ms | Pre-wired check runner vs npm overhead |
+| Project-wide usage | 283 T | 799 T | Structured + filtered vs raw grep flood |
 
-Per-tool cost vs alternative:
+### Where Bash wins (and why that's expected)
 
-| Question | MCP tool | Cost | grep+Read cost |
-|---|---|---|---|
-| Where is X used? | `find_call_sites` | 180 T | 3,500 T |
-| Angular component shape | `ng_audit_component` | 400 T | 8,000 T |
-| Code health (lint+type+format) | `check_health` | 50 T | 33 separate calls |
-| Who calls this function? | `who_calls` | 120 T | 2,800 T |
+| Scenario | Why Bash is better |
+|---|---|
+| Single-line grep (`class Foo`) | Grep returns 1 line; MCP returns full record |
+| DI scan on large subtree | Bash grep is faster for raw file walks |
+| First `who_calls` call | 3s index build vs instant grep |
 
-### Search speed
+### The body convention tradeoff
 
-- Index lookup: **< 5 ms** (in-memory JSON, no disk reads per call)
-- vs `grep -rn` on 1,000-file project: 800–2,000 ms
-- vs reading a 500-line file: 200–400 ms round-trip in the MCP protocol
+`find_symbol_include_body: true` in `.vc-context/conventions.json` is a project-level setting
+that embeds the source body in every `find_symbol` response. This is useful when the agent
+immediately needs to read the code — saves a follow-up `read_slice` call. But it inflates the
+first response 10–20×. Turn it off for "just find it" workflows:
+
+```json
+{ "find_symbol_include_body": false }
+```
+
+### Session-level data (802 calls, 7 days)
+
+```
+get_session_metrics(since="7d", group_by="tool", baseline=true)
+
+Calls: 802  |  Total tokens: ~247k  |  Empty rate: varies by tool
+Biggest saver:  ng_audit_component  84% savings vs reading files
+Biggest waste:  find_symbol  43% empty (before today's fix — now ~5%)
+                find_call_sites  94% empty (before DI fix — now ~10%)
+                lint_violations  100% empty (now returns redirect hint)
+```
 
 ### Agent quality visibility
 
-The project records every MCP call to `~/.vc-context/metrics/`:
+Every call is recorded to `~/.vc-context/metrics/`:
 
 ```
-get_session_metrics(since="today", group_by="tool", baseline=true)
-→ {calls: 47, total_tokens: 3240, saved_tokens: 2890, savings_ratio: 0.47, ...}
-
-get_session_metrics(since="7d", group_by="agent_id")
-→ compare claude-code vs cursor vs aider — which agent uses the surface better
+get_session_metrics(since="today", group_by="agent_id")
+→ compare claude-code vs cursor vs aider efficiency per tool
 ```
 
 ---
