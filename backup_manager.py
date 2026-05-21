@@ -29,8 +29,6 @@ from typing import Any, Dict, List, Optional, Tuple
 # Files/dirs relative to project_root that are always included if present.
 _STATIC_INCLUDES: List[str] = [
     ".vc-context/conventions.json",
-    ".mcp.json",
-    ".claude/mcp.json",
 ]
 
 # Directory trees to walk and include all files.
@@ -44,6 +42,8 @@ _DIR_INCLUDES: List[str] = [
 _RECURSIVE_FILENAMES: List[str] = [
     "AGENTS.md",
     "CLAUDE.md",
+    ".mcp.json",
+    "mcp.json",
 ]
 
 # Directories to skip during the recursive filename scan.
