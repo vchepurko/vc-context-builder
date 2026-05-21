@@ -248,7 +248,18 @@ class Dispatcher:
         return self.engine.list_modules()
 
     def _lint_violations(self, args: Dict[str, Any]) -> Any:
-        return self.engine.lint_violations()
+        result = self.engine.lint_violations()
+        if not result:
+            return {
+                "violations": [],
+                "note": (
+                    "No custom convention rules configured in "
+                    ".vc-context/conventions.json (rules: [] is the default). "
+                    "For ESLint: use ng_eslint_violations. "
+                    "For TypeScript / format / lint bundle: use check_health."
+                ),
+            }
+        return result
 
     def _find_test(self, args: Dict[str, Any]) -> Any:
         return self.engine.find_test(str(args.get("symbol", "")))

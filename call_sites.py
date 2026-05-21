@@ -80,13 +80,25 @@ def _find_ts_call_sites(
 ) -> List[Dict[str, Any]]:
     """Regex-based call-site finder for TypeScript/JavaScript.
 
-    Matches ``name(`` and ``.name(`` (method and free-function calls).
+    Matches:
+    - ``name(`` / ``.name(`` — direct function/method calls
+    - ``inject(Name)`` — Angular functional injection
+    - ``: Name`` in constructor params — Angular constructor DI
     For dotted names like ``"service.launch"``, matches the full
     ``service.launch(`` chain as well as the bare ``launch(`` leaf so
     injected-service calls are found without knowing the variable name.
     """
     name_part = callable_name.split(".")[-1]
     call_re = re.compile(r"(?<!\w)" + re.escape(name_part) + r"\s*\(")
+    # Angular functional injection: inject(ClassName) or inject(ClassName, ...)
+    inject_re = re.compile(r"\binject\(\s*" + re.escape(name_part) + r"\b")
+    # Constructor DI: private|public|protected|readonly varName: ClassName
+    # Also bare `: ClassName` / `: ClassName,` / `: ClassName)` in ctor args.
+    di_re = re.compile(
+        r"(?:(?:private|public|protected|readonly)\s+\w+|@\w+\([^)]*\)\s*\w+)\s*:\s*"
+        + re.escape(name_part)
+        + r"\b"
+    )
 
     out: List[Dict[str, Any]] = []
     for full in _iter_ts_files(project_root):
@@ -113,12 +125,20 @@ def _find_ts_call_sites(
             # Skip imports, exports, and comment-only lines.
             if stripped.startswith(("import ", "export {", "//", "* ", "/*", " *")):
                 continue
+            matched_kind: Optional[str] = None
             if call_re.search(line):
+                matched_kind = "call"
+            elif inject_re.search(line):
+                matched_kind = "inject"
+            elif di_re.search(line):
+                matched_kind = "di"
+            if matched_kind:
                 out.append(
                     {
                         "file": rel,
                         "line": lineno,
                         "function": current_fn,
+                        "kind": matched_kind,
                         "raw": stripped[:120],
                     }
                 )

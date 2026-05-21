@@ -150,6 +150,17 @@ class _QuerySymbolsMixin:
         symbols = self._load_symbols()
         entry = symbols.get(name)
         if entry is None:
+            # Case-insensitive fallback — handles camelCase mismatches and
+            # lowercase queries like "collectionPlayerStateService".
+            lower = name.lower()
+            for k, v in symbols.items():
+                if k.lower() == lower:
+                    entry = v
+                    break
+        if entry is None and name.startswith("I") and len(name) > 1 and name[1].isupper():
+            # Strip leading I for interface names: IMyService → MyService.
+            entry = symbols.get(name[1:])
+        if entry is None:
             return None
         if not include_tests and is_test_path(entry.get("file")):
             return None
