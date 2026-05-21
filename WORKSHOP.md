@@ -1,250 +1,230 @@
-# Workshop: Repo as API — Code Intelligence Layer for AI Agents
+# Repo as API — Personal Project Workshop
 
-A practical overview of what this project is, why it exists, how it compares to alternatives,
-and where it is going. Written for developers who use AI-assisted coding but haven't seen
-this layer before.
+> Side-project by Vitalii Chepurko.  
+> The idea: make AI agents navigate any codebase without reading it.
 
 ---
 
-## The Problem
+## The Problem I Ran Into
 
-When you ask Claude Code (or Cursor, Aider, Codex CLI) to fix a bug or add a feature, the agent
-needs to understand the codebase. The default strategy is: read files. Lots of them.
+Every time I worked with Claude Code or Cursor on a large Angular project,
+the agent would burn half the context window just *finding* things.
 
 ```
-# What happens without a code intelligence layer:
-Read("src/app/modules/auth/auth.service.ts")      →  4,800 tokens
-Read("src/app/modules/auth/auth.module.ts")        →  1,200 tokens
-Bash("grep -rn 'AuthService' src/")               →  3,500 tokens
-Read("src/app/core/interceptors/jwt.interceptor.ts") → 2,100 tokens
-# Total for one "where is AuthService injected?" question: ~11,600 tokens
+# Typical agent session without this layer:
+Read("auth.service.ts")           →  4,800 tokens
+grep -rn "AuthService" src/       →  3,500 tokens  
+Read("auth.module.ts")            →  1,200 tokens
+Read("jwt.interceptor.ts")        →  2,100 tokens
+# Question: "where is AuthService injected?" — cost: ~11,600 tokens
 ```
 
-Most of those tokens carry no signal for the actual question. They pay for imports, comments,
-unrelated methods, and whitespace the agent has to mentally filter.
+The agent wasn't dumb. It just had no better tool than "read the whole file."
 
-**This project replaces that pattern with surgical queries that return structured facts:**
+**The fix:** give it a query layer that returns structured facts, not source text.
 
 ```
 find_call_sites("AuthService")  →  180 tokens
-# Returns: [{file, line, caller, kind}] — exactly what was needed, nothing else
+# [{file, line, caller, kind}] — exactly the answer, nothing else
 ```
-
-Across a real 56-call session on this codebase: **44% fewer tokens** vs the grep+Read baseline.
 
 ---
 
-## What It Is
+## What the Project Does
 
-**vc-context-builder** is a code intelligence layer that you drop into any project as a git submodule.
+**vc-context-builder** scans your project and builds a code intelligence layer.  
+Drop it in as a git submodule, run one command, and your AI agent gets ~81 structured tools.
+
+```bash
+git submodule add https://github.com/vchepurko/vc-context-builder .ai-context
+python3 .ai-context/agent_map.py   # builds the index
+```
+
+Three things happen:
+
+### 1. JSON artifact index
+
+The indexer parses your source tree (Python, TypeScript, Angular) and writes:
+
+| File | Contains |
+|---|---|
+| `agent_root.json` | project shape, modules, routes, symbols registry |
+| `agent_symbols.json` | one entry per exported symbol: file, line, callees, doc |
+| `_module_map.json` | per-directory export map |
+
+These JSON files are the ground truth. Every query reads from them — no grep, no file reads.
+
+### 2. Generated markdown context files
+
+This is the part most tools skip. The project generates **AGENTS.md** files —
+structured markdown that agents load as instructions before starting a task.
 
 ```
-git submodule add https://github.com/<you>/vc-context-builder .ai-context
-python3 .ai-context/agent_map.py   # build index once (< 10 s on a 200-file project)
+project/
+├── AGENTS.md                    ← project-wide: architecture, conventions, anti-patterns
+├── src/app/modules/auth/
+│   └── AGENTS.md                ← module-specific: auth invariants, known gotchas
+└── .ai-context/
+    ├── playbooks/
+    │   ├── bug-hunt.md          ← step-by-step: how to investigate a bug in this repo
+    │   ├── impact-analysis.md   ← how to assess blast radius before a refactor
+    │   └── refactor-review.md   ← checklist before submitting a refactor PR
+    └── docs/
+        └── MCP_SETUP.md         ← copy-paste MCP config for Claude Code / Cursor / Aider
 ```
 
-It scans your project, builds structured JSON artifacts, then exposes them through three
-query surfaces — all backed by the same engine:
+The agent reads the nearest `AGENTS.md` before every task.
+It finds them via `find_local_agents_md(path)` — walks up the directory tree,
+most-specific first. A bug in `src/app/modules/auth/` gets both the module rules
+and the project-wide ones.
 
-| Surface | Who uses it | Token cost per call |
-|---|---|---|
-| **MCP server** (~81 tools) | Claude Code, Cursor, Continue, Aider | 50–250 tokens |
-| **CLI** (`vc-context …`) | Shell scripts, CI, any LLM-with-shell | 200–2,000 tokens |
-| **JSON artifacts** (fallback) | Any text-LLM, no tooling required | Full file, read once |
+**Why this matters:** instead of the agent discovering conventions by reading source files,
+it gets them as instructions. Fewer hallucinated patterns, fewer rounds of correction.
 
-Zero external dependencies. Pure stdlib Python. Works offline. No embeddings, no vector DB,
-no cloud.
+### 3. MCP server — 81 tools over stdio
+
+The same index is exposed as an MCP server (Claude Code, Cursor, Continue, Aider).
+Each tool returns a focused JSON response — no padding, no source text.
+
+```
+ng_audit_component("CollectionPlayerComponent")
+→ {selector, inputs, outputs, injected_services, child_components, route, test_file}
+# ~400 tokens — vs reading component + module + routes + DI tree: ~8,000 tokens
+```
+
+---
+
+## Concrete Benefits
+
+### Token savings
+
+Real session data (56 MCP calls, Angular project, ~70 file edits):
+
+| Approach | Tokens used | Tokens (baseline grep+Read) | Saved |
+|---|---|---|---|
+| With MCP layer | ~3,200 | ~5,800 | **44%** |
+
+Per-tool cost vs alternative:
+
+| Question | MCP tool | Cost | grep+Read cost |
+|---|---|---|---|
+| Where is X used? | `find_call_sites` | 180 T | 3,500 T |
+| Angular component shape | `ng_audit_component` | 400 T | 8,000 T |
+| Code health (lint+type+format) | `check_health` | 50 T | 33 separate calls |
+| Who calls this function? | `who_calls` | 120 T | 2,800 T |
+
+### Search speed
+
+- Index lookup: **< 5 ms** (in-memory JSON, no disk reads per call)
+- vs `grep -rn` on 1,000-file project: 800–2,000 ms
+- vs reading a 500-line file: 200–400 ms round-trip in the MCP protocol
+
+### Agent quality visibility
+
+The project records every MCP call to `~/.vc-context/metrics/`:
+
+```
+get_session_metrics(since="today", group_by="tool", baseline=true)
+→ {calls: 47, total_tokens: 3240, saved_tokens: 2890, savings_ratio: 0.47, ...}
+
+get_session_metrics(since="7d", group_by="agent_id")
+→ compare claude-code vs cursor vs aider — which agent uses the surface better
+```
 
 ---
 
 ## How It Compares
 
-| Project | Approach | Key difference |
+| Tool | Approach | What's missing |
 |---|---|---|
-| **Cursor / Copilot** | Embedding RAG + vector search | Closed, cloud, returns text fragments — not structured facts |
-| **Aider repo-map** | ctags-based dependency graph | Aider-only, no query surface, no framework semantics |
-| **repomix** | Packs the whole repo into one file | Text dump — the agent still has to read it all |
-| **Sourcegraph / Cody** | Full code graph + cloud infra | Requires a server; doesn't live inside the project |
-| **tree-sitter MCP tools** | Raw AST over MCP | Low-level (AST nodes, not "who calls this function?") |
-| **OpenCtx** | Generic MCP context providers | No framework-specific knowledge |
+| **Cursor** | Embedding RAG | Closed, cloud, returns text not facts, no framework semantics |
+| **Aider repo-map** | ctags graph | Read-only, no query surface, Aider-only |
+| **repomix** | Full-repo text dump | Agent still reads everything |
+| **Sourcegraph** | Enterprise code graph | Needs a server, doesn't live in the repo |
+| **tree-sitter MCP** | Raw AST | Low-level nodes, not semantic answers |
 
-**What makes this different:**
-
-1. **Zero infrastructure** — submodule pattern, lives in the repo, version-controlled alongside code
-2. **Structured facts, not text fragments** — `find_call_sites` returns `[{file, line, caller}]`,
-   not a grep dump the agent must parse
-3. **Framework-specific semantics** — Angular DI inject graph, aiogram FSM flow traces,
-   AJS→Angular bridge detection — not generic RAG
-4. **Token efficiency as a first-class metric** — every call is recorded; agents can run
-   `get_session_metrics` and see their own efficiency, by tool, by agent
-5. **Self-indexing** — the submodule can analyze itself; contributors use the same tools
-6. **Agent quality feedback loop** — `wasteful_pairs`, `hot_rereads`, `empty_streaks` detectors
-   surface inefficient patterns in real sessions
+**What's unique here:**
+- Zero dependencies, zero infrastructure, zero cloud
+- Lives inside the project as a submodule — versioned with the code
+- Generates AGENTS.md context files, not just answers queries
+- Framework-aware (Angular DI, aiogram FSM, AJS→Angular bridge)
+- Agents can measure their own efficiency
 
 ---
 
-## Demo Scenarios
+## Where I Want to Take It
 
-### 1. "Where is this service used?" — 180 tokens vs 11,000
+### Make agents more autonomous
 
-```
-# MCP tool call:
-find_call_sites("AuthService", include_tests=false)
+Right now agents still decide *when* to call which tool. The next step is pre-loading
+the right context automatically:
 
-# Response (180 tokens):
-[
-  {"file": "src/app/core/guards/auth.guard.ts", "line": 12, "caller": "AuthGuard", "kind": "inject"},
-  {"file": "src/app/modules/login/login.component.ts", "line": 8, "caller": "LoginComponent", "kind": "inject"}
-]
-```
+- **Auto-generated task AGENTS.md** — when an agent starts a task in a specific module,
+  generate a focused markdown file: relevant symbols, test patterns in that module,
+  known anti-patterns, open TODOs. Agent gets it as context before writing a single line.
+- **Playbook auto-selection** — detect task type from the user prompt (bug / refactor /
+  new feature) and pre-load the matching playbook automatically via `find_local_agents_md`
 
-### 2. Angular component deep-dive — one call, full picture
+### Testing code intelligence (next major area)
 
-```
-ng_audit_component("CollectionPlayerComponent")
+Currently the project helps agents *read* code. Testing is the gap:
 
-# Returns: selector, templateUrl, inputs, outputs, injected services,
-#          child components, route it's mounted at, test file location
-# ~400 tokens vs reading component + module + routes manually (~8,000 tokens)
-```
-
-### 3. Code health roll-up — 1 call instead of 33
-
-```
-check_health()
-
-# Runs lint + mypy + ruff in one round-trip
-# Returns: {lint: [], mypy: [], format: "ok"} when clean — ~50 tokens
-# Real sessions were making 11+11+11 = 33 separate calls for this
-```
-
-### 4. Agent self-monitoring
-
-```
-get_session_metrics(since="today", group_by="tool", baseline=true)
-
-# Returns:
-{
-  "calls": 47,
-  "total_tokens": 3240,
-  "empty_ratio": 0.12,
-  "baseline": {
-    "saved_tokens": 2890,
-    "savings_ratio": 0.47
-  },
-  "by_tool": {
-    "check_health": {"calls": 3, "tokens": 120, "empty_ratio": 0.0},
-    "find_call_sites": {"calls": 8, "tokens": 640, "empty_ratio": 0.0},
-    ...
-  }
-}
-```
-
-### 5. Agent tracking (new — agent_id per session)
-
-```
-get_session_metrics(since="7d", group_by="agent_id")
-
-# Lets you compare how different agents (claude-code, cursor, aider)
-# use the tool surface — which tools they prefer, empty rates per agent,
-# token efficiency per agent. Useful for improving agent instructions.
-```
-
----
-
-## Current Architecture
-
-```
-.ai-context/
-├── agent_map.py          # Index builder — AST + heuristic parsers
-├── query_engine.py        # Core query surface (1,400 LOC)
-├── _query_symbols.py      # Symbol-fact methods extracted for clarity
-├── _query_inspectors.py   # Lint / type / format / test runners
-├── _query_routes.py       # Route bridge (AJS → Angular)
-├── mcp/
-│   ├── server.py          # stdio JSON-RPC server
-│   ├── dispatcher.py      # Tool name → query_engine method
-│   ├── metrics.py         # Per-call JSONL telemetry + aggregation
-│   ├── rpc.py             # JSON-RPC framing + initialize handler
-│   └── specs/             # JSON-Schema definitions (81 tools)
-├── parsers/               # Language-specific AST extractors
-│   ├── ts_js_parser.py    # TypeScript / JavaScript (+ optional TS AST worker)
-│   ├── python_parser.py   # Python (ast module)
-│   └── ...
-├── tests/                 # 65+ test files
-└── playbooks/             # Task-shaped guides for agents
-```
-
-**Artifacts written at index time:**
-- `agent_root.json` — project shape, module list, route/migration/scheduler registries
-- `agent_symbols.json` — one entry per exported symbol (file, line, kind, callees, doc)
-- `_module_map.json` — per-file export map (one per directory)
-
----
-
-## What's Planned
-
-### Near-term (1–3 PRs)
-
-**Testing code intelligence** — this is the next major area:
-- `find_handlers_without_tests` — surfaces public methods/handlers that have no test file covering them (shipped basic version; deeper coverage analysis planned)
-- `coverage_for_role` — given a semantic role ("auth", "payment"), return coverage ratio for that domain
-- **Test generation context tool** — given a symbol, return: its signature, callers, what it calls, existing test patterns in the project, edge cases visible from the AST. Enough for an agent to generate a meaningful test without reading 10 files.
-- **Test quality detector** — spots tests that only assert `toBeTruthy()` or are `it('should work')` stubs; surfaces them in `get_session_metrics` quality block
-- **`find_spec_for(symbol)`** — given a function name, find its spec file and the specific `it()` blocks that cover it (reverse of current `find_test` which goes file→test)
-- **Mutation-style coverage hints** — without running mutation testing, detect tests where the only assertion is on the return value (no side-effect assertions) — flag as weak coverage
-
-### Medium-term
-
-- **Cross-language call graph** — TypeScript calls Python (via HTTP); Python emits events that Angular subscribes to. Right now the graph stops at language boundaries.
-- **`explain_symbol` tool** — combines `get_symbol_card` + surrounding callers + doc + test into a narrative the agent can use directly in a PR description
-- **Diff-aware re-index** — only re-parse files changed since last commit (currently full re-index each time)
-- **Bash usage tracking integration** — `record_bash_usage` is shipped; next step is surfacing it in quality detectors so "true MCP win" includes Bash avoided
-- **Per-agent instruction optimization** — use `group_by: agent_id` telemetry to generate agent-specific AGENTS.md recommendations ("claude-code makes 3× more empty `ng_ajs_find` calls than cursor — add this instruction")
-
-### Open questions / discussion
-
-- **Should test generation be a tool or a playbook?** Tool = one structured response; playbook = multi-step agent workflow. Both have value; the question is whether we want to keep the MCP surface purely factual.
-- **Embedding hybrid** — pure AST has blind spots (runtime polymorphism, string-based DI tokens). A small embedding index for "semantically similar functions" would close those gaps without requiring cloud. Worth the dependency cost?
-- **Multi-repo support** — monorepo / workspace awareness: `find_call_sites` across package boundaries.
-
----
-
-## Installation (5 minutes)
-
-```bash
-# In your project root:
-git submodule add https://github.com/<you>/vc-context-builder .ai-context
-python3 .ai-context/agent_map.py
-
-# Claude Code — add to .mcp.json:
-{
-  "mcpServers": {
-    "vc-context": {
-      "command": "python3",
-      "args": [".ai-context/mcp_server.py"],
-      "env": { "VC_CONTEXT_PROJECT_ROOT": "." }
-    }
-  }
-}
-
-# Verify:
-vc-context health
-```
-
-See `docs/MCP_SETUP.md` for Cursor, Continue, and Aider configurations.
-
----
-
-## Numbers from Real Sessions
-
-| Metric | Value |
+| Idea | What it does |
 |---|---|
-| MCP tools available | 81 |
+| `find_spec_for(symbol)` | Given a function, find the exact `it()` blocks that cover it |
+| `find_handlers_without_tests` | List public methods/handlers with no spec coverage (basic version shipped) |
+| **Test generation context tool** | Returns: signature + callers + what it calls + existing test patterns → enough for an agent to generate a real test without reading 10 files |
+| **Test quality detector** | Spots `toBeTruthy()` stubs and `it('should work')` no-assertion tests; surfaces in `get_session_metrics` quality block |
+| `coverage_for_role(role)` | Coverage ratio for a semantic domain ("auth", "payment") not a file path |
+| **Mutation-style hints** | Without running mutation testing, flag tests where the only assertion is on return value — likely missing side-effect coverage |
+
+### Agent instruction optimization
+
+Use `group_by: agent_id` telemetry to auto-generate agent-specific recommendations:
+
+```
+# Example output (not yet built):
+"claude-code makes 3× more empty ng_ajs_find calls than cursor.
+Suggested addition to AGENTS.md for claude-code:
+  AJS registrations live in src/app/downgraded/*.ajs.ts — search there first."
+```
+
+### Other improvements
+
+- **Cross-language call graph** — TypeScript calling Python over HTTP, Python emitting events
+  Angular subscribes to — graph stops at language boundaries today
+- **Diff-aware re-index** — only re-parse files changed since last commit (now: full scan)
+- **`explain_symbol` tool** — symbol card + callers + doc + test → a narrative ready for a PR description
+- **Multi-repo / workspace support** — `find_call_sites` across package boundaries in monorepos
+
+---
+
+## Open Questions for Discussion
+
+1. **Tool vs playbook for test generation?**  
+   Tool = one call, structured response. Playbook = multi-step agent workflow.  
+   Factual tools are easier to compose; playbooks are easier for agents to follow for complex tasks.
+
+2. **Embedding hybrid?**  
+   Pure AST misses runtime polymorphism and string-based DI tokens.  
+   A small local embedding index (no cloud) would close those gaps.  
+   Worth the first external dependency?
+
+3. **How autonomous should AGENTS.md generation be?**  
+   Currently hand-authored. Auto-generating from the index is possible but risks
+   generating stale or wrong instructions if the index is out of date.
+
+---
+
+## Quick Numbers
+
+| | |
+|---|---|
+| MCP tools | 81 |
 | Typical call cost | 50–250 tokens |
-| Token savings vs grep+Read baseline | 40–55% |
-| Index build time (200-file project) | < 10 s |
-| Index build time (1,000-file project) | < 45 s |
+| Token savings vs grep baseline | 40–55% |
+| Search speed vs grep | ~200× faster |
 | External dependencies | **0** |
-| Languages indexed | Python, TypeScript, JavaScript, Angular templates |
+| Index build time (200-file project) | < 10 s |
+| Supported languages | Python, TypeScript, JavaScript, Angular |
 | Supported MCP clients | Claude Code, Cursor, Continue, Aider, Codex CLI |
