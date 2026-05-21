@@ -186,21 +186,59 @@ first response 10–20×. Turn it off for "just find it" workflows:
 { "find_symbol_include_body": false }
 ```
 
-### Session-level data (802 calls, 7 days)
+### Real usage data — 1,094 calls over 14 days
+
+Generated with `python3 .ai-context/usage_report.py`:
 
 ```
-get_session_metrics(since="7d", group_by="tool", baseline=true)
-
-Calls: 802  |  Total tokens: ~247k  |  Empty rate: varies by tool
-Biggest saver:  ng_audit_component  84% savings vs reading files
-Biggest waste:  find_symbol  43% empty (before today's fix — now ~5%)
-                find_call_sites  94% empty (before DI fix — now ~10%)
-                lint_violations  100% empty (now returns redirect hint)
+Calls: 1,094  |  Empty: 262 (24%)  |  Tokens used: 558k
 ```
+
+**Tool frequency — top 10:**
+
+| Tool | Calls | Share | Avg T | Empty% | Saved/call |
+|---|---|---|---|---|---|
+| `read_slice` | 370 | 33.8% | 573T | 2% | — ¹ |
+| `find_symbol` | 315 | 28.8% | 179T | 45% ² | +225T |
+| `find_in_file` | 75 | 6.9% | 125T | 25% | — ¹ |
+| `find_symbols` | 34 | 3.1% | 116T | 0% | **+1059T** |
+| `run_check` | 29 | 2.7% | 265T | 0% | — |
+| `lint_violations` | 26 | 2.4% | 688T | 81% ² | — |
+| `find_call_sites` | 20 | 1.8% | 50T | 95% ² | — |
+| `who_calls` | 18 | 1.6% | 2571T | 28% | — |
+| `ng_audit_component` | 16 | 1.5% | 105T | 6% | **+831T** |
+| `ng_ajs_find` | 16 | 1.5% | 13T | 62% ² | — |
+
+**Total token savings from structured tools (positive saved/call × call count):**
+
+| Tool | Calls | Total saved |
+|---|---|---|
+| `find_symbol` | 315 | **+70,981T** |
+| `find_symbols` | 34 | +36,034T |
+| `ng_audit_component` | 16 | +13,309T |
+| `summarise_module` | 9 | +9,815T |
+| `find_test` | 14 | +7,745T |
+| `list_roles` | 9 | +6,502T |
+
+¹ `read_slice` and `find_in_file` have no grep baseline — they're already the minimal read operation. Without them agents read whole files.
+
+² High empty rate — root causes and fixes:
+- `find_symbol` 45% empty → fixed: case-insensitive lookup + I-prefix stripping
+- `find_call_sites` 95% empty → fixed: Angular DI patterns + pre-built index
+- `lint_violations` 81% empty → fixed: redirect hint to `ng_eslint_violations`
+- `ng_ajs_find` 62% empty → next improvement candidate
 
 ### Agent quality visibility
 
-Every call is recorded to `~/.vc-context/metrics/`:
+Every call is recorded to `~/.vc-context/metrics/`. Run the analysis locally:
+
+```bash
+python3 .ai-context/usage_report.py           # all time
+python3 .ai-context/usage_report.py --since 7 # last 7 days
+python3 .ai-context/usage_report.py --md      # markdown output
+```
+
+Or via MCP:
 
 ```
 get_session_metrics(since="today", group_by="agent_id")
