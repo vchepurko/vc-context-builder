@@ -73,20 +73,31 @@ def specs() -> List[Dict[str, Any]]:
         {
             "name": "ng_inject_graph",
             "description": (
-                "For an Angular @Injectable service, list call sites "
-                "across components / services / guards (heuristic: "
-                "constructor params and `inject(Service)` calls in "
-                "scrubbed bodies). Returns [{file, line, kind}] where "
-                "kind is 'constructor' or 'inject'. Confirm by reading "
-                "the source — this is a substring scan, not a full TS "
-                "type-resolver."
+                "DI injection lookup — two modes, auto-detected:\n\n"
+                "**Service mode** (pass a service class name): returns "
+                "every file where that service is injected via "
+                "constructor DI or `inject(ServiceName)`. "
+                "Result: [{file, line, kind, service}] where kind is "
+                "'constructor' or 'inject'.\n\n"
+                "**Module mode** (pass an NgModule class name): returns "
+                "ALL injection points within that module's source tree — "
+                "every `inject(X)` and `constructor(... : X)` across all "
+                "components/services in the module folder. Each record "
+                "includes a `service` field with the injected type name. "
+                "Use this to see the full DI graph of a feature module.\n\n"
+                "Heuristic substring scan — not a full TS type-resolver. "
+                "Returns [] for unknown names."
             ),
             "inputSchema": {
                 "type": "object",
                 "properties": {
                     "service": {
                         "type": "string",
-                        "description": "Service class name.",
+                        "description": (
+                            "Service class name (service mode) or "
+                            "NgModule class name (module mode). "
+                            "Auto-detected."
+                        ),
                     },
                 },
                 "required": ["service"],

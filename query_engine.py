@@ -1072,22 +1072,39 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
         }
 
     def ng_inject_graph(self, service: str) -> List[Dict[str, Any]]:
-        """Heuristic call sites for an Angular service injection.
+        """Heuristic DI injection lookup. Two modes:
 
-        Two patterns are scanned across each module map's source
-        files (regex on the unscrubbed body so the search is fast):
+        **Service mode** (default) — pass a service class name:
+        Returns every file where ``ServiceName`` is injected:
 
         * ``constructor(... : ServiceName)`` — classic DI.
         * ``inject(ServiceName)`` — Angular 14+ functional inject.
 
-        Result is a list of ``{file, line, kind}`` (kind ∈
-        ``constructor`` / ``inject``). Substring scan only — confirm
-        by reading the source. Returns ``[]`` for unknown service.
+        Result: ``[{file, line, kind, service}]``
+        where kind ∈ ``constructor`` / ``inject``.
+
+        **Module mode** — pass an NgModule class name:
+        Returns ALL injection points within that module's source
+        files, grouped by component. Each record also carries a
+        ``service`` field with the injected type name.
+
+        Result: ``[{file, line, kind, service}]`` for every
+        ``inject(X)`` / ``: X`` found in the module's tree.
+
+        Auto-detects which mode to use: if ``service`` is found in
+        ``ng_module_members``, module mode is used; otherwise falls
+        back to service mode (existing behaviour).
         """
         if not service:
             return []
         import re as _re
 
+        # ── Module mode ──────────────────────────────────────────────
+        module_info = self.ng_module_members(service)  # type: ignore[attr-defined]
+        if module_info:
+            return self._ng_inject_graph_for_module(module_info, _re)
+
+        # ── Service mode (original behaviour) ────────────────────────
         ctor_re = _re.compile(r":\s*" + _re.escape(service) + r"\b")
         inject_re = _re.compile(r"\binject\s*\(\s*" + _re.escape(service) + r"\s*[,\)]")
 
@@ -1102,24 +1119,66 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
                     with open(abs_path, encoding="utf-8", errors="replace") as fh:
                         for lineno, raw in enumerate(fh, 1):
                             if ctor_re.search(raw):
-                                out.append(
-                                    {
-                                        "file": rel,
-                                        "line": lineno,
-                                        "kind": "constructor",
-                                    }
-                                )
+                                out.append({"file": rel, "line": lineno,
+                                            "kind": "constructor", "service": service})
                             elif inject_re.search(raw):
-                                out.append(
-                                    {
-                                        "file": rel,
-                                        "line": lineno,
-                                        "kind": "inject",
-                                    }
-                                )
+                                out.append({"file": rel, "line": lineno,
+                                            "kind": "inject", "service": service})
                 except OSError:
                     continue
                 if len(out) >= 200:
+                    return out
+        return out
+
+    def _ng_inject_graph_for_module(
+        self,
+        module_info: Dict[str, Any],
+        _re: Any,
+    ) -> List[Dict[str, Any]]:
+        """Collect all DI injection points in a module's source tree."""
+        module_file: str = module_info.get("file", "")
+        if not module_file:
+            return []
+
+        # Derive the module folder from the module file path.
+        module_dir = os.path.dirname(module_file).replace("\\", "/")
+
+        # Regex: captures the injected type from both patterns.
+        # constructor(private x: TypeName,  or  inject(TypeName)
+        ctor_any_re = _re.compile(
+            r"(?:private|public|protected|readonly)\s+\w+\s*:\s*([A-Z]\w+)"
+        )
+        inject_any_re = _re.compile(r"\binject\s*\(\s*([A-Z]\w+)\s*[,\)]")
+
+        out: List[Dict[str, Any]] = []
+        abs_dir = os.path.join(self.project_root, module_dir)
+
+        for dirpath, dirs, files in os.walk(abs_dir):
+            dirs[:] = [d for d in dirs if d not in {
+                "node_modules", "__pycache__", ".git", "dist", "build"
+            }]
+            for fname in files:
+                if not fname.endswith((".ts", ".tsx")):
+                    continue
+                if ".spec." in fname or ".test." in fname:
+                    continue
+                abs_path = os.path.join(dirpath, fname)
+                rel = os.path.relpath(abs_path, self.project_root).replace("\\", "/")
+                try:
+                    with open(abs_path, encoding="utf-8", errors="replace") as fh:
+                        for lineno, raw in enumerate(fh, 1):
+                            m = ctor_any_re.search(raw)
+                            if m:
+                                out.append({"file": rel, "line": lineno,
+                                            "kind": "constructor", "service": m.group(1)})
+                                continue
+                            m = inject_any_re.search(raw)
+                            if m:
+                                out.append({"file": rel, "line": lineno,
+                                            "kind": "inject", "service": m.group(1)})
+                except OSError:
+                    continue
+                if len(out) >= 500:
                     return out
         return out
 
