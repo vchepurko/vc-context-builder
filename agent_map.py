@@ -403,6 +403,7 @@ class ContextBuilder:
         self._build_test_categories_index()
         self._build_locale_index()
         self._build_docs_index()
+        self._build_di_index()
         self._generate_agent_sop()
         self._save_parse_cache()
         logging.info("Context build complete. Agent SOP is ready.")
@@ -819,6 +820,78 @@ class ContextBuilder:
             )
         except OSError as e:
             logging.error(f"Failed to write docs index: {e}")
+
+    # ------------------------------------------------------------------
+    # Feature: Angular DI injection index
+    # ------------------------------------------------------------------
+
+    DI_INDEX_FILENAME = "agent_di_index.json"
+
+    def _build_di_index(self) -> None:
+        """Scan all .ts files and emit ``agent_di_index.json`` —
+        a map of ``{ServiceClassName: [{file, line, kind}]}`` for every
+        Angular DI injection point (constructor DI and inject()).
+
+        Covers:
+          - ``constructor(private x: ServiceName, ...)``  → kind "di"
+          - ``inject(ServiceName)``                       → kind "inject"
+
+        Used by ``find_call_sites`` as an O(1) fast path instead of
+        scanning files live on every call.
+        """
+        import re as _re
+
+        ctor_di_re = _re.compile(
+            r"(?:private|public|protected|readonly)\s+(?:readonly\s+)?\w+\s*:\s*([A-Z]\w+)\b"
+        )
+        inject_re = _re.compile(r"\binject\s*\(\s*([A-Z]\w+)\s*[,\)]")
+
+        index: Dict[str, List[Dict[str, Any]]] = {}
+
+        ignore = self.ignore_dirs | {"node_modules", ".git", "dist", "build"}
+        for cur, dirs, files in os.walk(self.root_dir):
+            dirs[:] = sorted(d for d in dirs if d not in ignore)
+            for fname in sorted(files):
+                if not fname.endswith(".ts"):
+                    continue
+                if fname.endswith((".spec.ts", ".d.ts")):
+                    continue
+                fpath = os.path.join(cur, fname)
+                rel = self._rel_norm(fpath, self.root_dir)
+                try:
+                    with open(fpath, encoding="utf-8", errors="replace") as fh:
+                        lines = fh.readlines()
+                except OSError:
+                    continue
+                for lineno, line in enumerate(lines, 1):
+                    stripped = line.strip()
+                    if stripped.startswith(("import ", "//", "* ", "/*", " *", "export {")):
+                        continue
+                    for m in inject_re.finditer(line):
+                        svc = m.group(1)
+                        index.setdefault(svc, []).append(
+                            {"file": rel, "line": lineno, "kind": "inject"}
+                        )
+                    for m in ctor_di_re.finditer(line):
+                        svc = m.group(1)
+                        index.setdefault(svc, []).append(
+                            {"file": rel, "line": lineno, "kind": "di"}
+                        )
+
+        ordered = {
+            k: sorted(v, key=lambda x: (x["file"], x["line"]))
+            for k, v in sorted(index.items())
+        }
+        ensure_index_dir(self.root_dir)
+        out_path = index_path(self.root_dir, self.DI_INDEX_FILENAME)
+        try:
+            with open(out_path, "w", encoding="utf-8") as fh:
+                import json as _json
+                _json.dump(ordered, fh, indent=2, ensure_ascii=False)
+                fh.write("\n")
+            logging.info("Wrote DI index: %d services.", len(ordered))
+        except OSError as e:
+            logging.error("Failed to write DI index: %s", e)
 
     def _generate_agent_sop(self) -> None:
         """Generates Standard Operating Procedure for AI Agents."""

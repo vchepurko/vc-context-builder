@@ -20,12 +20,16 @@ No state of its own beyond the class constants below.
 
 from __future__ import annotations
 
+import fnmatch
+import json
 import os
 import re
 from typing import Any, ClassVar, Dict, Iterable, List, Optional, Tuple
 
 from _test_filter import filter_test_records, is_test_path
 from paths import index_read_path as _index_read
+
+_DI_INDEX_FILENAME = "agent_di_index.json"
 
 
 class _QuerySymbolsMixin:
@@ -108,14 +112,17 @@ class _QuerySymbolsMixin:
         name: str,
         *,
         fields: Optional[List[str]] = None,
-        include_body: bool = False,
+        include_body: Optional[bool] = None,
         include_tests: bool = False,
     ) -> Optional[Dict[str, Any]]:
-        # Project-level override via .vc-context/conventions.json:
-        #   { "find_symbol_include_body": true }
-        # Allows opting in without changing every call site.
-        if not include_body and hasattr(self, "_read_convention"):
-            include_body = bool(self._read_convention("find_symbol_include_body", False))
+        # include_body=None means "use project convention".
+        # include_body=False means "explicitly no body" — overrides convention.
+        # include_body=True means "always include body".
+        if include_body is None:
+            if hasattr(self, "_read_convention"):
+                include_body = bool(self._read_convention("find_symbol_include_body", False))
+            else:
+                include_body = False
         """Return the symbol record from ``agent_symbols.json``.
 
         Parameters
@@ -189,7 +196,7 @@ class _QuerySymbolsMixin:
         names: List[str],
         *,
         fields: Optional[List[str]] = None,
-        include_body: bool = False,
+        include_body: Optional[bool] = None,
         include_tests: bool = False,
     ) -> Dict[str, Optional[Dict[str, Any]]]:
         """Batch wrapper — N lookups in one MCP round-trip.
@@ -660,6 +667,24 @@ class _QuerySymbolsMixin:
     # Live-scan: call sites + class shape
     # ------------------------------------------------------------------
 
+    def _load_di_index(self) -> Dict[str, List[Dict[str, Any]]]:
+        """Lazy-load the pre-built Angular DI injection index.
+
+        Returns an empty dict when the index hasn't been built yet —
+        ``find_call_sites`` will fall back to the live scan path.
+        """
+        if not hasattr(self, "_di_index_cache"):
+            path = _index_read(self.project_root, _DI_INDEX_FILENAME)
+            if os.path.isfile(path):
+                try:
+                    with open(path, encoding="utf-8") as fh:
+                        self._di_index_cache: Dict[str, List[Dict[str, Any]]] = json.load(fh)
+                except (OSError, json.JSONDecodeError):
+                    self._di_index_cache = {}
+            else:
+                self._di_index_cache = {}
+        return self._di_index_cache
+
     def find_call_sites(
         self,
         callable_name: str,
@@ -667,21 +692,39 @@ class _QuerySymbolsMixin:
         *,
         include_tests: bool = False,
     ) -> List[Dict[str, Any]]:
-        """Live AST scan: every ``Call(...)`` site whose target matches
-        ``callable_name`` (plain ``"foo"`` or dotted ``"x.y"``).
+        """Every injection / call site for ``callable_name``.
 
-        Optional ``match_path`` is an fnmatch glob to restrict the
-        scan (``"services/**"`` etc.). On-demand — no cached artifact.
+        **Fast path** (O(1)): when ``agent_di_index.json`` is present and
+        the name is an Angular service/class that was indexed, returns
+        pre-built ``di`` + ``inject`` records from the index.  Re-run
+        ``python3 .ai-context/agent_map.py`` after structural changes to
+        refresh the index.
 
-        ``include_tests`` defaults to False — call sites in ``tests/``
-        are usually noise for the "where is this function used?"
-        question. Note: when ``match_path`` is already targeting
-        ``tests/**`` the filter is a no-op (nothing left to drop).
+        **Live scan fallback**: used when the name is not in the index
+        (plain functions, methods, Python callables).  Regex-based walk
+        of the project tree — slower on large trees but always current.
+
+        ``match_path`` is an fnmatch glob applied to file paths in both
+        paths.  ``include_tests`` defaults to False.
         """
+        # --- fast path: pre-built DI index ---
+        di_index = self._load_di_index()
+        if callable_name in di_index:
+            sites: List[Dict[str, Any]] = di_index[callable_name]
+            if match_path:
+                sites = [s for s in sites if fnmatch.fnmatch(s["file"], match_path)]
+            if not include_tests:
+                sites = [
+                    s for s in sites
+                    if not (".spec." in s["file"] or ".test." in s["file"] or "/tests/" in s["file"])
+                ]
+            return sorted(sites, key=lambda r: (r["file"], r["line"]))
+
+        # --- live scan fallback ---
         from call_sites import find_call_sites as _find  # type: ignore[import-not-found]
 
-        sites = _find(self.project_root, callable_name, match_path)
-        return filter_test_records(sites, include_tests=include_tests)
+        sites_live = _find(self.project_root, callable_name, match_path)
+        return filter_test_records(sites_live, include_tests=include_tests)
 
     def inspect_class(self, name: str) -> Optional[Dict[str, Any]]:
         """Resolve a class by name and return its structured summary

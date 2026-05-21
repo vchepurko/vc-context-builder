@@ -83,28 +83,31 @@ class Task:
 def build_tasks(engine: Any) -> List[Task]:
     return [
         # ── EASY ──────────────────────────────────────────────────────────
+        # Tasks 1-2 use include_body=False — the question is "where is it
+        # defined?", not "show me the code". Agents that need the source
+        # can pass include_body=True (or rely on conventions.json default).
         Task(
-            name="Where is a service defined?",
+            name="Where is a service defined? (location only)",
             difficulty="easy",
-            mcp_label="find_symbol('CollectionPlayerStateService')",
+            mcp_label="find_symbol('CollectionPlayerStateService', include_body=False)",
             bash_label="grep -rn 'class CollectionPlayerStateService' src/",
-            mcp_fn=lambda: engine.find_symbol("CollectionPlayerStateService"),
+            mcp_fn=lambda: engine.find_symbol("CollectionPlayerStateService", include_body=False),
             bash_cmd="grep -rn 'class CollectionPlayerStateService' src/",
         ),
         Task(
-            name="Find interface (I-prefix lookup)",
+            name="Find interface by I-prefix (location only)",
             difficulty="easy",
-            mcp_label="find_symbol('ILearningObjectRegistration')",
+            mcp_label="find_symbol('ILearningObjectRegistration', include_body=False)",
             bash_label="grep -rn 'interface ILearningObjectRegistration' src/",
-            mcp_fn=lambda: engine.find_symbol("ILearningObjectRegistration"),
+            mcp_fn=lambda: engine.find_symbol("ILearningObjectRegistration", include_body=False),
             bash_cmd="grep -rn 'interface ILearningObjectRegistration' src/",
         ),
         Task(
-            name="Find symbol by camelCase name",
+            name="Find symbol by camelCase name (location only)",
             difficulty="easy",
-            mcp_label="find_symbol('collectionNavigationService') [lowercase]",
+            mcp_label="find_symbol('collectionNavigationService', include_body=False)",
             bash_label="grep -rn -i 'class collectionnavigationservice' src/",
-            mcp_fn=lambda: engine.find_symbol("collectionNavigationService"),
+            mcp_fn=lambda: engine.find_symbol("collectionNavigationService", include_body=False),
             bash_cmd="grep -rn -i 'class collectionnavigationservice' src/",
         ),
         # ── MEDIUM ────────────────────────────────────────────────────────
