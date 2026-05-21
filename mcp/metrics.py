@@ -164,12 +164,15 @@ _BASELINE_BYTES_PER_TOOL: Dict[str, int] = {
     "trace_fsm_flow": 5000,
     # Templates / Angular
     "find_in_templates": 3000,
+    "ng_ajs_find": 3000,
     "ng_audit_component": 4000,
     "ng_inject_graph": 5000,
     "ng_list_routes": 3000,
+    "ng_module_members": 4000,
     "ng_overview": 6000,
     "ng_route_for_path": 2000,
     "ng_routes_for_component": 2500,
+    "ng_ts_class_shape": 3000,
     "ng_uses_selector": 2500,
     # Notify audit
     "notify_log_search": 3000,
@@ -222,6 +225,11 @@ class MetricsWriter:
     Construction is cheap (just stores paths). The directory is
     created lazily on the first ``record()`` call so importing this
     module never has filesystem side-effects.
+
+    ``agent_id`` is resolved from the ``MCP_AGENT_ID`` environment variable
+    at construction time. If that variable is absent the writer accepts a
+    richer name via :meth:`set_client_info` (called from the ``initialize``
+    handler in ``rpc.py`` using the JSON-RPC ``clientInfo`` field).
     """
 
     def __init__(
@@ -232,6 +240,23 @@ class MetricsWriter:
         self.project_root = project_root
         self.base_dir = base_dir or _default_base_dir()
         self._ensured = False
+        env_agent = os.environ.get("MCP_AGENT_ID", "").strip()
+        self.agent_id: str = env_agent if env_agent else "unknown"
+
+    def set_client_info(self, name: Optional[str], version: Optional[str] = None) -> None:
+        """Update ``agent_id`` from the JSON-RPC ``initialize`` clientInfo.
+
+        Only updates when the id is still "unknown" so an explicit
+        ``MCP_AGENT_ID`` env var always wins.
+        """
+        if self.agent_id != "unknown":
+            return
+        if not name:
+            return
+        label = str(name).strip()
+        if version:
+            label = f"{label}/{str(version).strip()}"
+        self.agent_id = label
 
     def _ensure_dir(self) -> bool:
         if self._ensured:
@@ -266,6 +291,7 @@ class MetricsWriter:
         entry = {
             "ts": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"),
             "tool": tool,
+            "agent_id": self.agent_id,
             "args_keys": sorted(args.keys()) if isinstance(args, dict) else [],
             "args_summary": _args_summary(args),
             "result_bytes": result_bytes,

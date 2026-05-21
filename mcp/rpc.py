@@ -63,6 +63,12 @@ def handle_request(
     is_notification = "id" not in req
 
     if method == "initialize":
+        client_info = params.get("clientInfo") or {}
+        if isinstance(client_info, dict) and dispatcher.metrics_writer is not None:
+            dispatcher.metrics_writer.set_client_info(
+                client_info.get("name"),
+                client_info.get("version"),
+            )
         result: Dict[str, Any] = {
             "protocolVersion": PROTOCOL_VERSION,
             "capabilities": {"tools": {}},

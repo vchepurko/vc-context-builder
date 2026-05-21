@@ -450,7 +450,7 @@ def specs() -> List[Dict[str, Any]]:
                 "latency, and 'wasted' empty results.\n\n"
                 "`since` accepts ``24h`` / ``7d`` / ``today`` / ``all`` "
                 "(default ``today``). `group_by` is one of ``tool`` "
-                "(default), ``hour``, ``empty``.\n\n"
+                "(default), ``hour``, ``empty``, ``agent_id``.\n\n"
                 "Pass `quality: true` to add a `quality` block with "
                 "wasteful round-trips, hot rereads, and empty streaks. "
                 "Detectors are conservative; each finding cites "
@@ -469,7 +469,7 @@ def specs() -> List[Dict[str, Any]]:
                     },
                     "group_by": {
                         "type": "string",
-                        "description": "tool | hour | empty (default tool).",
+                        "description": "tool | hour | empty | agent_id (default tool).",
                     },
                     "quality": {
                         "type": "boolean",

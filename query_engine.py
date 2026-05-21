@@ -1301,13 +1301,19 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
         }
 
     def ng_ajs_find(self, name: str) -> Optional[Dict[str, Any]]:
-        """Find an AngularJS symbol definition in the legacy ``app/`` tree.
+        """Find an AngularJS symbol definition.
 
         Searches for ``.component(name``, ``.service(name``,
-        ``.directive(name``, ``.filter(name``, and ``.factory(name``
-        patterns across every ``*.ts`` and ``*.js`` file under ``app/``.
+        ``.directive(name``, ``.filter(name``, ``.factory(name``, and
+        ``.controller(name`` patterns in two locations:
+
+        * ``app/`` — all ``*.ts`` / ``*.js`` files (legacy AJS tree).
+        * ``src/`` — only ``*.ajs.ts`` / ``*.ajs.js`` files (Angular/AJS
+          bridge files such as downgraded services registered via
+          ``downgradeInjectable``).
+
         Returns ``{name, kind, file, line}`` for the first match, or
-        ``null``. Fills the gap left by ``find_symbol`` which only
+        ``null``.  Fills the gap left by ``find_symbol`` which only
         indexes Angular (``src/``) TypeScript classes.
         """
         if not name:
@@ -1318,29 +1324,43 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
         pattern = _re.compile(
             r"\.\s*(" + "|".join(kinds) + r")\s*\(\s*['\"]" + _re.escape(name) + r"['\"]"
         )
-        app_root = os.path.join(self.project_root, "app")
-        if not os.path.isdir(app_root):
+
+        def _scan(abs_path: str) -> Optional[Dict[str, Any]]:
+            rel = os.path.relpath(abs_path, self.project_root).replace("\\", "/")
+            try:
+                with open(abs_path, encoding="utf-8", errors="replace") as fh:
+                    for lineno, line in enumerate(fh, 1):
+                        m = pattern.search(line)
+                        if m:
+                            return {"name": name, "kind": m.group(1), "file": rel, "line": lineno}
+            except OSError:
+                pass
             return None
-        for dirpath, _dirs, files in os.walk(app_root):
-            _dirs[:] = [d for d in _dirs if d not in {"node_modules", "__pycache__"}]
-            for fname in files:
-                if not fname.endswith((".ts", ".js")):
-                    continue
-                abs_path = os.path.join(dirpath, fname)
-                rel = os.path.relpath(abs_path, self.project_root).replace("\\", "/")
-                try:
-                    with open(abs_path, encoding="utf-8", errors="replace") as fh:
-                        for lineno, line in enumerate(fh, 1):
-                            m = pattern.search(line)
-                            if m:
-                                return {
-                                    "name": name,
-                                    "kind": m.group(1),
-                                    "file": rel,
-                                    "line": lineno,
-                                }
-                except OSError:
-                    continue
+
+        # Pass 1: app/ — all .ts / .js
+        app_root = os.path.join(self.project_root, "app")
+        if os.path.isdir(app_root):
+            for dirpath, _dirs, files in os.walk(app_root):
+                _dirs[:] = [d for d in _dirs if d not in {"node_modules", "__pycache__"}]
+                for fname in files:
+                    if not fname.endswith((".ts", ".js")):
+                        continue
+                    hit = _scan(os.path.join(dirpath, fname))
+                    if hit:
+                        return hit
+
+        # Pass 2: src/ — only *.ajs.ts / *.ajs.js bridge files
+        src_root = os.path.join(self.project_root, "src")
+        if os.path.isdir(src_root):
+            for dirpath, _dirs, files in os.walk(src_root):
+                _dirs[:] = [d for d in _dirs if d not in {"node_modules", "__pycache__"}]
+                for fname in files:
+                    if not (fname.endswith(".ajs.ts") or fname.endswith(".ajs.js")):
+                        continue
+                    hit = _scan(os.path.join(dirpath, fname))
+                    if hit:
+                        return hit
+
         return None
 
     def ng_module_members(self, module_name: str) -> Optional[Dict[str, Any]]:
