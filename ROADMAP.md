@@ -56,10 +56,23 @@ the code — if you spot an inconsistency, file an issue.
   explicitly. Helper: `_test_filter.py::is_test_path` (paths under
   `tests/` and `.ai-context/tests/`).
 
+### Backup & portability
+- **`vc-context backup / restore`** — ZIP-based settings export/import.
+  Backs up `AGENTS.md`, `CLAUDE.md`, playbooks, conventions,
+  `.claude/commands`, `.mcp.json`. Never includes generated artifacts
+  or metrics. `--preview` shows what would be included; `--force`
+  overwrites on restore. Shareable via email or chat — no git noise.
+- **`export_config` MCP tool** — same as CLI backup, callable by an
+  agent directly.
+
 ### Telemetry & quality
 - Per-call JSONL telemetry sidecar (`~/.vc-context/metrics/`)
 - Quality findings: `wasteful_pairs`, `hot_rereads`, `empty_streaks`
 - `vc-context stats --quality` for human review
+- **`agent_id` tracking** — every metrics entry now carries the agent
+  identifier (from `MCP_AGENT_ID` env var or JSON-RPC `clientInfo`).
+  `get_session_metrics(group_by="agent_id")` compares efficiency across
+  Claude Code / Cursor / Aider etc.
 
 ### Documentation
 - Task-shaped playbooks: bug investigation, impact analysis,
@@ -544,6 +557,54 @@ agents using the surface.
   own test suite before the move.)
 - First target repo for dogfooding: klodchickknifes (local) +
   vc-context-builder self-index (CI).
+
+---
+
+## 💡 Ideas (not yet planned)
+
+### Post-analysis email digest
+
+After a `vc-context stats --quality` run (or any explicit audit),
+optionally email a digest of findings to the developer:
+
+```
+vc-context audit --email dev@example.com
+```
+
+Would include: empty-rate warnings per tool, quality findings
+(wasteful pairs, hot rereads), token savings summary, and — when
+the index is stale — a rebuild nudge.
+
+**Why deferred:**
+- Requires first external stdlib dependency: `smtplib` is stdlib, but
+  SMTP config (host, port, credentials) adds setup friction.
+- A simpler first step: write findings to a `~/.vc-context/reports/`
+  directory and let the developer decide how to route them
+  (email, Slack webhook, etc.).
+- Privacy concern: must never attach source file contents — only
+  numeric stats and tool names. This needs explicit review before
+  sending anything over a network.
+
+**Path to implementation:**
+1. `vc-context report` — writes a markdown report to `~/.vc-context/reports/<repo>-<date>.md`
+2. `vc-context report --send smtp://user:pass@host:port/to@addr` — delivers the report
+3. `get_session_report` MCP tool — returns the same content as structured JSON
+
+### Privacy verification tool
+
+A `vc-context check-privacy` command (or `check_privacy` MCP tool)
+that proves to new users the project does not exfiltrate data:
+
+- Lists every network call in the codebase: `grep -r "urllib\|httpx\|requests\|fetch"` — expected: **none**
+- Shows what the MCP server reads: only files under `project_root` (path-escape guarded)
+- Shows what it writes: only `~/.vc-context/metrics/` (and only when `metrics_writer` is wired in)
+- Prints a one-line summary: `"No network calls. Reads: project_root only. Writes: ~/.vc-context/metrics/*.jsonl only."`
+
+**Why deferred:**
+- The static grep is trivial to add; the hard part is keeping it
+  accurate as the codebase evolves. A better long-term solution is
+  a CI check that fails if new network calls are introduced
+  (`grep -rn 'urllib\|httpx\|requests' --include='*.py'` in GH Actions).
 
 ---
 

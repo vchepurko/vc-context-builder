@@ -34,6 +34,8 @@ if _HERE not in sys.path:
     sys.path.insert(0, _HERE)
 
 from cli_handlers import (
+    cmd_backup,
+    cmd_backup_inspect,
     cmd_build,
     cmd_callees,
     cmd_calls,
@@ -51,6 +53,7 @@ from cli_handlers import (
     cmd_ng_module_members,
     cmd_raises,
     cmd_repo_map,
+    cmd_restore,
     cmd_role,
     cmd_roles,
     cmd_route,
@@ -250,6 +253,47 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     p_ngmod.add_argument("name", help="NgModule class name (e.g. MyProfileModule).")
     p_ngmod.set_defaults(handler=cmd_ng_module_members)
+
+    # Backup / restore subcommands ---------------------------------
+    p_bkp = sub.add_parser(
+        "backup",
+        help="Back up project settings (AGENTS.md, CLAUDE.md, playbooks, conventions) to a ZIP.",
+    )
+    p_bkp.add_argument(
+        "--out",
+        default=None,
+        help="Output path for the ZIP file. Default: <project>/vc-context-backup-<name>-<ts>.zip",
+    )
+    p_bkp.add_argument(
+        "--preview",
+        action="store_true",
+        help="Show what would be backed up without writing anything.",
+    )
+    p_bkp.set_defaults(handler=cmd_backup)
+
+    p_rst = sub.add_parser(
+        "restore",
+        help="Restore project settings from a ZIP backup.",
+    )
+    p_rst.add_argument("backup_file", help="Path to the backup ZIP file.")
+    p_rst.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show what would be restored without writing anything.",
+    )
+    p_rst.add_argument(
+        "--force",
+        action="store_true",
+        help="Overwrite existing files (default: skip conflicts).",
+    )
+    p_rst.set_defaults(handler=cmd_restore)
+
+    p_bkp_inspect = sub.add_parser(
+        "backup-inspect",
+        help="Show contents of an existing backup ZIP without extracting.",
+    )
+    p_bkp_inspect.add_argument("backup_file", help="Path to the backup ZIP file.")
+    p_bkp_inspect.set_defaults(handler=cmd_backup_inspect)
 
     p_stats = sub.add_parser(
         "stats",

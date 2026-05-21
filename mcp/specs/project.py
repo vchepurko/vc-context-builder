@@ -621,6 +621,44 @@ def specs() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": "export_config",
+            "description": (
+                "Back up or preview project settings — AGENTS.md files, "
+                "CLAUDE.md files, playbooks, .vc-context/conventions.json, "
+                "MCP config, and .claude/commands — into a portable ZIP.\n\n"
+                "Does NOT include generated artifacts (agent_*.json, "
+                "_module_map.json) or metrics. The ZIP is small enough "
+                "to share via email or a chat message.\n\n"
+                "Pass ``preview: true`` to see what would be included "
+                "without writing anything. Pass ``out`` to control the "
+                "output path (default: project root, named "
+                "``vc-context-backup-<project>-<ts>.zip``).\n\n"
+                "Returns ``{path, size_bytes, files: [{path, size_bytes}], "
+                "created_at}`` or ``{file_count, total_bytes, files}`` for "
+                "preview mode. Use ``vc-context restore <zip>`` (CLI) to "
+                "apply a backup to a different project."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "out": {
+                        "type": "string",
+                        "description": (
+                            "Output file path. Default: "
+                            "<project_root>/vc-context-backup-<name>-<ts>.zip"
+                        ),
+                    },
+                    "preview": {
+                        "type": "boolean",
+                        "description": (
+                            "If true, return what would be included without "
+                            "writing a file."
+                        ),
+                    },
+                },
+            },
+        },
+        {
             "name": "find_locale_drift",
             "description": (
                 "Anti-pattern detector — every locale key present in "

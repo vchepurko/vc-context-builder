@@ -117,6 +117,7 @@ class Dispatcher:
             "find_doc_xref": self._find_doc_xref,
             "search_doc_text": self._search_doc_text,
             "docs_link_graph": self._docs_link_graph,
+            "export_config": self._export_config,
         }
         self.disabled_tools: set = set(disabled_tools or [])
         for t in self.disabled_tools:
@@ -729,3 +730,14 @@ class Dispatcher:
 
     def _docs_link_graph(self, args: Dict[str, Any]) -> Any:
         return self.engine.docs_link_graph()
+
+    def _export_config(self, args: Dict[str, Any]) -> Any:
+        from backup_manager import backup, preview_backup
+
+        root = self.engine.project_root
+        if args.get("preview"):
+            return preview_backup(root)
+        out = args.get("out") or None
+        if isinstance(out, str):
+            out = out.strip() or None
+        return backup(root, out_path=out)

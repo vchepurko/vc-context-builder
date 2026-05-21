@@ -589,6 +589,86 @@ def cmd_route_callers(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_backup(args: argparse.Namespace) -> int:
+    """Back up project settings (AGENTS.md, CLAUDE.md, playbooks, conventions) to a ZIP."""
+    from backup_manager import backup, preview_backup
+
+    root = os.path.abspath(args.root)
+    out = getattr(args, "out", None)
+
+    if getattr(args, "preview", False):
+        result = preview_backup(root)
+        if args.json:
+            _emit_json(result)
+        else:
+            print(f"Would back up {result['file_count']} file(s) ({result['total_bytes']} bytes):")
+            for f in result["files"]:
+                print(f"  {f['path']}  ({f['size_bytes']} B)")
+        return 0
+
+    result = backup(root, out_path=out)
+    if args.json:
+        _emit_json(result)
+    else:
+        n = len(result["files"])
+        kb = result["size_bytes"] // 1024
+        print(f"Backup created: {result['path']}  ({n} files, {kb} KB)")
+        for f in result["files"]:
+            print(f"  {f['path']}")
+    return 0
+
+
+def cmd_restore(args: argparse.Namespace) -> int:
+    """Restore project settings from a ZIP backup."""
+    from backup_manager import restore
+
+    root = os.path.abspath(args.root)
+    dry_run = bool(getattr(args, "dry_run", False))
+    force = bool(getattr(args, "force", False))
+
+    result = restore(args.backup_file, root, dry_run=dry_run, force=force)
+    if args.json:
+        _emit_json(result)
+        return 0
+
+    prefix = "[DRY RUN] " if dry_run else ""
+    if result["restored"]:
+        print(f"{prefix}Restored {len(result['restored'])} file(s):")
+        for p in result["restored"]:
+            print(f"  + {p}")
+    if result["conflicts"] and not force:
+        print(f"\n{prefix}{len(result['conflicts'])} conflict(s) skipped (use --force to overwrite):")
+        for p in result["conflicts"]:
+            print(f"  ! {p}")
+    if not result["restored"] and not result["conflicts"]:
+        print("Nothing to restore.")
+    return 0
+
+
+def cmd_backup_inspect(args: argparse.Namespace) -> int:
+    """Show contents of an existing backup ZIP without extracting."""
+    from backup_manager import inspect_backup
+
+    result = inspect_backup(args.backup_file)
+    if args.json:
+        _emit_json(result)
+        return 0
+
+    m = result.get("manifest") or {}
+    created = m.get("created_at", "unknown")
+    project = m.get("project_name", "unknown")
+    version = m.get("vc_context_version", "?")
+    kb = result["size_bytes"] // 1024
+    print(f"Backup: {result['path']}  ({kb} KB)")
+    print(f"  project : {project}")
+    print(f"  created : {created}")
+    print(f"  version : {version}")
+    print(f"  files   : {len(result['files'])}")
+    for f in result["files"]:
+        print(f"    {f['path']}  ({f['size_bytes']} B)")
+    return 0
+
+
 def cmd_stats(args: argparse.Namespace) -> int:
     engine = _engine(args)
     out = engine.get_session_metrics(
