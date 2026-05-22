@@ -27,6 +27,7 @@ _PARENT = os.path.dirname(_HERE)
 if _PARENT not in sys.path:
     sys.path.insert(0, _PARENT)
 
+from auto_reindex import maybe_auto_reindex
 from query_engine import QueryEngine
 
 # Maps group name → list of tool names it contains.
@@ -95,6 +96,7 @@ def serve(
     under ``~/.vc-context/metrics/`` — pass ``--no-metrics`` to opt
     out.
     """
+    maybe_auto_reindex(project_root)
     stdin = stdin or sys.stdin
     stdout = stdout or sys.stdout
     engine = QueryEngine(project_root)

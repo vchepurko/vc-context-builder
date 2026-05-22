@@ -1,7 +1,49 @@
 {
   "schema": 1,
-  "generated_at": "2026-05-22T18:19:43+00:00",
+  "generated_at": "2026-05-22T19:40:25+00:00",
   "docs": {
+    ".agents/skills/source-command-ng-overview/SKILL.md": {
+      "size_bytes": 2049,
+      "top_header": "source-command-ng-overview",
+      "sections": [
+        {
+          "level": 1,
+          "text": "source-command-ng-overview",
+          "line": 6,
+          "end_line": 62,
+          "anchor": "source-command-ng-overview"
+        },
+        {
+          "level": 2,
+          "text": "Command Template",
+          "line": 10,
+          "end_line": 62,
+          "anchor": "command-template"
+        }
+      ],
+      "links": []
+    },
+    ".agents/skills/source-command-regen-and-test/SKILL.md": {
+      "size_bytes": 1909,
+      "top_header": "source-command-regen-and-test",
+      "sections": [
+        {
+          "level": 1,
+          "text": "source-command-regen-and-test",
+          "line": 6,
+          "end_line": 40,
+          "anchor": "source-command-regen-and-test"
+        },
+        {
+          "level": 2,
+          "text": "Command Template",
+          "line": 10,
+          "end_line": 40,
+          "anchor": "command-template"
+        }
+      ],
+      "links": []
+    },
     ".claude/commands/audit-handler.md": {
       "size_bytes": 2485,
       "top_header": null,
@@ -114,6 +156,69 @@
           "line": 45,
           "end_line": 52,
           "anchor": "angular-specific-tools-for-lms-client-parent-project"
+        }
+      ],
+      "links": []
+    },
+    "AGENT_README.md": {
+      "size_bytes": 5154,
+      "top_header": "🤖 Agent SOP — read this first, every time",
+      "sections": [
+        {
+          "level": 1,
+          "text": "🤖 Agent SOP — read this first, every time",
+          "line": 1,
+          "end_line": 113,
+          "anchor": "agent-sop-read-this-first-every-time"
+        },
+        {
+          "level": 2,
+          "text": "Cardinal rule: read narrowly, write fully",
+          "line": 6,
+          "end_line": 60,
+          "anchor": "cardinal-rule-read-narrowly-write-fully"
+        },
+        {
+          "level": 3,
+          "text": "Step 0 — \"show me all <role>\" queries",
+          "line": 26,
+          "end_line": 37,
+          "anchor": "step-0-show-me-all-role-queries"
+        },
+        {
+          "level": 3,
+          "text": "Step 1.5 — \"where is symbol X defined?\"",
+          "line": 38,
+          "end_line": 60,
+          "anchor": "step-15-where-is-symbol-x-defined"
+        },
+        {
+          "level": 2,
+          "text": "Role tags (extensible — see .ai-context/symbols.py)",
+          "line": 61,
+          "end_line": 81,
+          "anchor": "role-tags-extensible-see-ai-contextsymbolspy"
+        },
+        {
+          "level": 2,
+          "text": "Action-tier queries (need to *do* something, not just look up)",
+          "line": 82,
+          "end_line": 97,
+          "anchor": "action-tier-queries-need-to-do-something-not-just-look-up"
+        },
+        {
+          "level": 2,
+          "text": "What you will NOT find in maps",
+          "line": 98,
+          "end_line": 103,
+          "anchor": "what-you-will-not-find-in-maps"
+        },
+        {
+          "level": 2,
+          "text": "Regenerating the maps",
+          "line": 104,
+          "end_line": 113,
+          "anchor": "regenerating-the-maps"
         }
       ],
       "links": []
@@ -395,14 +500,14 @@
       ]
     },
     "README.md": {
-      "size_bytes": 32846,
+      "size_bytes": 33848,
       "top_header": "🤖 vc-context-builder",
       "sections": [
         {
           "level": 1,
           "text": "🤖 vc-context-builder",
           "line": 1,
-          "end_line": 933,
+          "end_line": 965,
           "anchor": "vc-context-builder"
         },
         {
@@ -486,168 +591,175 @@
           "level": 2,
           "text": "Quickstart",
           "line": 264,
-          "end_line": 402,
+          "end_line": 415,
           "anchor": "quickstart"
         },
         {
           "level": 3,
           "text": "Want artifacts committed (team-wide)?",
-          "line": 290,
-          "end_line": 301,
+          "line": 301,
+          "end_line": 312,
           "anchor": "want-artifacts-committed-team-wide"
         },
         {
           "level": 3,
           "text": "Other flags (rarely needed)",
-          "line": 302,
-          "end_line": 313,
+          "line": 313,
+          "end_line": 326,
           "anchor": "other-flags-rarely-needed"
         },
         {
           "level": 3,
           "text": "Pulling new commands after a submodule bump",
-          "line": 314,
-          "end_line": 328,
+          "line": 327,
+          "end_line": 341,
           "anchor": "pulling-new-commands-after-a-submodule-bump"
         },
         {
           "level": 3,
           "text": "Indexing the submodule against itself (contributor mode)",
-          "line": 329,
-          "end_line": 373,
+          "line": 342,
+          "end_line": 386,
           "anchor": "indexing-the-submodule-against-itself-contributor-mode"
         },
         {
           "level": 3,
           "text": "Optional: TypeScript AST upgrade for Angular metadata",
-          "line": 374,
-          "end_line": 402,
+          "line": 387,
+          "end_line": 415,
           "anchor": "optional-typescript-ast-upgrade-for-angular-metadata"
         },
         {
           "level": 2,
           "text": "Quick taste — three ways to ask the same question",
-          "line": 403,
-          "end_line": 466,
+          "line": 416,
+          "end_line": 479,
           "anchor": "quick-taste-three-ways-to-ask-the-same-question"
         },
         {
           "level": 3,
           "text": "Token economy — paying only for what you ask",
-          "line": 418,
-          "end_line": 466,
+          "line": 431,
+          "end_line": 479,
           "anchor": "token-economy-paying-only-for-what-you-ask"
         },
         {
           "level": 2,
           "text": "Telemetry — see how the agent is using the MCP surface",
-          "line": 467,
-          "end_line": 529,
+          "line": 480,
+          "end_line": 542,
           "anchor": "telemetry-see-how-the-agent-is-using-the-mcp-surface"
         },
         {
           "level": 3,
           "text": "Quality findings — wasteful pairs, hot rereads, empty streaks",
-          "line": 495,
-          "end_line": 529,
+          "line": 508,
+          "end_line": 542,
           "anchor": "quality-findings-wasteful-pairs-hot-rereads-empty-streaks"
         },
         {
           "level": 2,
           "text": "Evidence-based answers — fact tools",
-          "line": 530,
-          "end_line": 559,
+          "line": 543,
+          "end_line": 572,
           "anchor": "evidence-based-answers-fact-tools"
         },
         {
           "level": 2,
           "text": "Card-shaped tools — one-call answers",
-          "line": 560,
-          "end_line": 620,
+          "line": 573,
+          "end_line": 633,
           "anchor": "card-shaped-tools-one-call-answers"
         },
         {
           "level": 2,
           "text": "Playbooks — task-shaped MCP recipes",
-          "line": 621,
-          "end_line": 637,
+          "line": 634,
+          "end_line": 650,
           "anchor": "playbooks-task-shaped-mcp-recipes"
         },
         {
           "level": 2,
           "text": "Wiring an MCP host",
-          "line": 638,
-          "end_line": 653,
+          "line": 651,
+          "end_line": 666,
           "anchor": "wiring-an-mcp-host"
         },
         {
           "level": 2,
           "text": "CLI cheatsheet",
-          "line": 654,
-          "end_line": 854,
+          "line": 667,
+          "end_line": 886,
           "anchor": "cli-cheatsheet"
         },
         {
           "level": 3,
           "text": "Conventions config (Feature A)",
-          "line": 686,
-          "end_line": 772,
+          "line": 699,
+          "end_line": 804,
           "anchor": "conventions-config-feature-a"
         },
         {
           "level": 4,
           "text": "Filtering MCP tools per project",
-          "line": 692,
-          "end_line": 772,
+          "line": 705,
+          "end_line": 738,
           "anchor": "filtering-mcp-tools-per-project"
+        },
+        {
+          "level": 4,
+          "text": "MCP-startup auto-reindex",
+          "line": 739,
+          "end_line": 804,
+          "anchor": "mcp-startup-auto-reindex"
         },
         {
           "level": 3,
           "text": "HTTP-clients config (Feature E)",
-          "line": 773,
-          "end_line": 795,
+          "line": 805,
+          "end_line": 827,
           "anchor": "http-clients-config-feature-e"
         },
         {
           "level": 3,
           "text": "Whitelisted check runner (Feature J)",
-          "line": 796,
-          "end_line": 854,
+          "line": 828,
+          "end_line": 886,
           "anchor": "whitelisted-check-runner-feature-j"
         },
         {
           "level": 2,
           "text": "Extending the parsers",
-          "line": 855,
-          "end_line": 879,
+          "line": 887,
+          "end_line": 911,
           "anchor": "extending-the-parsers"
         },
         {
           "level": 2,
           "text": "How big is the win",
-          "line": 880,
-          "end_line": 919,
+          "line": 912,
+          "end_line": 951,
           "anchor": "how-big-is-the-win"
         },
         {
           "level": 3,
           "text": "Per-command savings (slash commands)",
-          "line": 894,
-          "end_line": 919,
+          "line": 926,
+          "end_line": 951,
           "anchor": "per-command-savings-slash-commands"
         },
         {
           "level": 2,
           "text": "What this tool is **not**",
-          "line": 920,
-          "end_line": 930,
+          "line": 952,
+          "end_line": 962,
           "anchor": "what-this-tool-is-not"
         },
         {
           "level": 2,
           "text": "License & contributing",
-          "line": 931,
-          "end_line": 933,
+          "line": 963,
+          "end_line": 965,
           "anchor": "license-contributing"
         }
       ],
@@ -661,57 +773,57 @@
         {
           "text": "Bug investigation",
           "target": "playbooks/bug_investigation.md",
-          "line": 626,
+          "line": 639,
           "external": false
         },
         {
           "text": "Impact analysis",
           "target": "playbooks/impact_analysis.md",
-          "line": 628,
+          "line": 641,
           "external": false
         },
         {
           "text": "Refactoring review",
           "target": "playbooks/refactoring_review.md",
-          "line": 630,
+          "line": 643,
           "external": false
         },
         {
           "text": "playbooks/README.md",
           "target": "playbooks/README.md",
-          "line": 633,
+          "line": 646,
           "external": false
         },
         {
           "text": "`docs/MCP_SETUP.md`",
           "target": "docs/MCP_SETUP.md",
-          "line": 640,
+          "line": 653,
           "external": false
         },
         {
           "text": "`docs/USAGE.md`",
           "target": "docs/USAGE.md",
-          "line": 771,
+          "line": 803,
           "external": false
         }
       ]
     },
     "ROADMAP.md": {
-      "size_bytes": 30410,
+      "size_bytes": 36768,
       "top_header": "🗺️ Roadmap",
       "sections": [
         {
           "level": 1,
           "text": "🗺️ Roadmap",
           "line": 1,
-          "end_line": 637,
+          "end_line": 795,
           "anchor": "roadmap"
         },
         {
           "level": 2,
           "text": "✅ Shipped",
           "line": 8,
-          "end_line": 89,
+          "end_line": 91,
           "anchor": "shipped"
         },
         {
@@ -725,203 +837,238 @@
           "level": 3,
           "text": "Query surface",
           "line": 20,
-          "end_line": 58,
+          "end_line": 60,
           "anchor": "query-surface"
         },
         {
           "level": 3,
           "text": "Backup & portability",
-          "line": 59,
-          "end_line": 67,
+          "line": 61,
+          "end_line": 69,
           "anchor": "backup-portability"
         },
         {
           "level": 3,
           "text": "Telemetry & quality",
-          "line": 68,
-          "end_line": 76,
+          "line": 70,
+          "end_line": 78,
           "anchor": "telemetry-quality"
         },
         {
           "level": 3,
           "text": "Documentation",
-          "line": 77,
-          "end_line": 81,
+          "line": 79,
+          "end_line": 83,
           "anchor": "documentation"
         },
         {
           "level": 3,
           "text": "CI / dev experience",
-          "line": 82,
-          "end_line": 89,
+          "line": 84,
+          "end_line": 91,
           "anchor": "ci-dev-experience"
         },
         {
           "level": 2,
+          "text": "🧭 Phase 5 — Semantic memory + experience store (discussed 2026-05-22)",
+          "line": 92,
+          "end_line": 247,
+          "anchor": "phase-5-semantic-memory-experience-store-discussed-2026-05-22"
+        },
+        {
+          "level": 3,
+          "text": "Feature 1 — Semantic symbol search  *(highest value, medium effort)*",
+          "line": 99,
+          "end_line": 130,
+          "anchor": "feature-1-semantic-symbol-search-highest-value-medium-effort"
+        },
+        {
+          "level": 3,
+          "text": "Feature 2 — Experience store  *(highest long-term value, highest effort)*",
+          "line": 131,
+          "end_line": 196,
+          "anchor": "feature-2-experience-store-highest-long-term-value-highest-effort"
+        },
+        {
+          "level": 3,
+          "text": "Feature 3 — Impact graph  *(medium value, small effort)*",
+          "line": 197,
+          "end_line": 237,
+          "anchor": "feature-3-impact-graph-medium-value-small-effort"
+        },
+        {
+          "level": 3,
+          "text": "Recommended implementation order",
+          "line": 238,
+          "end_line": 247,
+          "anchor": "recommended-implementation-order"
+        },
+        {
+          "level": 2,
           "text": "🔜 Planned (next 1–3 PRs)",
-          "line": 90,
-          "end_line": 449,
+          "line": 248,
+          "end_line": 607,
           "anchor": "planned-next-13-prs"
         },
         {
           "level": 3,
           "text": "Code quality",
-          "line": 106,
-          "end_line": 111,
+          "line": 264,
+          "end_line": 269,
           "anchor": "code-quality"
         },
         {
           "level": 3,
           "text": "Telemetry & quality detectors — observations from real sessions",
-          "line": 112,
-          "end_line": 160,
+          "line": 270,
+          "end_line": 318,
           "anchor": "telemetry-quality-detectors-observations-from-real-sessions"
         },
         {
           "level": 3,
           "text": "Markdown / docs navigation — real gap",
-          "line": 161,
-          "end_line": 221,
+          "line": 319,
+          "end_line": 379,
           "anchor": "markdown-docs-navigation-real-gap"
         },
         {
           "level": 3,
           "text": "Markdown navigation Phase 2 — calibration after head-to-head trial",
-          "line": 222,
-          "end_line": 290,
+          "line": 380,
+          "end_line": 448,
           "anchor": "markdown-navigation-phase-2-calibration-after-head-to-head-trial"
         },
         {
           "level": 3,
           "text": "Anti-pattern detectors",
-          "line": 291,
-          "end_line": 292,
+          "line": 449,
+          "end_line": 450,
           "anchor": "anti-pattern-detectors"
         },
         {
           "level": 3,
           "text": "Anti-pattern detectors",
-          "line": 293,
-          "end_line": 311,
+          "line": 451,
+          "end_line": 469,
           "anchor": "anti-pattern-detectors"
         },
         {
           "level": 3,
           "text": "Per-folder agent rules convention",
-          "line": 312,
-          "end_line": 317,
+          "line": 470,
+          "end_line": 475,
           "anchor": "per-folder-agent-rules-convention"
         },
         {
           "level": 3,
           "text": "Angular / TypeScript gaps — from lms-client session (2026-05-12)",
-          "line": 318,
-          "end_line": 360,
+          "line": 476,
+          "end_line": 518,
           "anchor": "angular-typescript-gaps-from-lms-client-session-2026-05-12"
         },
         {
           "level": 3,
           "text": "Gap-closers from real session usage",
-          "line": 361,
-          "end_line": 449,
+          "line": 519,
+          "end_line": 607,
           "anchor": "gap-closers-from-real-session-usage"
         },
         {
           "level": 2,
           "text": "🌅 Phase 4 — Local-first + anti-redundancy (vision)",
-          "line": 450,
-          "end_line": 562,
+          "line": 608,
+          "end_line": 720,
           "anchor": "phase-4-local-first-anti-redundancy-vision"
         },
         {
           "level": 3,
           "text": "The pain we're solving",
-          "line": 455,
-          "end_line": 463,
+          "line": 613,
+          "end_line": 621,
           "anchor": "the-pain-were-solving"
         },
         {
           "level": 3,
           "text": "Three-layer artefact model",
-          "line": 464,
-          "end_line": 487,
+          "line": 622,
+          "end_line": 645,
           "anchor": "three-layer-artefact-model"
         },
         {
           "level": 3,
           "text": "Anti-redundancy mechanism",
-          "line": 488,
-          "end_line": 507,
+          "line": 646,
+          "end_line": 665,
           "anchor": "anti-redundancy-mechanism"
         },
         {
           "level": 3,
           "text": "Promotion path local → shared",
-          "line": 508,
-          "end_line": 519,
+          "line": 666,
+          "end_line": 677,
           "anchor": "promotion-path-local-shared"
         },
         {
           "level": 3,
           "text": "Cross-machine sharing (deferred sub-question)",
-          "line": 520,
-          "end_line": 530,
+          "line": 678,
+          "end_line": 688,
           "anchor": "cross-machine-sharing-deferred-sub-question"
         },
         {
           "level": 3,
           "text": "Phasing — small first PR",
-          "line": 531,
-          "end_line": 550,
+          "line": 689,
+          "end_line": 708,
           "anchor": "phasing-small-first-pr"
         },
         {
           "level": 3,
           "text": "Open questions before slicing PoC",
-          "line": 551,
-          "end_line": 562,
+          "line": 709,
+          "end_line": 720,
           "anchor": "open-questions-before-slicing-poc"
         },
         {
           "level": 2,
           "text": "💡 Ideas (not yet planned)",
-          "line": 563,
-          "end_line": 610,
+          "line": 721,
+          "end_line": 768,
           "anchor": "ideas-not-yet-planned"
         },
         {
           "level": 3,
           "text": "Post-analysis email digest",
-          "line": 565,
-          "end_line": 592,
+          "line": 723,
+          "end_line": 750,
           "anchor": "post-analysis-email-digest"
         },
         {
           "level": 3,
           "text": "Privacy verification tool",
-          "line": 593,
-          "end_line": 610,
+          "line": 751,
+          "end_line": 768,
           "anchor": "privacy-verification-tool"
         },
         {
           "level": 2,
           "text": "❌ Out of scope (won't build)",
-          "line": 611,
-          "end_line": 622,
+          "line": 769,
+          "end_line": 780,
           "anchor": "out-of-scope-wont-build"
         },
         {
           "level": 2,
           "text": "Compatibility",
-          "line": 623,
-          "end_line": 632,
+          "line": 781,
+          "end_line": 790,
           "anchor": "compatibility"
         },
         {
           "level": 2,
           "text": "Versioning",
-          "line": 633,
-          "end_line": 637,
+          "line": 791,
+          "end_line": 795,
           "anchor": "versioning"
         }
       ],
@@ -929,13 +1076,13 @@
         {
           "text": "text",
           "target": "relative-path.md",
-          "line": 201,
+          "line": 359,
           "external": false
         },
         {
           "text": "#27",
           "target": "#27-...",
-          "line": 254,
+          "line": 412,
           "external": false
         }
       ]

@@ -109,6 +109,32 @@ def specs() -> List[Dict[str, Any]]:
             "inputSchema": {"type": "object", "properties": {}},
         },
         {
+            "name": "impact",
+            "description": (
+                "Return the symbol impact graph around one symbol: direct "
+                "dependents, indirect dependency paths up to ``depth``, "
+                "linked tests at risk, and template refs when available. "
+                "Reads ``agent_impact.json`` built by ``agent_map.py``. "
+                "Use for 'what breaks if I change X?' instead of chaining "
+                "``who_calls`` / ``find_call_sites`` / test lookups."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "symbol": {
+                        "type": "string",
+                        "description": "Symbol name (case-sensitive).",
+                    },
+                    "depth": {
+                        "type": "integer",
+                        "description": "Traversal depth, clamped to 1..5. Default 2.",
+                        "default": 2,
+                    },
+                },
+                "required": ["symbol"],
+            },
+        },
+        {
             "name": "find_by_role",
             "description": (
                 "Return every symbol name tagged with the given role "

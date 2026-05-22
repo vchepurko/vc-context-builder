@@ -287,6 +287,17 @@ python3 .ai-context/cli.py init
 Reload your editor — done. No `pip install`, no global config, no
 `~/.claude/mcp.json` edits. Submodule pull updates everything in place.
 
+Want MCP startup to refresh stale indexes automatically? Add the
+initial-setup flag:
+
+```bash
+./.ai-context/install.sh --auto-reindex=60
+```
+
+That writes `.vc-context/conventions.json → auto_reindex`, so any MCP
+client that starts `vc-context` rebuilds the index when it is older than
+60 minutes. Use a different number for a shorter/longer interval.
+
 ### Want artifacts committed (team-wide)?
 
 Project mode stages and commits the artifacts so every clone shares them:
@@ -306,6 +317,8 @@ worktrees.
 | `--no-mcp` | Skip writing `.mcp.json` (you manage MCP elsewhere). |
 | `--no-commands` | Skip copying slash commands. |
 | `--force-commands` | Overwrite existing slash command files. |
+| `--auto-reindex[=N]` | Enable MCP-startup reindex when artifacts are older than N minutes (default 60). |
+| `--auto-reindex-minutes N` | Same as above, friendlier for scripts. |
 | `--pre-commit` | Use the pre-commit framework instead of native pre-push (legacy; may race with autofix hooks). |
 | `--shared` | Stage artifacts on push (team mode). |
 
@@ -722,6 +735,25 @@ For individual tools not covered by a group, use `disabled_tools`:
 
 Both keys can coexist. Takes effect on the next MCP server restart
 (i.e. new conversation / editor reload).
+
+#### MCP-startup auto-reindex
+
+If you want every agent to get a fresh-enough index without remembering
+to call `rebuild_index`, enable:
+
+```json
+{
+  "auto_reindex": {
+    "enabled": true,
+    "interval_seconds": 3600
+  }
+}
+```
+
+On MCP startup, `vc-context` checks `agent_root.json`; if the index is
+missing or older than the interval, it runs `agent_map.py --root <project>`.
+The installer writes this block for you with
+`./.ai-context/install.sh --auto-reindex=60`.
 
 `vc-context init` picks sensible defaults for common stacks:
 - **django / fastapi / flask** → disables `angular`, `locale`, `fsm`, `notify_log`, `route`

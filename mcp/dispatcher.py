@@ -55,6 +55,7 @@ class Dispatcher:
             "get_file_card": self._get_file_card,
             "get_changed_symbols": self._get_changed_symbols,
             "repo_map": self._repo_map,
+            "impact": self._impact,
             "read_slice": self._read_slice,
             "find_by_role": self._find_by_role,
             "who_calls": self._who_calls,
@@ -224,6 +225,14 @@ class Dispatcher:
 
     def _repo_map(self, args: Dict[str, Any]) -> Any:
         return self.engine.repo_map()
+
+    def _impact(self, args: Dict[str, Any]) -> Any:
+        symbol = str(args.get("symbol", "")).strip()
+        try:
+            depth = int(args.get("depth", 2))
+        except (TypeError, ValueError):
+            depth = 2
+        return self.engine.impact(symbol, depth=depth)
 
     def _read_slice(self, args: Dict[str, Any]) -> Any:
         path = str(args.get("file", "")).strip()

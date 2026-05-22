@@ -148,6 +148,7 @@ _BASELINE_BYTES_PER_TOOL: Dict[str, int] = {
     "list_modules": 1500,
     "summarise_module": 8000,
     "repo_map": 6000,
+    "impact": 6000,
     "get_file_card": 4000,
     # Tests
     "find_test": 3000,

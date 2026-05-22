@@ -53,6 +53,7 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
     NG_ROUTES_FILENAME = "agent_ng_routes.json"
     CALLBACKS_FILENAME = "agent_callbacks.json"
     FSM_FLOW_FILENAME = "agent_fsm_flows.json"
+    IMPACT_FILENAME = "agent_impact.json"
     TEST_CATEGORIES_FILENAME = "agent_test_categories.json"
     LOCALES_FILENAME = "agent_locale_keys.json"
     DOCS_INDEX_FILENAME = "agent_docs_index.json"
@@ -87,6 +88,7 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
         self._ng_routes: Optional[List[Dict[str, Any]]] = None
         self._callbacks: Optional[Dict[str, List[Dict[str, Any]]]] = None
         self._fsm_flows: Optional[Dict[str, Dict[str, Any]]] = None
+        self._impact: Optional[Dict[str, Any]] = None
         self._test_categories: Optional[Dict[str, Dict[str, Any]]] = None
         self._locale_keys: Optional[Dict[str, Dict[str, Any]]] = None
         self._docs_index: Optional[Dict[str, Any]] = None
@@ -140,6 +142,7 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
         self._ng_routes = None
         self._callbacks = None
         self._fsm_flows = None
+        self._impact = None
         self._test_categories = None
         self._locale_keys = None
         self._docs_index = None
@@ -229,6 +232,18 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
             except (OSError, json.JSONDecodeError):
                 self._fsm_flows = {}
         return self._fsm_flows
+
+    def _load_impact(self) -> Dict[str, Any]:
+        """Return ``agent_impact.json`` content (or an empty graph)."""
+        if self._impact is None:
+            path = _index_read(self.project_root, self.IMPACT_FILENAME)
+            try:
+                with open(path, encoding="utf-8") as fh:
+                    data = json.load(fh)
+                self._impact = data if isinstance(data, dict) else {"symbols": {}}
+            except (OSError, json.JSONDecodeError):
+                self._impact = {"symbols": {}}
+        return self._impact
 
     def _load_test_categories(self) -> Dict[str, Dict[str, Any]]:
         """Return ``agent_test_categories.json`` (or ``{}`` if missing)."""
@@ -595,6 +610,19 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
                 "exports": total_exports,
             },
         }
+
+    def impact(self, symbol: str, *, depth: int = 2) -> Optional[Dict[str, Any]]:
+        """Return symbols/tests likely affected by changing ``symbol``.
+
+        The result is read from ``agent_impact.json`` and bounded by
+        ``depth`` (1..5) so callers can ask the refactor question in one
+        round-trip without expanding the whole project graph.
+        """
+        if not symbol:
+            return None
+        from impact_graph import query_impact
+
+        return query_impact(self._load_impact(), symbol, depth=depth)
 
     def get_file_card(self, path: str) -> Optional[Dict[str, Any]]:
         """Return a single file's summary — exports, dependencies,
@@ -1382,7 +1410,7 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
         kinds = ["component", "service", "directive", "filter", "factory", "controller"]
         _kinds_pat = "|".join(kinds)
 
-        def _make_pattern(sym: str, flags: int = 0) -> "_re.Pattern[str]":
+        def _make_pattern(sym: str, flags: int = 0) -> _re.Pattern[str]:
             return _re.compile(
                 r"\.\s*(" + _kinds_pat + r")\s*\(\s*['\"]" + _re.escape(sym) + r"['\"]",
                 flags,
@@ -1412,7 +1440,9 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
             r"\.\s*(?:" + _kinds_pat + r")\s*\(\s*['\"](\w+)['\"]"
         )
 
-        def _scan_one(abs_path: str, pat: "_re.Pattern[str]", sym: str) -> Optional[Dict[str, Any]]:
+        def _scan_one(
+            abs_path: str, pat: _re.Pattern[str], sym: str
+        ) -> Optional[Dict[str, Any]]:
             rel = os.path.relpath(abs_path, self.project_root).replace("\\", "/")
             try:
                 with open(abs_path, encoding="utf-8", errors="replace") as fh:
@@ -1422,7 +1452,12 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
                             # Use canonical name from the file (handles case-insensitive hits).
                             cm = _canonical_pat.search(line)
                             canonical = cm.group(1) if cm else sym
-                            result = {"name": canonical, "kind": m.group(1), "file": rel, "line": lineno}
+                            result = {
+                                "name": canonical,
+                                "kind": m.group(1),
+                                "file": rel,
+                                "line": lineno,
+                            }
                             if canonical != sym:
                                 result["queried_as"] = sym
                             return result

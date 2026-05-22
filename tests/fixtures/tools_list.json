@@ -32,6 +32,7 @@
   "get_raised_exceptions",
   "get_session_metrics",
   "get_symbol_card",
+  "impact",
   "inspect_class",
   "lint_violations",
   "list_anti_patterns",

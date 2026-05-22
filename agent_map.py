@@ -27,6 +27,7 @@ from fsm_flow import (
     collect_fsm_flow,
     write_fsm_flow,
 )
+from impact_graph import IMPACT_FILENAME, build_impact_graph, write_impact_graph
 from locale_index import (
     LOCALES_FILENAME,
     build_locale_index,
@@ -104,6 +105,7 @@ class ContextBuilder:
         self.ng_routes_filename = NG_ROUTES_FILENAME
         self.callbacks_filename = CALLBACKS_FILENAME
         self.fsm_flow_filename = FSM_FLOW_FILENAME
+        self.impact_filename = IMPACT_FILENAME
         self.test_categories_filename = TEST_CATEGORIES_FILENAME
         self.locales_filename = LOCALES_FILENAME
         self.docs_filename = "agent_docs_index.json"
@@ -400,6 +402,7 @@ class ContextBuilder:
         self._build_ng_route_index()
         self._build_callback_index()
         self._build_fsm_flow_index()
+        self._build_impact_index()
         self._build_test_categories_index()
         self._build_locale_index()
         self._build_docs_index()
@@ -728,6 +731,41 @@ class ContextBuilder:
             )
         except OSError as e:
             logging.error(f"Failed to write FSM flow index: {e}")
+
+    # ------------------------------------------------------------------
+    # Impact graph — symbol reverse dependencies + tests at risk
+    # ------------------------------------------------------------------
+
+    def _build_impact_index(self) -> None:
+        symbols_path = index_read_path(self.root_dir, self.symbols_filename)
+        tests_path = index_read_path(self.root_dir, self.tests_filename)
+        try:
+            with open(symbols_path, encoding="utf-8") as fh:
+                symbols = json.load(fh)
+        except (OSError, json.JSONDecodeError) as e:
+            logging.warning(f"Skipping impact graph: {e}")
+            return
+        try:
+            with open(tests_path, encoding="utf-8") as fh:
+                tests = json.load(fh)
+        except (OSError, json.JSONDecodeError):
+            tests = {}
+        try:
+            graph = build_impact_graph(self.root_dir, symbols, tests)
+            write_impact_graph(self.root_dir, graph)
+            edge_count = sum(
+                len(rec.get("direct") or [])
+                for rec in graph.get("symbols", {}).values()
+                if isinstance(rec, dict)
+            )
+            logging.info(
+                "Wrote impact graph: %s (%d symbols, %d edge(s)).",
+                self.impact_filename,
+                len(graph.get("symbols", {})),
+                edge_count,
+            )
+        except OSError as e:
+            logging.error(f"Failed to write impact graph: {e}")
 
     # ------------------------------------------------------------------
     # Feature H — test categorisation (unit / integration / unknown)

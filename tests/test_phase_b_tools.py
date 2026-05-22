@@ -24,6 +24,7 @@ import unittest
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(_HERE))
 
+from impact_graph import build_impact_graph
 from query_engine import QueryEngine
 
 
@@ -82,6 +83,38 @@ class _FixtureMixin:
                         "test_file": "tests/test_handlers.py",
                         "test_function": "test_my_webhook",
                         "line": 12,
+                    },
+                }
+            ),
+        )
+        _write(
+            os.path.join(tmp, "agent_impact.json"),
+            json.dumps(
+                {
+                    "version": 1,
+                    "symbols": {
+                        "my_webhook": {
+                            "file": "pkg/handlers.py",
+                            "line": 4,
+                            "direct": ["MyService"],
+                            "test": {
+                                "test_file": "tests/test_handlers.py",
+                                "test_function": "test_my_webhook",
+                                "line": 12,
+                            },
+                            "template_refs": [],
+                        },
+                        "MyService": {
+                            "file": "pkg/service.py",
+                            "line": 1,
+                            "direct": [],
+                            "test": {
+                                "test_file": "tests/test_service.py",
+                                "test_function": "test_service",
+                                "line": 8,
+                            },
+                            "template_refs": [],
+                        },
                     },
                 }
             ),
@@ -180,6 +213,52 @@ class RepoMapTests(_FixtureMixin, unittest.TestCase):
         self.assertEqual(m["dominant_role"], "webhook")
         self.assertEqual(out["totals"]["files"], 2)
         self.assertEqual(out["totals"]["exports"], 2)
+
+
+class ImpactTests(_FixtureMixin, unittest.TestCase):
+    def setUp(self) -> None:
+        self.root = self._make_root()
+        self.engine = QueryEngine(self.root)
+
+    def test_impact_reads_direct_and_tests_at_risk(self) -> None:
+        out = self.engine.impact("my_webhook")
+        self.assertEqual(out["symbol"], "my_webhook")
+        self.assertEqual(out["direct"], ["MyService"])
+        self.assertEqual(out["indirect"], [])
+        self.assertEqual(out["tests_at_risk"][0]["symbol"], "MyService")
+        self.assertEqual(out["tests_at_risk"][0]["test_file"], "tests/test_service.py")
+        self.assertEqual(out["template_refs"], [])
+
+    def test_unknown_symbol_returns_none(self) -> None:
+        self.assertIsNone(self.engine.impact("ghost"))
+
+    def test_build_impact_graph_uses_callees_and_module_dependencies(self) -> None:
+        symbols = {
+            "helper": {"file": "pkg/utils.py", "kind": "func"},
+            "handler": {
+                "file": "pkg/handlers.py",
+                "kind": "func",
+                "callees": ["helper"],
+            },
+            "route": {"file": "pkg/routes.py", "kind": "func"},
+        }
+        _write(
+            os.path.join(self.root, "pkg", "_module_map.json"),
+            json.dumps(
+                {
+                    "directory": "./pkg",
+                    "files": {
+                        "routes.py": {
+                            "exports": [{"name": "route", "kind": "func"}],
+                            "dependencies": ["handler"],
+                        },
+                    },
+                }
+            ),
+        )
+        graph = build_impact_graph(self.root, symbols, {})
+        self.assertEqual(graph["symbols"]["helper"]["direct"], ["handler"])
+        self.assertEqual(graph["symbols"]["handler"]["direct"], ["route"])
 
 
 class GetDecoratedWithTests(_FixtureMixin, unittest.TestCase):

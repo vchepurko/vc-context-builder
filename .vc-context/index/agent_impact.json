@@ -1,0 +1,3123 @@
+{
+  "version": 1,
+  "symbols": {
+    "AggregateTests": {
+      "file": "tests/test_metrics.py",
+      "line": 209,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "AngularFixtureMixin": {
+      "file": "tests/test_angular_helpers.py",
+      "line": 35,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "ApplyCustomRolesTests": {
+      "file": "tests/test_custom_roles.py",
+      "line": 100,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "ArgsSummaryTests": {
+      "file": "tests/test_quality.py",
+      "line": 64,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "AutoReindexTests": {
+      "file": "tests/test_auto_reindex.py",
+      "line": 22,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "BalanceArrayTests": {
+      "file": "tests/test_ng_route_bridge.py",
+      "line": 45,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "BaseParser": {
+      "file": "parsers/base_parser.py",
+      "line": 7,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "BaselineAggregationTests": {
+      "file": "tests/test_metrics.py",
+      "line": 256,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "BlockScanTests": {
+      "file": "tests/test_spec_linker.py",
+      "line": 124,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "BuildIndexTests": {
+      "file": "tests/test_markdown_index.py",
+      "line": 38,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "BuildLocaleIndexTests": {
+      "file": "tests/test_locale_index.py",
+      "line": 33,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "BuildTestIndexTests": {
+      "file": "tests/test_test_linking.py",
+      "line": 299,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "BuilderWithCustomRolesTests": {
+      "file": "tests/test_custom_roles.py",
+      "line": 151,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "CallsKindTests": {
+      "file": "tests/test_verify.py",
+      "line": 74,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "CandidateLookupTests": {
+      "file": "tests/test_spec_linker.py",
+      "line": 144,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "CheckHealthTests": {
+      "file": "tests/test_check_health.py",
+      "line": 26,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "CliLintTests": {
+      "file": "tests/test_conventions.py",
+      "line": 275,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "CliRouteTests": {
+      "file": "tests/test_route_bridge.py",
+      "line": 230,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "CliTestSubcommandTests": {
+      "file": "tests/test_test_linking.py",
+      "line": 389,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "CliTests": {
+      "file": "tests/test_cli.py",
+      "line": 23,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "CoLocationFallbackTests": {
+      "file": "tests/test_spec_linker.py",
+      "line": 211,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "CollectJsCallsTests": {
+      "file": "tests/test_route_bridge.py",
+      "line": 76,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "CollectPythonRoutesTests": {
+      "file": "tests/test_route_bridge.py",
+      "line": 34,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "CollectTests": {
+      "file": "tests/test_mypy_inspector.py",
+      "line": 69,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "ComposerJsonTests": {
+      "file": "tests/test_json_parser.py",
+      "line": 92,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "ContextBuilder": {
+      "file": "agent_map.py",
+      "line": 56,
+      "direct": [
+        "BuilderWithCustomRolesTests",
+        "ContextBuilderRunTests",
+        "IgnoreDirsTests"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "ContextBuilderRunTests": {
+      "file": "tests/test_agent_map.py",
+      "line": 80,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "CssParser": {
+      "file": "parsers/css_parser.py",
+      "line": 7,
+      "direct": [
+        "TestCssParser"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "CustomRole": {
+      "file": "custom_roles.py",
+      "line": 56,
+      "direct": [
+        "ApplyCustomRolesTests"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "DecoratedKindTests": {
+      "file": "tests/test_verify.py",
+      "line": 102,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "DevOpsParser": {
+      "file": "parsers/devops_parser.py",
+      "line": 7,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "Dispatcher": {
+      "file": "mcp/dispatcher.py",
+      "line": 36,
+      "direct": [
+        "CheckHealthTests",
+        "DispatcherIntegrationTests",
+        "GetSessionMetricsTests",
+        "RecordBashUsageTests",
+        "serve"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "DispatcherIntegrationTests": {
+      "file": "tests/test_metrics.py",
+      "line": 328,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "EmptyStreaksTests": {
+      "file": "tests/test_quality.py",
+      "line": 155,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "EpochInvalidationTests": {
+      "file": "tests/test_parse_cache.py",
+      "line": 111,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "ExistsKindTests": {
+      "file": "tests/test_verify.py",
+      "line": 61,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "ExtractDecoratorRolesTests": {
+      "file": "tests/test_symbols.py",
+      "line": 36,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "ExtractFactsTests": {
+      "file": "tests/test_facts_and_slice.py",
+      "line": 32,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "ExtractRouteRecordTests": {
+      "file": "tests/test_ng_route_bridge.py",
+      "line": 62,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "FactProjectionTests": {
+      "file": "tests/test_facts_and_slice.py",
+      "line": 118,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "FailureModeTests": {
+      "file": "tests/test_file_parser.py",
+      "line": 83,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "FieldsWhitelistTests": {
+      "file": "tests/test_find_symbol_lean.py",
+      "line": 114,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "FileParser": {
+      "file": "file_parser.py",
+      "line": 6,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "FilenameRegistrationTests": {
+      "file": "tests/test_json_parser.py",
+      "line": 157,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "FilterRecordsTests": {
+      "file": "tests/test_test_filter.py",
+      "line": 54,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "FindAntiPatternsTests": {
+      "file": "tests/test_anti_patterns.py",
+      "line": 27,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "FindDriftTests": {
+      "file": "tests/test_locale_drift.py",
+      "line": 20,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "FindHandlersWithoutTestsTests": {
+      "file": "tests/test_handlers_without_tests.py",
+      "line": 21,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "FindInFileTests": {
+      "file": "tests/test_file_grep.py",
+      "line": 26,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "FindLocalAgentsMdTests": {
+      "file": "tests/test_local_agents_md.py",
+      "line": 26,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "FindOrphansTests": {
+      "file": "tests/test_callback_orphans.py",
+      "line": 29,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "FindSymbolHidesFactsTests": {
+      "file": "tests/test_facts_and_slice.py",
+      "line": 141,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "FindSymbolsBatchTests": {
+      "file": "tests/test_find_symbol_lean.py",
+      "line": 189,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "FindTestForSymbolTests": {
+      "file": "tests/test_test_linking.py",
+      "line": 34,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "FixtureMixin": {
+      "file": "tests/test_query_engine.py",
+      "line": 26,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "GetChangedSymbolsTests": {
+      "file": "tests/test_phase_b_tools.py",
+      "line": 309,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "GetDecoratedWithTests": {
+      "file": "tests/test_phase_b_tools.py",
+      "line": 264,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "GetFileCardTests": {
+      "file": "tests/test_phase_b_tools.py",
+      "line": 184,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "GetPutTests": {
+      "file": "tests/test_parse_cache.py",
+      "line": 58,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "GetSessionMetricsTests": {
+      "file": "tests/test_metrics.py",
+      "line": 372,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "GetSymbolCardTests": {
+      "file": "tests/test_phase_b_tools.py",
+      "line": 155,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "HideByDefaultTests": {
+      "file": "tests/test_phase_b_tools.py",
+      "line": 293,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "HotRereadsTests": {
+      "file": "tests/test_quality.py",
+      "line": 129,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "HtmlParser": {
+      "file": "parsers/html_parser.py",
+      "line": 7,
+      "direct": [
+        "TestHtmlParser"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "HttpClientSpec": {
+      "file": "http_callers.py",
+      "line": 72,
+      "direct": [
+        "load_http_clients"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "IgnoreDirsTests": {
+      "file": "tests/test_agent_map.py",
+      "line": 141,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "ImpactTests": {
+      "file": "tests/test_phase_b_tools.py",
+      "line": 218,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "ImportExtractionTests": {
+      "file": "tests/test_spec_linker.py",
+      "line": 106,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "IncludeBodyTests": {
+      "file": "tests/test_find_symbol_lean.py",
+      "line": 149,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "IndexAndResolveTests": {
+      "file": "tests/test_spec_linker.py",
+      "line": 157,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "InspectClassTsTests": {
+      "file": "tests/test_inspect_class_ts.py",
+      "line": 25,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "IntegrationTests": {
+      "file": "tests/test_ts_ast.py",
+      "line": 152,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "IsAvailableTests": {
+      "file": "tests/test_ts_ast.py",
+      "line": 78,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "IsEmptyTests": {
+      "file": "tests/test_metrics.py",
+      "line": 68,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "IsEnabledTests": {
+      "file": "tests/test_ts_ast.py",
+      "line": 48,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "IsStatesGroupClassTests": {
+      "file": "tests/test_symbols.py",
+      "line": 66,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "IsTestPathTests": {
+      "file": "tests/test_test_filter.py",
+      "line": 27,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "IsWebhookFunctionTests": {
+      "file": "tests/test_symbols.py",
+      "line": 84,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "JsTsBranchTests": {
+      "file": "tests/test_file_parser.py",
+      "line": 67,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "JsonParser": {
+      "file": "parsers/json_parser.py",
+      "line": 32,
+      "direct": [
+        "ParserDispatchTests"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "LintProjectTests": {
+      "file": "tests/test_conventions.py",
+      "line": 75,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "LoadCustomRolesTests": {
+      "file": "tests/test_custom_roles.py",
+      "line": 37,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "LoadRulesTests": {
+      "file": "tests/test_conventions.py",
+      "line": 46,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "LoadSaveTests": {
+      "file": "tests/test_parse_cache.py",
+      "line": 25,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "MatchCallsToRoutesTests": {
+      "file": "tests/test_route_bridge.py",
+      "line": 114,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "McpServerTests": {
+      "file": "tests/test_mcp_server.py",
+      "line": 58,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "MethodDecoratorsTest": {
+      "file": "tests/test_python_parser.py",
+      "line": 81,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "MetricsWriter": {
+      "file": "mcp/metrics.py",
+      "line": 229,
+      "direct": [
+        "DispatcherIntegrationTests",
+        "GetSessionMetricsTests",
+        "ReadMetricsTests",
+        "WriterTests",
+        "serve"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "NG_ROLE": {
+      "file": "parsers/_ts_ast_extractor.mjs",
+      "line": 62,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "NgAuditComponentTests": {
+      "file": "tests/test_angular_helpers.py",
+      "line": 195,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "NgInjectGraphTests": {
+      "file": "tests/test_angular_helpers.py",
+      "line": 267,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "NgOverviewTests": {
+      "file": "tests/test_angular_helpers.py",
+      "line": 249,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "NgUsesSelectorTests": {
+      "file": "tests/test_angular_helpers.py",
+      "line": 222,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "NormFileTests": {
+      "file": "tests/test_mypy_inspector.py",
+      "line": 25,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "NotifyLogQueryEngineTests": {
+      "file": "tests/test_notify_log_reader.py",
+      "line": 178,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "NotifyLogReaderTests": {
+      "file": "tests/test_notify_log_reader.py",
+      "line": 85,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "PackageJsonTests": {
+      "file": "tests/test_json_parser.py",
+      "line": 38,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "ParseFallbackTests": {
+      "file": "tests/test_ts_ast.py",
+      "line": 109,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "ParseSinceTests": {
+      "file": "tests/test_metrics.py",
+      "line": 87,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "ParserDispatchTests": {
+      "file": "tests/test_json_parser.py",
+      "line": 108,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "PathRoleTests": {
+      "file": "tests/test_symbols.py",
+      "line": 104,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "PhpBranchTests": {
+      "file": "tests/test_file_parser.py",
+      "line": 52,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "PhpParser": {
+      "file": "parsers/php_parser.py",
+      "line": 7,
+      "direct": [
+        "TestPhpParser"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "PruneTests": {
+      "file": "tests/test_parse_cache.py",
+      "line": 148,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "PythonBranchTests": {
+      "file": "tests/test_file_parser.py",
+      "line": 33,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "PythonParser": {
+      "file": "parsers/python_parser.py",
+      "line": 35,
+      "direct": [
+        "MethodDecoratorsTest",
+        "TestAiogramRoleSplit",
+        "TestPythonASTParser"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "QualityReportTests": {
+      "file": "tests/test_quality.py",
+      "line": 180,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "QueryEngine": {
+      "file": "query_engine.py",
+      "line": 28,
+      "direct": [
+        "CheckHealthTests",
+        "DispatcherIntegrationTests",
+        "FieldsWhitelistTests",
+        "FindAntiPatternsTests",
+        "FindHandlersWithoutTestsTests",
+        "FindInFileTests",
+        "FindLocalAgentsMdTests",
+        "FindOrphansTests",
+        "FindSymbolsBatchTests",
+        "GetChangedSymbolsTests",
+        "GetDecoratedWithTests",
+        "GetFileCardTests",
+        "GetSessionMetricsTests",
+        "GetSymbolCardTests",
+        "HideByDefaultTests",
+        "ImpactTests",
+        "IncludeBodyTests",
+        "InspectClassTsTests",
+        "McpServerTests",
+        "NgAuditComponentTests",
+        "NgInjectGraphTests",
+        "NgOverviewTests",
+        "NgUsesSelectorTests",
+        "NotifyLogQueryEngineTests",
+        "QueryEngineIntegrationTests",
+        "QueryEngineLintTests",
+        "QueryEngineLocaleTests",
+        "QueryEngineRouteTests",
+        "QueryEngineRuffTests",
+        "QueryEngineTestLinkingTests",
+        "QueryEngineTests",
+        "QueryHelperTests",
+        "RecordBashUsageTests",
+        "RepoMapTests",
+        "RunCheckCacheTests",
+        "TestAttachAndQuery",
+        "TestProjectWide",
+        "TestQueryEngineFindCallback",
+        "TestQueryEngineTrace",
+        "TestQueryEngineWiring",
+        "TestScopedToRole",
+        "TestUmbrellaQueryCompat",
+        "serve"
+      ],
+      "test": {
+        "test_file": "tests/test_class_inspector.py",
+        "test_function": "test_engine_round_trip",
+        "line": 146
+      },
+      "template_refs": []
+    },
+    "QueryEngineIntegrationTests": {
+      "file": "tests/test_test_filter.py",
+      "line": 79,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "QueryEngineLintTests": {
+      "file": "tests/test_conventions.py",
+      "line": 254,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "QueryEngineLocaleTests": {
+      "file": "tests/test_locale_index.py",
+      "line": 143,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "QueryEngineRouteTests": {
+      "file": "tests/test_route_bridge.py",
+      "line": 171,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "QueryEngineRuffTests": {
+      "file": "tests/test_ruff_inspector.py",
+      "line": 179,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "QueryEngineTestLinkingTests": {
+      "file": "tests/test_test_linking.py",
+      "line": 325,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "QueryEngineTests": {
+      "file": "tests/test_query_engine.py",
+      "line": 122,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "QueryHelperTests": {
+      "file": "tests/test_markdown_index.py",
+      "line": 114,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "RaisesKindTests": {
+      "file": "tests/test_verify.py",
+      "line": 91,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "ReadMetricsTests": {
+      "file": "tests/test_metrics.py",
+      "line": 143,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "ReadSliceTests": {
+      "file": "tests/test_facts_and_slice.py",
+      "line": 165,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "RecordBashUsageTests": {
+      "file": "tests/test_bash_usage.py",
+      "line": 21,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "ReferenceBasedLinkingTests": {
+      "file": "tests/test_test_linking.py",
+      "line": 143,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "RepoMapTests": {
+      "file": "tests/test_phase_b_tools.py",
+      "line": 202,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "Result": {
+      "file": "benchmark.py",
+      "line": 33,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "RoutesInFileTests": {
+      "file": "tests/test_ng_route_bridge.py",
+      "line": 105,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "RunCheckCacheTests": {
+      "file": "tests/test_run_check_cache.py",
+      "line": 25,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "SchedulerJobsScanTests": {
+      "file": "tests/test_symbols.py",
+      "line": 136,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "SpecFixtureMixin": {
+      "file": "tests/test_spec_linker.py",
+      "line": 41,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "Task": {
+      "file": "benchmark.py",
+      "line": 74,
+      "direct": [
+        "build_tasks"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "TestAiogramRoleSplit": {
+      "file": "tests/test_role_split.py",
+      "line": 47,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "TestAttachAndQuery": {
+      "file": "tests/test_http_callers.py",
+      "line": 196,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "TestBasics": {
+      "file": "tests/test_orm_field_usage.py",
+      "line": 29,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "TestCaddyfileParser": {
+      "file": "tests/test_devops_card.py",
+      "line": 142,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "TestCallbackIndexExtraction": {
+      "file": "tests/test_callback_index.py",
+      "line": 48,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "TestClassifyFile": {
+      "file": "tests/test_test_classifier.py",
+      "line": 100,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "TestCollectAndQuery": {
+      "file": "tests/test_test_classifier.py",
+      "line": 137,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "TestCollectFsmFlow": {
+      "file": "tests/test_fsm_flow.py",
+      "line": 116,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "TestCollectPythonCalls": {
+      "file": "tests/test_http_callers.py",
+      "line": 160,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "TestCollectStateGroups": {
+      "file": "tests/test_fsm_flow.py",
+      "line": 82,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "TestComposeParser": {
+      "file": "tests/test_devops_card.py",
+      "line": 42,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "TestCssParser": {
+      "file": "tests/test_css_parser.py",
+      "line": 9,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "TestDockerfileParser": {
+      "file": "tests/test_devops_card.py",
+      "line": 102,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "TestEmptyProject": {
+      "file": "tests/test_devops_card.py",
+      "line": 28,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "TestFileParser": {
+      "file": "test_parser.py",
+      "line": 7,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "TestFindCallSites": {
+      "file": "tests/test_call_sites.py",
+      "line": 63,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "TestFindCallbackLookup": {
+      "file": "tests/test_callback_index.py",
+      "line": 95,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "TestHtmlParser": {
+      "file": "tests/test_html_parser.py",
+      "line": 9,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "TestInspectClass": {
+      "file": "tests/test_class_inspector.py",
+      "line": 80,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "TestIntegration": {
+      "file": "tests/test_devops_card.py",
+      "line": 212,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "TestListKinds": {
+      "file": "tests/test_configs_scanner.py",
+      "line": 196,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "TestLoadChecks": {
+      "file": "tests/test_checks.py",
+      "line": 39,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "TestLoadHttpClients": {
+      "file": "tests/test_http_callers.py",
+      "line": 113,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "TestLogLineParse": {
+      "file": "tests/test_logline_parser.py",
+      "line": 41,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "TestMcpToolRegistration": {
+      "file": "tests/test_fsm_flow.py",
+      "line": 214,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "TestMcpToolWiring": {
+      "file": "tests/test_checks.py",
+      "line": 221,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "TestNoConfigBackwardCompat": {
+      "file": "tests/test_http_callers.py",
+      "line": 238,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "TestPhpParser": {
+      "file": "tests/test_php_parser.py",
+      "line": 11,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "TestProjectWide": {
+      "file": "tests/test_coverage_for_role.py",
+      "line": 70,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "TestPythonASTParser": {
+      "file": "tests/test_python_parser.py",
+      "line": 11,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "TestQueryEngineFindCallback": {
+      "file": "tests/test_callback_index.py",
+      "line": 129,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "TestQueryEngineTrace": {
+      "file": "tests/test_fsm_flow.py",
+      "line": 191,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "TestQueryEngineWiring": {
+      "file": "tests/test_checks.py",
+      "line": 208,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "TestRunCheck": {
+      "file": "tests/test_checks.py",
+      "line": 72,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "TestScanBasics": {
+      "file": "tests/test_configs_scanner.py",
+      "line": 92,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "TestSchedulerJobsPassthrough": {
+      "file": "tests/test_devops_card.py",
+      "line": 202,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "TestScopedToRole": {
+      "file": "tests/test_coverage_for_role.py",
+      "line": 121,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "TestTraceLookup": {
+      "file": "tests/test_fsm_flow.py",
+      "line": 151,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "TestUmbrellaQueryCompat": {
+      "file": "tests/test_role_split.py",
+      "line": 187,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "TestWorkflowsList": {
+      "file": "tests/test_devops_card.py",
+      "line": 186,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "ToEntryTests": {
+      "file": "tests/test_mypy_inspector.py",
+      "line": 36,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "TsJsParser": {
+      "file": "parsers/ts_js_parser.py",
+      "line": 208,
+      "direct": [
+        "TsJsParserTests"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "TsJsParserTests": {
+      "file": "tests/test_ts_js_parser.py",
+      "line": 24,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "TsconfigJsonTests": {
+      "file": "tests/test_json_parser.py",
+      "line": 64,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "UnknownKindTests": {
+      "file": "tests/test_verify.py",
+      "line": 121,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "WalkAndIgnoreTests": {
+      "file": "tests/test_spec_linker.py",
+      "line": 86,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "WastefulPairsTests": {
+      "file": "tests/test_quality.py",
+      "line": 85,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "WriteLocaleIndexTests": {
+      "file": "tests/test_locale_index.py",
+      "line": 116,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "WriterTests": {
+      "file": "tests/test_metrics.py",
+      "line": 107,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "aggregate": {
+      "file": "mcp/metrics.py",
+      "line": 410,
+      "direct": [
+        "AggregateTests",
+        "BaselineAggregationTests"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "apply_custom_roles": {
+      "file": "custom_roles.py",
+      "line": 238,
+      "direct": [
+        "ApplyCustomRolesTests",
+        "ContextBuilder"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "arrayOfStrings": {
+      "file": "parsers/_ts_ast_extractor.mjs",
+      "line": 83,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "attach_python_callers": {
+      "file": "http_callers.py",
+      "line": 330,
+      "direct": [
+        "TestAttachAndQuery",
+        "build_route_index"
+      ],
+      "test": {
+        "test_file": "tests/test_http_callers.py",
+        "test_function": "test_attach_idempotent",
+        "line": 226
+      },
+      "template_refs": []
+    },
+    "backup": {
+      "file": "backup_manager.py",
+      "line": 108,
+      "direct": [
+        "Dispatcher",
+        "cmd_backup"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "build": {
+      "file": "devops_card.py",
+      "line": 57,
+      "direct": [
+        "TestCaddyfileParser",
+        "TestComposeParser",
+        "TestDockerfileParser",
+        "TestEmptyProject",
+        "TestIntegration",
+        "TestSchedulerJobsPassthrough",
+        "TestWorkflowsList"
+      ],
+      "test": {
+        "test_file": "tests/test_devops_card.py",
+        "test_function": "test_simple_site_block",
+        "line": 147
+      },
+      "template_refs": []
+    },
+    "build_impact_graph": {
+      "file": "impact_graph.py",
+      "line": 85,
+      "direct": [
+        "ContextBuilder",
+        "ImpactTests"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "build_index": {
+      "file": "markdown_index.py",
+      "line": 197,
+      "direct": [
+        "BuildIndexTests",
+        "ContextBuilder",
+        "QueryHelperTests",
+        "write_index"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "build_locale_index": {
+      "file": "locale_index.py",
+      "line": 92,
+      "direct": [
+        "BuildLocaleIndexTests",
+        "ContextBuilder",
+        "FindDriftTests"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "build_ng_route_index": {
+      "file": "ng_route_bridge.py",
+      "line": 263,
+      "direct": [
+        "ContextBuilder"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "build_reference_index": {
+      "file": "test_linking.py",
+      "line": 472,
+      "direct": [
+        "ReferenceBasedLinkingTests",
+        "build_test_index"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "build_route_index": {
+      "file": "route_bridge.py",
+      "line": 332,
+      "direct": [
+        "ContextBuilder",
+        "TestAttachAndQuery",
+        "TestNoConfigBackwardCompat"
+      ],
+      "test": {
+        "test_file": "tests/test_http_callers.py",
+        "test_function": "test_attach_idempotent",
+        "line": 226
+      },
+      "template_refs": []
+    },
+    "build_spec_reference_index": {
+      "file": "test_linking.py",
+      "line": 447,
+      "direct": [
+        "IndexAndResolveTests",
+        "build_test_index"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "build_tasks": {
+      "file": "benchmark.py",
+      "line": 83,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "build_test_index": {
+      "file": "test_linking.py",
+      "line": 597,
+      "direct": [
+        "BuildTestIndexTests",
+        "ContextBuilder",
+        "IndexAndResolveTests",
+        "ReferenceBasedLinkingTests"
+      ],
+      "test": {
+        "test_file": "tests/test_test_linking.py",
+        "test_function": "test_build_test_index_uses_reference_path",
+        "line": 282
+      },
+      "template_refs": []
+    },
+    "callers_for_route": {
+      "file": "route_bridge.py",
+      "line": 396,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "category_summary": {
+      "file": "test_classifier.py",
+      "line": 283,
+      "direct": [
+        "ContextBuilder",
+        "TestCollectAndQuery"
+      ],
+      "test": {
+        "test_file": "tests/test_test_classifier.py",
+        "test_function": "test_summary_counts_by_category",
+        "line": 149
+      },
+      "template_refs": []
+    },
+    "classify_test_file": {
+      "file": "test_classifier.py",
+      "line": 193,
+      "direct": [
+        "TestClassifyFile",
+        "collect_test_categories"
+      ],
+      "test": {
+        "test_file": "tests/test_test_classifier.py",
+        "test_function": "test_pure_unit_only_mocks",
+        "line": 123
+      },
+      "template_refs": []
+    },
+    "cmd_backup": {
+      "file": "cli_handlers.py",
+      "line": 592,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "cmd_backup_inspect": {
+      "file": "cli_handlers.py",
+      "line": 648,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "cmd_build": {
+      "file": "cli_handlers.py",
+      "line": 348,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "cmd_callees": {
+      "file": "cli_handlers.py",
+      "line": 76,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "cmd_calls": {
+      "file": "cli_handlers.py",
+      "line": 189,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "cmd_card": {
+      "file": "cli_handlers.py",
+      "line": 106,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "cmd_changed": {
+      "file": "cli_handlers.py",
+      "line": 237,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "cmd_coverage": {
+      "file": "cli_handlers.py",
+      "line": 506,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "cmd_decorated": {
+      "file": "cli_handlers.py",
+      "line": 171,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "cmd_file_card": {
+      "file": "cli_handlers.py",
+      "line": 204,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "cmd_find": {
+      "file": "cli_handlers.py",
+      "line": 51,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "cmd_init": {
+      "file": "cli_handlers.py",
+      "line": 417,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "cmd_lint": {
+      "file": "cli_handlers.py",
+      "line": 472,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "cmd_module": {
+      "file": "cli_handlers.py",
+      "line": 312,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "cmd_modules": {
+      "file": "cli_handlers.py",
+      "line": 338,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "cmd_ng_ajs_find": {
+      "file": "cli_handlers.py",
+      "line": 525,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "cmd_ng_module_members": {
+      "file": "cli_handlers.py",
+      "line": 540,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "cmd_raises": {
+      "file": "cli_handlers.py",
+      "line": 91,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "cmd_repo_map": {
+      "file": "cli_handlers.py",
+      "line": 258,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "cmd_restore": {
+      "file": "cli_handlers.py",
+      "line": 621,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "cmd_role": {
+      "file": "cli_handlers.py",
+      "line": 302,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "cmd_roles": {
+      "file": "cli_handlers.py",
+      "line": 328,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "cmd_route": {
+      "file": "cli_handlers.py",
+      "line": 561,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "cmd_route_callers": {
+      "file": "cli_handlers.py",
+      "line": 577,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "cmd_slice": {
+      "file": "cli_handlers.py",
+      "line": 280,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "cmd_stats": {
+      "file": "cli_handlers.py",
+      "line": 672,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "cmd_test": {
+      "file": "cli_handlers.py",
+      "line": 486,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "cmd_verify": {
+      "file": "cli_handlers.py",
+      "line": 158,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "collect": {
+      "file": "mypy_inspector.py",
+      "line": 194,
+      "direct": [
+        "CollectTests"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "collect_callbacks": {
+      "file": "callback_index.py",
+      "line": 160,
+      "direct": [
+        "ContextBuilder",
+        "FindOrphansTests",
+        "TestCallbackIndexExtraction",
+        "TestQueryEngineFindCallback"
+      ],
+      "test": {
+        "test_file": "tests/test_callback_index.py",
+        "test_function": "test_exact_filter_indexed",
+        "line": 63
+      },
+      "template_refs": []
+    },
+    "collect_fsm_flow": {
+      "file": "fsm_flow.py",
+      "line": 263,
+      "direct": [
+        "ContextBuilder",
+        "TestCollectFsmFlow",
+        "TestQueryEngineTrace"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "collect_js_calls": {
+      "file": "route_bridge.py",
+      "line": 192,
+      "direct": [
+        "CollectJsCallsTests",
+        "build_route_index"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "collect_python_calls": {
+      "file": "http_callers.py",
+      "line": 241,
+      "direct": [
+        "TestCollectPythonCalls",
+        "build_route_index"
+      ],
+      "test": {
+        "test_file": "tests/test_http_callers.py",
+        "test_function": "test_fstring_path_skipped",
+        "line": 183
+      },
+      "template_refs": []
+    },
+    "collect_python_routes": {
+      "file": "route_bridge.py",
+      "line": 95,
+      "direct": [
+        "CollectPythonRoutesTests",
+        "build_route_index"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "collect_state_groups": {
+      "file": "fsm_flow.py",
+      "line": 82,
+      "direct": [
+        "TestCollectStateGroups",
+        "collect_fsm_flow"
+      ],
+      "test": {
+        "test_file": "tests/test_fsm_flow.py",
+        "test_function": "test_skips_private_fields",
+        "line": 99
+      },
+      "template_refs": []
+    },
+    "collect_test_categories": {
+      "file": "test_classifier.py",
+      "line": 232,
+      "direct": [
+        "ContextBuilder",
+        "TestCollectAndQuery"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "content_text": {
+      "file": "mcp/rpc.py",
+      "line": 43,
+      "direct": [
+        "handle_request"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "decoratorMeta": {
+      "file": "parsers/_ts_ast_extractor.mjs",
+      "line": 88,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "detect_aiogram_state_check_in_body": {
+      "file": "anti_patterns.py",
+      "line": 97,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "detect_empty_streaks": {
+      "file": "mcp/quality.py",
+      "line": 194,
+      "direct": [
+        "EmptyStreaksTests",
+        "quality_report"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "detect_hot_rereads": {
+      "file": "mcp/quality.py",
+      "line": 146,
+      "direct": [
+        "HotRereadsTests",
+        "quality_report"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "detect_wasteful_pairs": {
+      "file": "mcp/quality.py",
+      "line": 80,
+      "direct": [
+        "WastefulPairsTests",
+        "quality_report"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "ensure_index_dir": {
+      "file": "paths.py",
+      "line": 73,
+      "direct": [
+        "ContextBuilder",
+        "write_callback_index",
+        "write_fsm_flow",
+        "write_impact_graph",
+        "write_index",
+        "write_locale_index",
+        "write_ng_route_index",
+        "write_route_index",
+        "write_test_categories",
+        "write_test_index"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "err": {
+      "file": "mcp/rpc.py",
+      "line": 35,
+      "direct": [
+        "handle_request",
+        "serve"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "extract_decorator_roles": {
+      "file": "symbols.py",
+      "line": 158,
+      "direct": [
+        "ExtractDecoratorRolesTests",
+        "PythonParser"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "extract_scheduler_jobs_from_codebase": {
+      "file": "symbols.py",
+      "line": 366,
+      "direct": [
+        "ContextBuilder",
+        "SchedulerJobsScanTests"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "filter_test_records": {
+      "file": "_test_filter.py",
+      "line": 44,
+      "direct": [
+        "FilterRecordsTests"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "find_anti_patterns": {
+      "file": "anti_patterns.py",
+      "line": 166,
+      "direct": [
+        "Dispatcher",
+        "FindAntiPatternsTests"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "find_call_sites": {
+      "file": "call_sites.py",
+      "line": 202,
+      "direct": [
+        "Dispatcher",
+        "TestFindCallSites",
+        "build_tasks"
+      ],
+      "test": {
+        "test_file": "tests/test_call_sites.py",
+        "test_function": "test_record_has_function_and_raw",
+        "line": 93
+      },
+      "template_refs": []
+    },
+    "find_callback": {
+      "file": "callback_index.py",
+      "line": 236,
+      "direct": [
+        "Dispatcher",
+        "TestFindCallbackLookup",
+        "TestQueryEngineFindCallback",
+        "find_orphans"
+      ],
+      "test": {
+        "test_file": "tests/test_callback_index.py",
+        "test_function": "test_longest_prefix_wins",
+        "line": 113
+      },
+      "template_refs": []
+    },
+    "find_drift": {
+      "file": "locale_index.py",
+      "line": 200,
+      "direct": [
+        "FindDriftTests"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "find_keys": {
+      "file": "locale_index.py",
+      "line": 173,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "find_orphans": {
+      "file": "callback_index.py",
+      "line": 308,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "find_route_for_path": {
+      "file": "route_bridge.py",
+      "line": 372,
+      "direct": [
+        "callers_for_route",
+        "python_callers_for_route"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "find_section": {
+      "file": "markdown_index.py",
+      "line": 274,
+      "direct": [
+        "QueryEngine"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "find_test_for_symbol": {
+      "file": "test_linking.py",
+      "line": 516,
+      "direct": [
+        "CoLocationFallbackTests",
+        "FindTestForSymbolTests",
+        "IndexAndResolveTests",
+        "ReferenceBasedLinkingTests",
+        "build_test_index"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "find_usage": {
+      "file": "orm_field_usage.py",
+      "line": 62,
+      "direct": [
+        "TestBasics"
+      ],
+      "test": {
+        "test_file": "tests/test_orm_field_usage.py",
+        "test_function": "test_limit_short_circuits",
+        "line": 113
+      },
+      "template_refs": []
+    },
+    "find_xref": {
+      "file": "markdown_index.py",
+      "line": 373,
+      "direct": [
+        "QueryEngine"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "get": {
+      "file": "parse_cache.py",
+      "line": 122,
+      "direct": [
+        "BaseParser",
+        "BuilderWithCustomRolesTests",
+        "ContextBuilder",
+        "ContextBuilderRunTests",
+        "Dispatcher",
+        "GetPutTests",
+        "GetSessionMetricsTests",
+        "InspectClassTsTests",
+        "MethodDecoratorsTest",
+        "MetricsWriter",
+        "QueryEngine",
+        "RunCheckCacheTests",
+        "TestAttachAndQuery",
+        "TestCollectAndQuery",
+        "TestLogLineParse",
+        "TestMcpToolWiring",
+        "TestNoConfigBackwardCompat",
+        "TsJsParser",
+        "TsJsParserTests",
+        "aggregate",
+        "apply_custom_roles",
+        "attach_python_callers",
+        "build_impact_graph",
+        "build_locale_index",
+        "build_test_index",
+        "callers_for_route",
+        "category_summary",
+        "cmd_backup_inspect",
+        "cmd_card",
+        "cmd_changed",
+        "cmd_decorated",
+        "cmd_file_card",
+        "cmd_init",
+        "cmd_ng_module_members",
+        "cmd_repo_map",
+        "cmd_route_callers",
+        "cmd_slice",
+        "cmd_stats",
+        "cmd_test",
+        "cmd_verify",
+        "collect",
+        "collect_python_calls",
+        "detect_empty_streaks",
+        "detect_hot_rereads",
+        "detect_wasteful_pairs",
+        "filter_test_records",
+        "find_anti_patterns",
+        "find_callback",
+        "find_drift",
+        "find_route_for_path",
+        "find_section",
+        "find_test_for_symbol",
+        "find_xref",
+        "get_key",
+        "get_toc",
+        "handle_request",
+        "has_error",
+        "inspect_class",
+        "is_available",
+        "is_enabled",
+        "link_graph",
+        "list_docs",
+        "list_keys",
+        "load",
+        "load_check_specs",
+        "load_custom_roles",
+        "load_http_clients",
+        "load_rules",
+        "logline_to_symbol",
+        "lookup_tests_by_category",
+        "match_calls_to_routes",
+        "prune",
+        "python_callers_for_route",
+        "quality_report",
+        "query_impact",
+        "read_metrics",
+        "route_for_js_file",
+        "route_for_path",
+        "routes_for_component",
+        "run_check",
+        "save",
+        "search_doc_text",
+        "should_auto_reindex",
+        "should_skip_mypy",
+        "should_skip_ruff",
+        "stats"
+      ],
+      "test": {
+        "test_file": "tests/test_parse_cache.py",
+        "test_function": "test_get_miss_when_file_deleted",
+        "line": 96
+      },
+      "template_refs": []
+    },
+    "get_key": {
+      "file": "locale_index.py",
+      "line": 191,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "get_parser": {
+      "file": "parsers/__init__.py",
+      "line": 18,
+      "direct": [
+        "ComposerJsonTests",
+        "ContextBuilder",
+        "CssParser",
+        "DevOpsParser",
+        "ExtractFactsTests",
+        "FactProjectionTests",
+        "FilenameRegistrationTests",
+        "FindSymbolHidesFactsTests",
+        "HtmlParser",
+        "IntegrationTests",
+        "IsAvailableTests",
+        "IsEnabledTests",
+        "JsonParser",
+        "MethodDecoratorsTest",
+        "PackageJsonTests",
+        "ParseFallbackTests",
+        "ParserDispatchTests",
+        "PhpParser",
+        "PythonParser",
+        "ReadSliceTests",
+        "TestAiogramRoleSplit",
+        "TestCssParser",
+        "TestHtmlParser",
+        "TestPhpParser",
+        "TestPythonASTParser",
+        "TestUmbrellaQueryCompat",
+        "TsJsParser",
+        "TsJsParserTests",
+        "TsconfigJsonTests",
+        "get_supported_extensions",
+        "get_supported_filenames"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "get_supported_extensions": {
+      "file": "parsers/__init__.py",
+      "line": 22,
+      "direct": [
+        "ComposerJsonTests",
+        "ContextBuilder",
+        "CssParser",
+        "DevOpsParser",
+        "ExtractFactsTests",
+        "FactProjectionTests",
+        "FilenameRegistrationTests",
+        "FindSymbolHidesFactsTests",
+        "HtmlParser",
+        "IntegrationTests",
+        "IsAvailableTests",
+        "IsEnabledTests",
+        "JsonParser",
+        "MethodDecoratorsTest",
+        "PackageJsonTests",
+        "ParseFallbackTests",
+        "ParserDispatchTests",
+        "PhpParser",
+        "PythonParser",
+        "ReadSliceTests",
+        "TestAiogramRoleSplit",
+        "TestCssParser",
+        "TestHtmlParser",
+        "TestPhpParser",
+        "TestPythonASTParser",
+        "TestUmbrellaQueryCompat",
+        "TsJsParser",
+        "TsJsParserTests",
+        "TsconfigJsonTests",
+        "get_parser",
+        "get_supported_filenames"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "get_supported_filenames": {
+      "file": "parsers/__init__.py",
+      "line": 26,
+      "direct": [
+        "ComposerJsonTests",
+        "ContextBuilder",
+        "CssParser",
+        "DevOpsParser",
+        "ExtractFactsTests",
+        "FactProjectionTests",
+        "FilenameRegistrationTests",
+        "FindSymbolHidesFactsTests",
+        "HtmlParser",
+        "IntegrationTests",
+        "IsAvailableTests",
+        "IsEnabledTests",
+        "JsonParser",
+        "MethodDecoratorsTest",
+        "PackageJsonTests",
+        "ParseFallbackTests",
+        "ParserDispatchTests",
+        "PhpParser",
+        "PythonParser",
+        "ReadSliceTests",
+        "TestAiogramRoleSplit",
+        "TestCssParser",
+        "TestHtmlParser",
+        "TestPhpParser",
+        "TestPythonASTParser",
+        "TestUmbrellaQueryCompat",
+        "TsJsParser",
+        "TsJsParserTests",
+        "TsconfigJsonTests",
+        "get_parser",
+        "get_supported_extensions"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "get_toc": {
+      "file": "markdown_index.py",
+      "line": 246,
+      "direct": [
+        "QueryEngine",
+        "find_section"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "grep_file": {
+      "file": "file_grep.py",
+      "line": 25,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "handle_request": {
+      "file": "mcp/rpc.py",
+      "line": 49,
+      "direct": [
+        "serve"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "has_error": {
+      "file": "conventions.py",
+      "line": 378,
+      "direct": [
+        "LintProjectTests",
+        "cmd_lint"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "index_dir": {
+      "file": "paths.py",
+      "line": 41,
+      "direct": [
+        "ensure_index_dir",
+        "index_path"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "index_path": {
+      "file": "paths.py",
+      "line": 46,
+      "direct": [
+        "ContextBuilder",
+        "ContextBuilderRunTests",
+        "IgnoreDirsTests",
+        "TestQueryEngineFindCallback",
+        "TestQueryEngineTrace",
+        "index_read_path",
+        "write_callback_index",
+        "write_fsm_flow",
+        "write_impact_graph",
+        "write_index",
+        "write_locale_index",
+        "write_ng_route_index",
+        "write_route_index",
+        "write_test_categories",
+        "write_test_index"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "index_read_path": {
+      "file": "paths.py",
+      "line": 56,
+      "direct": [
+        "ContextBuilder",
+        "should_auto_reindex"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "inspect_backup": {
+      "file": "backup_manager.py",
+      "line": 226,
+      "direct": [
+        "cmd_backup_inspect"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "inspect_class": {
+      "file": "class_inspector.py",
+      "line": 97,
+      "direct": [
+        "Dispatcher",
+        "InspectClassTsTests",
+        "TestInspectClass"
+      ],
+      "test": {
+        "test_file": "tests/test_class_inspector.py",
+        "test_function": "test_empty_input_safe",
+        "line": 135
+      },
+      "template_refs": []
+    },
+    "is_available": {
+      "file": "parsers/_ts_ast.py",
+      "line": 72,
+      "direct": [
+        "IsAvailableTests",
+        "parse"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "is_enabled": {
+      "file": "parsers/_ts_ast.py",
+      "line": 53,
+      "direct": [
+        "IsEnabledTests"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "is_states_group_class": {
+      "file": "symbols.py",
+      "line": 208,
+      "direct": [
+        "IsStatesGroupClassTests",
+        "PythonParser"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "is_test_path": {
+      "file": "_test_filter.py",
+      "line": 29,
+      "direct": [
+        "IsTestPathTests",
+        "filter_test_records"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "is_webhook_function": {
+      "file": "symbols.py",
+      "line": 236,
+      "direct": [
+        "IsWebhookFunctionTests",
+        "PythonParser"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "link_graph": {
+      "file": "markdown_index.py",
+      "line": 516,
+      "direct": [
+        "QueryEngine"
+      ],
+      "test": {
+        "test_file": "tests/test_markdown_index.py",
+        "test_function": "test_docs_link_graph_reports_broken_link",
+        "line": 315
+      },
+      "template_refs": []
+    },
+    "lint_project": {
+      "file": "conventions.py",
+      "line": 351,
+      "direct": [
+        "LintProjectTests",
+        "QueryEngine"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "list_anti_patterns": {
+      "file": "anti_patterns.py",
+      "line": 161,
+      "direct": [
+        "Dispatcher",
+        "FindAntiPatternsTests"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "list_checks": {
+      "file": "checks.py",
+      "line": 108,
+      "direct": [
+        "Dispatcher",
+        "TestLoadChecks",
+        "TestQueryEngineWiring"
+      ],
+      "test": {
+        "test_file": "tests/test_checks.py",
+        "test_function": "test_missing_block_returns_empty",
+        "line": 63
+      },
+      "template_refs": []
+    },
+    "list_docs": {
+      "file": "markdown_index.py",
+      "line": 346,
+      "direct": [
+        "Dispatcher",
+        "QueryHelperTests"
+      ],
+      "test": {
+        "test_file": "tests/test_markdown_index.py",
+        "test_function": "test_list_docs_filters_by_prefix",
+        "line": 295
+      },
+      "template_refs": []
+    },
+    "list_keys": {
+      "file": "locale_index.py",
+      "line": 163,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "list_kinds": {
+      "file": "configs_scanner.py",
+      "line": 103,
+      "direct": [
+        "TestListKinds"
+      ],
+      "test": {
+        "test_file": "tests/test_configs_scanner.py",
+        "test_function": "test_kinds_are_sorted",
+        "line": 202
+      },
+      "template_refs": []
+    },
+    "literalText": {
+      "file": "parsers/_ts_ast_extractor.mjs",
+      "line": 70,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "load": {
+      "file": "parse_cache.py",
+      "line": 79,
+      "direct": [
+        "BuildTestIndexTests",
+        "BuilderWithCustomRolesTests",
+        "ContextBuilder",
+        "ContextBuilderRunTests",
+        "EpochInvalidationTests",
+        "FindHandlersWithoutTestsTests",
+        "GetPutTests",
+        "IgnoreDirsTests",
+        "LoadSaveTests",
+        "McpServerTests",
+        "QueryEngine",
+        "WriteLocaleIndexTests",
+        "cmd_init",
+        "is_enabled",
+        "load_custom_roles",
+        "load_http_clients",
+        "load_rules",
+        "should_skip_mypy",
+        "should_skip_ruff"
+      ],
+      "test": {
+        "test_file": "tests/test_parse_cache.py",
+        "test_function": "test_save_and_reload_roundtrip",
+        "line": 37
+      },
+      "template_refs": []
+    },
+    "load_check_specs": {
+      "file": "checks.py",
+      "line": 77,
+      "direct": [
+        "list_checks",
+        "load_checks",
+        "run_check"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "load_checks": {
+      "file": "checks.py",
+      "line": 67,
+      "direct": [
+        "TestLoadChecks"
+      ],
+      "test": {
+        "test_file": "tests/test_checks.py",
+        "test_function": "test_returns_argv_lists_only",
+        "line": 40
+      },
+      "template_refs": []
+    },
+    "load_custom_roles": {
+      "file": "custom_roles.py",
+      "line": 78,
+      "direct": [
+        "ContextBuilder",
+        "LoadCustomRolesTests"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "load_http_clients": {
+      "file": "http_callers.py",
+      "line": 90,
+      "direct": [
+        "TestAttachAndQuery",
+        "TestCollectPythonCalls",
+        "TestLoadHttpClients",
+        "build_route_index"
+      ],
+      "test": {
+        "test_file": "tests/test_http_callers.py",
+        "test_function": "test_attach_idempotent",
+        "line": 226
+      },
+      "template_refs": []
+    },
+    "load_rules": {
+      "file": "conventions.py",
+      "line": 69,
+      "direct": [
+        "LoadRulesTests",
+        "lint_project"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "logline_to_symbol": {
+      "file": "logline_parser.py",
+      "line": 52,
+      "direct": [
+        "Dispatcher",
+        "TestLogLineParse"
+      ],
+      "test": {
+        "test_file": "tests/test_logline_parser.py",
+        "test_function": "test_empty_input_safe",
+        "line": 96
+      },
+      "template_refs": []
+    },
+    "lookup_tests_by_category": {
+      "file": "test_classifier.py",
+      "line": 265,
+      "direct": [
+        "TestCollectAndQuery"
+      ],
+      "test": {
+        "test_file": "tests/test_test_classifier.py",
+        "test_function": "test_tests_by_category_returns_sorted_paths",
+        "line": 155
+      },
+      "template_refs": []
+    },
+    "main": {
+      "file": "cli.py",
+      "line": 323,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "match_calls_to_routes": {
+      "file": "route_bridge.py",
+      "line": 267,
+      "direct": [
+        "MatchCallsToRoutesTests",
+        "build_route_index"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "maybe_auto_reindex": {
+      "file": "auto_reindex.py",
+      "line": 73,
+      "direct": [
+        "AutoReindexTests",
+        "serve"
+      ],
+      "test": {
+        "test_file": "tests/test_auto_reindex.py",
+        "test_function": "test_maybe_auto_reindex_spawns_builder_when_stale",
+        "line": 62
+      },
+      "template_refs": []
+    },
+    "memberDecoratorNames": {
+      "file": "parsers/_ts_ast_extractor.mjs",
+      "line": 115,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "ok": {
+      "file": "mcp/rpc.py",
+      "line": 30,
+      "direct": [
+        "handle_request"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "parse": {
+      "file": "parsers/_ts_ast.py",
+      "line": 204,
+      "direct": [
+        "ExtractFactsTests",
+        "FailureModeTests",
+        "IntegrationTests",
+        "JsTsBranchTests",
+        "ParseFallbackTests",
+        "PhpBranchTests",
+        "PythonBranchTests",
+        "PythonParser",
+        "TestFileParser",
+        "classify_test_file",
+        "collect_callbacks",
+        "collect_fsm_flow",
+        "collect_python_calls",
+        "collect_python_routes",
+        "collect_state_groups",
+        "detect_aiogram_state_check_in_body",
+        "extract_scheduler_jobs_from_codebase",
+        "find_call_sites",
+        "find_usage",
+        "inspect_class"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "parseOneFile": {
+      "file": "parsers/_ts_ast_extractor.mjs",
+      "line": 127,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "path_role": {
+      "file": "symbols.py",
+      "line": 280,
+      "direct": [
+        "PathRoleTests",
+        "PythonParser"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "preview_backup": {
+      "file": "backup_manager.py",
+      "line": 251,
+      "direct": [
+        "Dispatcher",
+        "cmd_backup"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "prune": {
+      "file": "parse_cache.py",
+      "line": 169,
+      "direct": [
+        "ContextBuilder",
+        "PruneTests"
+      ],
+      "test": {
+        "test_file": "tests/test_parse_cache.py",
+        "test_function": "test_prune_handles_empty_live_set",
+        "line": 162
+      },
+      "template_refs": []
+    },
+    "put": {
+      "file": "parse_cache.py",
+      "line": 148,
+      "direct": [
+        "ContextBuilder",
+        "GetPutTests"
+      ],
+      "test": {
+        "test_file": "tests/test_parse_cache.py",
+        "test_function": "test_put_no_op_when_file_missing",
+        "line": 102
+      },
+      "template_refs": []
+    },
+    "python_callers_for_route": {
+      "file": "http_callers.py",
+      "line": 388,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "quality_report": {
+      "file": "mcp/quality.py",
+      "line": 245,
+      "direct": [
+        "QualityReportTests"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "query_impact": {
+      "file": "impact_graph.py",
+      "line": 171,
+      "direct": [
+        "QueryEngine"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "read_metrics": {
+      "file": "mcp/metrics.py",
+      "line": 364,
+      "direct": [
+        "DispatcherIntegrationTests",
+        "ReadMetricsTests",
+        "WriterTests"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "restore": {
+      "file": "backup_manager.py",
+      "line": 162,
+      "direct": [
+        "cmd_restore"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "route_for_js_file": {
+      "file": "route_bridge.py",
+      "line": 419,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "route_for_path": {
+      "file": "ng_route_bridge.py",
+      "line": 303,
+      "direct": [],
+      "test": {
+        "test_file": "tests/test_ng_route_bridge.py",
+        "test_function": "test_route_for_path_exact_then_substring",
+        "line": 211
+      },
+      "template_refs": []
+    },
+    "routes_for_component": {
+      "file": "ng_route_bridge.py",
+      "line": 293,
+      "direct": [],
+      "test": {
+        "test_file": "tests/test_ng_route_bridge.py",
+        "test_function": "test_routes_for_component",
+        "line": 222
+      },
+      "template_refs": []
+    },
+    "run_benchmark": {
+      "file": "benchmark.py",
+      "line": 198,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "run_check": {
+      "file": "checks.py",
+      "line": 232,
+      "direct": [
+        "Dispatcher",
+        "RunCheckCacheTests",
+        "TestQueryEngineWiring",
+        "TestRunCheck"
+      ],
+      "test": {
+        "test_file": "tests/test_checks.py",
+        "test_function": "test_pytest_summary_extracted",
+        "line": 110
+      },
+      "template_refs": []
+    },
+    "run_mypy": {
+      "file": "mypy_inspector.py",
+      "line": 136,
+      "direct": [
+        "collect"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "run_ruff": {
+      "file": "ruff_inspector.py",
+      "line": 99,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "run_ruff_format": {
+      "file": "ruff_format_inspector.py",
+      "line": 59,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "save": {
+      "file": "parse_cache.py",
+      "line": 106,
+      "direct": [
+        "ContextBuilder",
+        "EpochInvalidationTests",
+        "LoadSaveTests"
+      ],
+      "test": {
+        "test_file": "tests/test_parse_cache.py",
+        "test_function": "test_save_and_reload_roundtrip",
+        "line": 37
+      },
+      "template_refs": []
+    },
+    "scan": {
+      "file": "configs_scanner.py",
+      "line": 135,
+      "direct": [
+        "TestScanBasics"
+      ],
+      "test": {
+        "test_file": "tests/test_configs_scanner.py",
+        "test_function": "test_toml_kind",
+        "line": 190
+      },
+      "template_refs": []
+    },
+    "search": {
+      "file": "notify_log_reader.py",
+      "line": 115,
+      "direct": [
+        "NotifyLogReaderTests",
+        "QueryEngine",
+        "grep_file",
+        "scan",
+        "search_doc_text"
+      ],
+      "test": {
+        "test_file": "tests/test_notify_log_reader.py",
+        "test_function": "test_search_respects_kind_filter",
+        "line": 101
+      },
+      "template_refs": []
+    },
+    "search_doc_text": {
+      "file": "markdown_index.py",
+      "line": 439,
+      "direct": [
+        "Dispatcher",
+        "QueryHelperTests"
+      ],
+      "test": {
+        "test_file": "tests/test_markdown_index.py",
+        "test_function": "test_search_doc_text_file_scope",
+        "line": 254
+      },
+      "template_refs": []
+    },
+    "serve": {
+      "file": "mcp/server.py",
+      "line": 84,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "should_auto_reindex": {
+      "file": "auto_reindex.py",
+      "line": 55,
+      "direct": [
+        "AutoReindexTests",
+        "maybe_auto_reindex"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "should_override_builtin": {
+      "file": "custom_roles.py",
+      "line": 331,
+      "direct": [
+        "ApplyCustomRolesTests",
+        "ContextBuilder"
+      ],
+      "test": {
+        "test_file": "tests/test_custom_roles.py",
+        "test_function": "test_should_override_builtin_priority_rule",
+        "line": 139
+      },
+      "template_refs": []
+    },
+    "should_skip_mypy": {
+      "file": "mypy_inspector.py",
+      "line": 62,
+      "direct": [
+        "collect"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "should_skip_ruff": {
+      "file": "ruff_inspector.py",
+      "line": 42,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "specs": {
+      "file": "mcp/specs/docs.py",
+      "line": 14,
+      "direct": [
+        "tool_specs"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "stats": {
+      "file": "notify_log_reader.py",
+      "line": 148,
+      "direct": [
+        "NotifyLogReaderTests"
+      ],
+      "test": {
+        "test_file": "tests/test_notify_log_reader.py",
+        "test_function": "test_engine_stats_threads_through",
+        "line": 198
+      },
+      "template_refs": []
+    },
+    "tool_specs": {
+      "file": "mcp/specs/__init__.py",
+      "line": 22,
+      "direct": [
+        "handle_request"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "trace_fsm_flow": {
+      "file": "fsm_flow.py",
+      "line": 366,
+      "direct": [
+        "Dispatcher",
+        "TestQueryEngineTrace",
+        "TestTraceLookup"
+      ],
+      "test": {
+        "test_file": "tests/test_fsm_flow.py",
+        "test_function": "test_empty_input_returns_none",
+        "line": 187
+      },
+      "template_refs": []
+    },
+    "write_callback_index": {
+      "file": "callback_index.py",
+      "line": 214,
+      "direct": [
+        "ContextBuilder",
+        "FindOrphansTests",
+        "TestQueryEngineFindCallback"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "write_fsm_flow": {
+      "file": "fsm_flow.py",
+      "line": 349,
+      "direct": [
+        "ContextBuilder",
+        "TestQueryEngineTrace"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "write_impact_graph": {
+      "file": "impact_graph.py",
+      "line": 163,
+      "direct": [
+        "ContextBuilder"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "write_index": {
+      "file": "markdown_index.py",
+      "line": 225,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "write_locale_index": {
+      "file": "locale_index.py",
+      "line": 145,
+      "direct": [
+        "ContextBuilder",
+        "WriteLocaleIndexTests"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "write_ng_route_index": {
+      "file": "ng_route_bridge.py",
+      "line": 276,
+      "direct": [
+        "ContextBuilder"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "write_route_index": {
+      "file": "route_bridge.py",
+      "line": 355,
+      "direct": [
+        "ContextBuilder",
+        "TestAttachAndQuery"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "write_test_categories": {
+      "file": "test_classifier.py",
+      "line": 245,
+      "direct": [
+        "ContextBuilder"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "write_test_index": {
+      "file": "test_linking.py",
+      "line": 632,
+      "direct": [
+        "BuildTestIndexTests",
+        "ContextBuilder"
+      ],
+      "test": {
+        "test_file": "tests/test_test_linking.py",
+        "test_function": "test_write_test_index_persists_to_disk",
+        "line": 314
+      },
+      "template_refs": []
+    }
+  }
+}

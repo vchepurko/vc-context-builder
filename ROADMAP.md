@@ -18,9 +18,11 @@ the code — if you spot an inconsistency, file an issue.
 - Self-index mode — index the submodule against itself for contributors
 
 ### Query surface
-- **MCP server** (~47 tools)
+- **MCP server** (~48+ tools)
   - Symbol cards (`get_symbol_card`), file cards (`get_file_card`),
     repo map (`repo_map`)
+  - Impact graph (`impact`) — direct / indirect affected symbols,
+    linked tests at risk, and template-ref slot
   - Reverse / forward call lookup (`who_calls`, `get_callees`,
     `find_call_sites`)
   - Decorator search (`get_decorated_with`)
@@ -193,6 +195,12 @@ matching and the hybrid-population + TTL model fleshed out.
 ---
 
 ### Feature 3 — Impact graph  *(medium value, small effort)*
+
+**Status:** ✅ Shipped 2026-05-22 — `agent_impact.json` plus MCP
+`impact(symbol, depth=2)`. The first version derives edges from
+indexed callees and per-file dependencies, returns linked tests at
+risk, and keeps `template_refs` in the response shape for the Angular
+template-ref expansion.
 
 **Problem:** "What breaks if I change `ICollectionPlayer`?" requires 4–5 sequential
 MCP calls today (`who_calls` → then callers of callers → template refs → test coverage).

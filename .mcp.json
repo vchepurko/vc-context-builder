@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "vc-context-self": {
+      "command": "/Users/vchepurko/projects/vc/vc-context-builder/bin/vc-context-mcp",
+      "args": [
+        "--root",
+        "/Users/vchepurko/projects/vc/vc-context-builder"
+      ],
+      "type": "stdio"
+    }
+  }
+}
