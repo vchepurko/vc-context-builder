@@ -486,8 +486,10 @@ def specs() -> List[Dict[str, Any]]:
                             "would have cost for the same query mix. "
                             "Returns {total_baseline_tokens, "
                             "saved_tokens, savings_ratio, by_tool}. "
-                            "Tools with no Bash equivalent (read_slice, "
-                            "run_check, rebuild_index) contribute 0."
+                            "Tools with no Bash equivalent (run_check, "
+                            "rebuild_index) contribute 0. read_slice "
+                            "baseline = full-file Read; find_in_file "
+                            "baseline = grep -n equivalent."
                         ),
                     },
                 },

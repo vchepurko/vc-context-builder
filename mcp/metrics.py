@@ -123,7 +123,8 @@ _ARG_VALUE_MAX_CHARS = 100
 #   * Reverse / forward calls → grep -rn (lots of hits)    ≈ 4,000 B
 #   * Module/repo overview   → ls + cat several maps  ≈ 6-8,000 B
 #   * Locale audit           → grep through locales/  ≈ 2-3,000 B
-#   * Slice / cat-like       → no help, baseline 0
+#   * Slice                  → full-file Read equivalent ≈ 8,000 B
+#   * Single-file grep       → grep -n equivalent ≈ 2,000 B
 #   * Check/run/format       → run the same command, baseline 0
 #
 _BASELINE_BYTES_PER_TOOL: Dict[str, int] = {
@@ -182,8 +183,13 @@ _BASELINE_BYTES_PER_TOOL: Dict[str, int] = {
     "list_config_kinds": 100,
     "devops_card": 8000,
     "find_orm_field_usage": 5000,
+    # Single-file surgical reads — Bash equivalent is reading the whole file
+    "read_slice": 8000,
+    "find_in_file": 2000,
+    # Angular lint — Bash equivalent is `npx eslint src/`
+    "ng_eslint_violations": 5000,
+    "ng_find_module": 2500,
     # No Bash-equivalent — baseline is 0
-    "read_slice": 0,
     "run_check": 0,
     "list_checks": 200,
     "lint_violations": 2000,
