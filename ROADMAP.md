@@ -87,6 +87,156 @@ the code — if you spot an inconsistency, file an issue.
 
 ---
 
+## 🧭 Phase 5 — Semantic memory + experience store (discussed 2026-05-22)
+
+**Status**: design-stage. Emerged from a session analysing submodule MCP setup and agent
+limitations. Three features, ordered by value/effort ratio.
+
+---
+
+### Feature 1 — Semantic symbol search  *(highest value, medium effort)*
+
+**Problem:** `find_symbol("AuthService")` works when the name is known. For
+"find the service that handles SCORM completion" the agent has to guess names
+or do multiple probing calls — 3–8 round-trips, ~800 tokens, unreliable results.
+
+**Solution:** embed every symbol as `{name} {doc} {signature} {filepath}` at
+`agent_map.py` time; store in `sqlite-vec` at `.vc-context/embeddings/symbols.db`.
+New MCP tool: `semantic_search(query, top_k=5)`.
+
+**Implementation notes:**
+- sqlite-vec: zero external deps, ships with Python 3.12, SQLite extension for
+  everything older. Fits the "stdlib-only runtime" philosophy.
+- Embedding model: configurable via `conventions.json` →
+  `embedding_provider: "local" | "openai" | "anthropic"`.
+  Default: local `sentence-transformers/all-MiniLM-L6-v2` (25MB, offline, free).
+  API providers (OpenAI/Anthropic) are opt-in for teams that want higher quality.
+- Build cost: ~0.5–2s for a 500-symbol project; cached per `(mtime, size)` like the
+  AST parser.
+- Stored in `~/.vc-context/<repo-hash>/embeddings/` (local layer from Phase 4,
+  never committed).
+
+**Token effect:**
+
+| | Before | After |
+|---|---|---|
+| Tokens (exploration) | 3–8 calls × ~150t = **800t** | 1 call ~**200t** |
+| Round-trips | 3–8 | **1** |
+| Find by meaning | ✗ | ✓ |
+
+---
+
+### Feature 2 — Experience store  *(highest long-term value, highest effort)*
+
+**Problem:** Every session starts from zero. The agent repeats the same
+architectural questions, makes the same mistakes, re-derives the same decisions.
+The decisions log in Phase 4 (`record_decision`) captures structure — this feature
+makes it *searchable and proactive*.
+
+**Solution:** sqlite-vec store of past decisions, mistakes, dead-ends, patterns.
+Two new MCP tools:
+- `recall_experience(context, top_k=3)` → 2–3 tokens if nothing relevant;
+  ~200 tokens when hits found
+- `remember_experience(entry)` → writes a new record
+
+**Entry schema:**
+```json
+{
+  "id": "uuid",
+  "type": "decision | mistake | dead_end | pattern",
+  "context_text": "free-text description of the situation",
+  "content": "what was decided / what went wrong / what to do instead",
+  "source": "user | agent | auto",
+  "source_file": "src/app/.../component.ts",
+  "last_verified": "2026-05-22",
+  "confidence": 0.9,
+  "embedding": [...]
+}
+```
+
+**Population — hybrid model (user + agent):**
+- `source=user`: user says "запиши" → highest trust, never auto-deleted
+- `source=agent`: agent records after user confirms a non-obvious decision → medium trust
+- `source=auto`: recorded after a passing test confirms a code pattern → low trust,
+  shown in results but labelled
+
+**Staleness / cleanup — automatic + user-driven:**
+
+1. **File-anchored verification**: every `recall` call checks `source_file` still
+   exists and the referenced symbol still appears at the stored line.
+   - File deleted → auto-delete entry
+   - Symbol renamed → mark `stale`, surface to user on next relevant `recall`
+   - File unchanged → update `last_verified`
+
+2. **Confidence decay**: `confidence -= 0.05` per 30 days without a `last_verified`
+   update. Below 0.4 → entry surfaced with a `[stale?]` tag. The user can confirm
+   ("still valid") or dismiss ("forget it") — one word, not a re-explanation.
+
+3. **Explicit:** user says "забудь X" → semantic delete by context match.
+
+4. **Agent-detected mismatch**: if I retrieve an experience entry and the
+   referenced code contradicts it, I delete the entry and note the contradiction.
+   No dangling wrong memories.
+
+**Token effect:**
+
+| | Before | After |
+|---|---|---|
+| Repeated architecture question | ~500t explanation each session | **50t recall** |
+| Repeating a known mistake | 200–500t exploration + fix | **50t recall = prevention** |
+| Your time | Re-explain each session | "запиши" once |
+
+**Relation to Phase 4:** this is the concrete implementation of `record_decision` /
+`replay_decisions` sketched in Phase 4, with vector search replacing fuzzy string
+matching and the hybrid-population + TTL model fleshed out.
+
+---
+
+### Feature 3 — Impact graph  *(medium value, small effort)*
+
+**Problem:** "What breaks if I change `ICollectionPlayer`?" requires 4–5 sequential
+MCP calls today (`who_calls` → then callers of callers → template refs → test coverage).
+Each call is a round-trip; the agent often misses template references.
+
+**Solution:** at index time, build a directed dependency graph (extends + imports +
+DI injection + template `[input]` bindings + `@Input()` declarations). Store as
+`agent_impact.json`. New MCP tool: `impact(symbol, depth=2)` returns:
+
+```json
+{
+  "direct": ["WorkflowService", "CoursePlayer"],
+  "indirect": ["CollectionPlayer → WorkflowService"],
+  "tests_at_risk": ["workflow.spec.ts"],
+  "template_refs": ["course-player.html:45"]
+}
+```
+
+**Token effect:**
+
+| | Before | After |
+|---|---|---|
+| Tokens | 5 calls × ~180t = **900t** | 1 call ~**300t** |
+| Round-trips | 5 | **1** |
+| Template refs covered | sometimes missed | **always** |
+
+**Implementation notes:**
+- Builds on existing `who_calls` + `find_call_sites` data; adds template-ref
+  extraction (already partially present via `find_in_templates`).
+- `depth` param prevents combinatorial explosion on large graphs (default 2).
+- `agent_impact.json` ~50KB for a 500-symbol project, < 10ms build overhead.
+
+---
+
+### Recommended implementation order
+
+```
+1. Impact graph     — small effort, zero new deps, immediate visible win
+2. Semantic search  — sqlite-vec, highest daily-use benefit
+3. Experience store — most complex (TTL, confidence, cleanup), highest long-term ROI
+```
+
+---
+
 ## 🔜 Planned (next 1–3 PRs)
 
 > **Recently shipped (2026-05-14)** — batch 1: `_QuerySymbolsMixin`
