@@ -10,8 +10,8 @@
 #      `git status`.
 #   4. Write a project-rooted .mcp.json so Claude Code (and any other
 #      MCP client that reads .mcp.json) auto-discovers vc-context
-#      with relative paths. Idempotent: skipped if vc-context is
-#      already wired in.
+#      (main project) and vc-context-meta (submodule self-index)
+#      with relative paths. Idempotent: skipped if both are already wired.
 #   5. Drop curated slash commands (find-similar, audit-handler,
 #      refactor-callsites) into ./.claude/commands/. Skipped if files
 #      already exist (use --force-commands to overwrite).
@@ -183,6 +183,12 @@ entry = {
     "args": [],
     "env": {},
 }
+meta_entry = {
+    "type": "stdio",
+    "command": f"{relative_dir}/bin/vc-context-mcp",
+    "args": ["--root", relative_dir],
+    "env": {},
+}
 if path.exists():
     try:
         cfg = json.loads(path.read_text())
@@ -190,23 +196,53 @@ if path.exists():
         print("invalid")
         sys.exit(0)
     servers = cfg.get("mcpServers", {})
-    if "vc-context" in servers:
+    has_main = "vc-context" in servers
+    has_meta = "vc-context-meta" in servers
+    if has_main and has_meta:
         print("already")
         sys.exit(0)
-    cfg.setdefault("mcpServers", {})["vc-context"] = entry
+    cfg.setdefault("mcpServers", {})
+    if not has_main:
+        cfg["mcpServers"]["vc-context"] = entry
+    if not has_meta:
+        cfg["mcpServers"]["vc-context-meta"] = meta_entry
     path.write_text(json.dumps(cfg, indent=2) + "\n")
     print("merged")
 else:
-    path.write_text(json.dumps({"mcpServers": {"vc-context": entry}}, indent=2) + "\n")
+    path.write_text(json.dumps({"mcpServers": {"vc-context": entry, "vc-context-meta": meta_entry}}, indent=2) + "\n")
     print("created")
 PY
 )
     case "$STATUS" in
-        created)  echo "🔌 Wrote $MCP_CONFIG — Claude Code auto-discovers vc-context." ;;
-        merged)   echo "🔌 Added vc-context to existing $MCP_CONFIG." ;;
-        already)  echo "ℹ️  $MCP_CONFIG already lists vc-context — left alone." ;;
+        created)  echo "🔌 Wrote $MCP_CONFIG — Claude Code auto-discovers vc-context + vc-context-meta." ;;
+        merged)   echo "🔌 Added vc-context/vc-context-meta to existing $MCP_CONFIG." ;;
+        already)  echo "ℹ️  $MCP_CONFIG already lists vc-context + vc-context-meta — left alone." ;;
         invalid)  echo "⚠️  $MCP_CONFIG is not valid JSON — skipped MCP wiring. Fix it and re-run." ;;
     esac
+
+    # Enable both servers in .claude/settings.json (Claude Code allowlist).
+    CLAUDE_SETTINGS=".claude/settings.json"
+    if [ -f "$CLAUDE_SETTINGS" ]; then
+        python3 - "$CLAUDE_SETTINGS" <<'PY'
+import json, sys
+from pathlib import Path
+path = Path(sys.argv[1])
+try:
+    cfg = json.loads(path.read_text())
+except json.JSONDecodeError:
+    sys.exit(0)
+enabled = cfg.get("enabledMcpjsonServers", [])
+added = []
+for name in ("vc-context", "vc-context-meta"):
+    if name not in enabled:
+        enabled.append(name)
+        added.append(name)
+if added:
+    cfg["enabledMcpjsonServers"] = enabled
+    path.write_text(json.dumps(cfg, indent=2) + "\n")
+    print(",".join(added))
+PY
+    fi
 fi
 
 # 5. Slash commands — copy curated set into .claude/commands/.
