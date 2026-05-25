@@ -49,6 +49,7 @@ NO_COMMANDS=false
 FORCE_COMMANDS=false
 USE_PRECOMMIT=false
 AUTO_REINDEX=false
+EMBEDDING_PROVIDER=""
 AUTO_REINDEX_MINUTES=60
 EXPECT_AUTO_REINDEX_MINUTES=false
 for arg in "$@"; do
@@ -66,6 +67,7 @@ for arg in "$@"; do
         --auto-reindex)    AUTO_REINDEX=true ;;
         --auto-reindex=*)  AUTO_REINDEX=true; AUTO_REINDEX_MINUTES="${arg#*=}" ;;
         --auto-reindex-minutes) EXPECT_AUTO_REINDEX_MINUTES=true ;;
+        --embedding-provider=*) EMBEDDING_PROVIDER="${arg#*=}" ;;
         --pre-commit)      USE_PRECOMMIT=true ;;
         # Legacy aliases.
         --local-only)      ;;  # already default — no-op
@@ -105,12 +107,6 @@ cd "$PROJECT_ROOT" || exit 1
 echo "🤖 vc-context-builder install — $PROJECT_ROOT"
 
 # 1a. Choose embedding provider (interactive unless --embedding-provider given).
-EMBEDDING_PROVIDER=""
-for arg in "$@"; do
-    case "$arg" in
-        --embedding-provider=*) EMBEDDING_PROVIDER="${arg#*=}" ;;
-    esac
-done
 
 if [ -z "$EMBEDDING_PROVIDER" ] && [ -t 0 ]; then
     echo ""
