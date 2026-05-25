@@ -339,6 +339,15 @@ Default behaviour matches `install.sh` — only missing files are
 copied; existing commands are skipped to protect customisations. Use
 `--force` to reset everything to upstream.
 
+For code / MCP tool updates, the submodule itself is enough: the bin
+wrappers and `.mcp.json` point at `.ai-context`, so new tools are
+available after the editor/MCP server restarts. Re-running
+`./.ai-context/install.sh` is safe and idempotent: it rebuilds indexes,
+leaves existing MCP entries alone, copies only missing slash commands,
+and preserves local command edits unless `--force-commands` is passed.
+`python3 .ai-context/cli.py init` is also idempotent; it only adds
+missing config keys unless `--force` is used.
+
 ### Indexing the submodule against itself (contributor mode)
 
 When you're working *on* vc-context-builder (e.g. PRs into the
@@ -671,6 +680,9 @@ Expect `serverInfo.name = "vc-context"`.
 ln -s "$PWD/.ai-context/bin/vc-context" /usr/local/bin/vc-context
 
 vc-context find <symbol>            # one symbol — file / kind / params / doc / role / test
+vc-context semantic-search "query"  # Phase 5 semantic symbol search
+vc-context recall-experience "ctx"  # Phase 5 local decision/pattern recall
+vc-context remember-experience --context "ctx" --content "rule"
 vc-context calls <symbol>           # who imports the file containing <symbol>
 vc-context role <role>              # every symbol with that role tag
 vc-context module <relative/path>   # one folder summary

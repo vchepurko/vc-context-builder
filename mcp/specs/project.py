@@ -522,6 +522,84 @@ def specs() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": "remember_experience",
+            "description": (
+                "Phase 5 local experience store write. Saves one "
+                "repo-local decision, mistake, dead end, or pattern under "
+                "``~/.vc-context/<repo-hash>/learned/experience.sqlite``. "
+                "Use when the user says 'remember/запиши' or confirms a "
+                "non-obvious project rule. This is local state, not a git "
+                "artifact, and never leaves the machine."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "context_text": {
+                        "type": "string",
+                        "description": "Situation where this experience applies.",
+                    },
+                    "content": {
+                        "type": "string",
+                        "description": "What to remember or do next time.",
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["decision", "mistake", "dead_end", "pattern"],
+                        "description": "Experience kind (default decision).",
+                    },
+                    "source": {
+                        "type": "string",
+                        "enum": ["user", "agent", "auto"],
+                        "description": "Trust source (default user).",
+                    },
+                    "source_file": {
+                        "type": "string",
+                        "description": "Optional project-relative file anchor.",
+                    },
+                    "confidence": {
+                        "type": "number",
+                        "description": "Optional 0..1 confidence override.",
+                    },
+                },
+                "required": ["context_text", "content"],
+            },
+        },
+        {
+            "name": "recall_experience",
+            "description": (
+                "Phase 5 local experience recall. Searches repo-local "
+                "decisions, mistakes, dead ends, and patterns by context. "
+                "Returns compact hits with score/confidence/source and "
+                "``stale`` when a file anchor no longer exists. Empty list "
+                "means nothing relevant was learned for this repo."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "context": {
+                        "type": "string",
+                        "description": (
+                            "Current task/context to match against remembered experience."
+                        ),
+                    },
+                    "top_k": {
+                        "type": "integer",
+                        "description": "Maximum hits to return (1-20, default 3).",
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": ["decision", "mistake", "dead_end", "pattern"],
+                        "description": "Optional experience kind filter.",
+                    },
+                    "min_score": {
+                        "type": "number",
+                        "description": "Optional minimum relevance score (default 0.05).",
+                    },
+                },
+                "required": ["context"],
+            },
+        },
+        {
             "name": "list_locale_keys",
             "description": (
                 "Return all i18n keys (sorted), optionally filtered to "
@@ -679,8 +757,7 @@ def specs() -> List[Dict[str, Any]]:
                     "preview": {
                         "type": "boolean",
                         "description": (
-                            "If true, return what would be included without "
-                            "writing a file."
+                            "If true, return what would be included without writing a file."
                         ),
                     },
                 },

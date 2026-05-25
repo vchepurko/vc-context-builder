@@ -24,8 +24,8 @@ jobs:
       - name: Smoke test agent_map.py
         run: |
           python agent_map.py
-          test -f agent_root.json
-          test -f agent_symbols.json
+          test -f .vc-context/index/agent_root.json
+          test -f .vc-context/index/agent_symbols.json
       - name: Smoke test CLI
         run: python cli.py roles
       - name: Smoke test MCP server

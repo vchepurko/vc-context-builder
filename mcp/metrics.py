@@ -131,6 +131,7 @@ _BASELINE_BYTES_PER_TOOL: Dict[str, int] = {
     # Symbol lookup
     "find_symbol": 3000,
     "find_symbols": 5000,
+    "semantic_search": 5000,
     "verify": 2500,
     "get_symbol_card": 3000,
     # Reverse / forward
@@ -199,6 +200,8 @@ _BASELINE_BYTES_PER_TOOL: Dict[str, int] = {
     "ruff_format": 0,
     "rebuild_index": 0,
     "get_session_metrics": 0,
+    "remember_experience": 0,
+    "recall_experience": 3000,
 }
 
 

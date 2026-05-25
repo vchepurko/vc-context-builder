@@ -10,12 +10,11 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import subprocess
 import sys
 import time
-from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from dataclasses import dataclass
+from typing import Any, Callable, Dict, List, Tuple
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 if _HERE not in sys.path:
@@ -31,20 +30,18 @@ ROOT = os.path.abspath(os.path.join(_HERE, ".."))
 
 @dataclass
 class Result:
-    method: str          # "mcp" | "bash"
+    method: str  # "mcp" | "bash"
     tool_or_cmd: str
     ms: float
     bytes_out: int
-    tokens: int          # bytes // 4
-    found: bool          # non-empty result
+    tokens: int  # bytes // 4
+    found: bool  # non-empty result
 
 
 def _run_bash(cmd: str, cwd: str = ROOT) -> Tuple[float, int, bool]:
     t0 = time.monotonic()
     try:
-        r = subprocess.run(
-            cmd, shell=True, capture_output=True, text=True, cwd=cwd, timeout=30
-        )
+        r = subprocess.run(cmd, shell=True, capture_output=True, text=True, cwd=cwd, timeout=30)
         out = (r.stdout + r.stderr).strip()
     except subprocess.TimeoutExpired:
         out = "TIMEOUT"
@@ -73,7 +70,7 @@ def _run_mcp(fn: Callable[[], Any]) -> Tuple[float, int, bool]:
 @dataclass
 class Task:
     name: str
-    difficulty: str      # easy | medium | hard
+    difficulty: str  # easy | medium | hard
     mcp_label: str
     bash_label: str
     mcp_fn: Callable[[], Any]
@@ -114,8 +111,14 @@ def build_tasks(engine: Any) -> List[Task]:
         Task(
             name="Where is a service injected? (DI lookup)",
             difficulty="medium",
-            mcp_label="find_call_sites('CollectionPlayerStateService', match_path='src/app/modules/collection-player-v2/**')",
-            bash_label="grep -rn 'CollectionPlayerStateService' src/app/modules/collection-player-v2 | grep -v spec | grep 'private\\|inject'",
+            mcp_label=(
+                "find_call_sites('CollectionPlayerStateService', "
+                "match_path='src/app/modules/collection-player-v2/**')"
+            ),
+            bash_label=(
+                "grep -rn 'CollectionPlayerStateService' "
+                "src/app/modules/collection-player-v2 | grep -v spec | grep 'private\\|inject'"
+            ),
             mcp_fn=lambda: engine.find_call_sites(
                 "CollectionPlayerStateService",
                 match_path="src/app/modules/collection-player-v2/**",
@@ -151,10 +154,7 @@ def build_tasks(engine: Any) -> List[Task]:
             mcp_label="ng_module_members('CollectionPlayerV2Module')",
             bash_label="cat src/.../collection-player-v2.module.ts",
             mcp_fn=lambda: engine.ng_module_members("CollectionPlayerV2Module"),
-            bash_cmd=(
-                "cat src/app/modules/collection-player-v2/"
-                "collection-player-v2.module.ts"
-            ),
+            bash_cmd=("cat src/app/modules/collection-player-v2/collection-player-v2.module.ts"),
         ),
         # ── HARD ──────────────────────────────────────────────────────────
         Task(
@@ -169,18 +169,22 @@ def build_tasks(engine: Any) -> List[Task]:
             name="Who uses this service across whole project?",
             difficulty="hard",
             mcp_label="who_calls('CollectionNavigationService')",
-            bash_label="grep -rn 'CollectionNavigationService' src/ --include='*.ts' | grep -v spec",
+            bash_label=(
+                "grep -rn 'CollectionNavigationService' src/ --include='*.ts' | grep -v spec"
+            ),
             mcp_fn=lambda: engine.who_calls("CollectionNavigationService"),
             bash_cmd=(
-                "grep -rn 'CollectionNavigationService' src/ "
-                "--include='*.ts' | grep -v spec"
+                "grep -rn 'CollectionNavigationService' src/ --include='*.ts' | grep -v spec"
             ),
         ),
         Task(
             name="Full DI inject graph for a module",
             difficulty="hard",
             mcp_label="ng_inject_graph('CollectionPlayerV2Module')",
-            bash_label="grep -rn 'constructor\\|inject(' src/app/modules/collection-player-v2 --include='*.ts' | grep -v spec",
+            bash_label=(
+                "grep -rn 'constructor\\|inject(' src/app/modules/collection-player-v2 "
+                "--include='*.ts' | grep -v spec"
+            ),
             mcp_fn=lambda: engine.ng_inject_graph("CollectionPlayerV2Module"),
             bash_cmd=(
                 "grep -rn 'constructor\\|inject(' "
@@ -208,19 +212,33 @@ def run_benchmark(tasks: List[Task], root: str) -> List[Dict[str, Any]]:
         saved = bash_tok - mcp_tok
         speedup = bash_ms / mcp_ms if mcp_ms > 0 else 0
 
-        print(f"MCP {mcp_tok}T/{mcp_ms:.0f}ms  Bash {bash_tok}T/{bash_ms:.0f}ms  "
-              f"saved={saved:+d}T  speed={speedup:.1f}x")
+        print(
+            f"MCP {mcp_tok}T/{mcp_ms:.0f}ms  Bash {bash_tok}T/{bash_ms:.0f}ms  "
+            f"saved={saved:+d}T  speed={speedup:.1f}x"
+        )
 
-        results.append({
-            "task": task.name,
-            "difficulty": task.difficulty,
-            "mcp": {"label": task.mcp_label, "ms": round(mcp_ms, 1),
-                    "bytes": mcp_b, "tokens": mcp_tok, "found": mcp_found},
-            "bash": {"label": task.bash_label, "ms": round(bash_ms, 1),
-                     "bytes": bash_b, "tokens": bash_tok, "found": bash_found},
-            "saved_tokens": saved,
-            "speedup_x": round(speedup, 1),
-        })
+        results.append(
+            {
+                "task": task.name,
+                "difficulty": task.difficulty,
+                "mcp": {
+                    "label": task.mcp_label,
+                    "ms": round(mcp_ms, 1),
+                    "bytes": mcp_b,
+                    "tokens": mcp_tok,
+                    "found": mcp_found,
+                },
+                "bash": {
+                    "label": task.bash_label,
+                    "ms": round(bash_ms, 1),
+                    "bytes": bash_b,
+                    "tokens": bash_tok,
+                    "found": bash_found,
+                },
+                "saved_tokens": saved,
+                "speedup_x": round(speedup, 1),
+            }
+        )
     return results
 
 
@@ -273,6 +291,7 @@ if __name__ == "__main__":
     args = p.parse_args()
 
     from query_engine import QueryEngine
+
     engine = QueryEngine(args.root)
 
     print(f"\nBenchmark — project: {args.root}\n")
@@ -280,11 +299,11 @@ if __name__ == "__main__":
     results = run_benchmark(tasks, root=args.root)
 
     s = _summary(results)
-    print(f"\n=== Summary ===")
+    print("\n=== Summary ===")
     print(f"Tasks: {s['tasks']}")
     print(f"MCP total tokens : {s['total_mcp_tokens']}")
     print(f"Bash total tokens: {s['total_bash_tokens']}")
-    print(f"Saved            : {s['total_saved_tokens']} ({s['savings_ratio']*100:.0f}%)")
+    print(f"Saved            : {s['total_saved_tokens']} ({s['savings_ratio'] * 100:.0f}%)")
     print(f"Avg speedup      : {s['avg_speedup_x']}×")
 
     if args.json_out:

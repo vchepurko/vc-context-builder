@@ -7,13 +7,14 @@ emits a human-readable report. Run from anywhere:
     python3 .ai-context/usage_report.py --since 7d
     python3 .ai-context/usage_report.py --md          # markdown output
 """
+
 from __future__ import annotations
 
 import argparse
 import json
 import os
 from collections import defaultdict
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List
 
 
@@ -102,26 +103,34 @@ def _print_report(stats: Dict[str, Any], markdown: bool = False) -> None:
 
     if markdown:
         print(f"## MCP Usage Report — {stats['date_from']} → {stats['date_to']}\n")
-        print(f"**Total calls:** {total:,}  |  "
-              f"**Empty rate:** {empty_pct}%  |  "
-              f"**Tokens used:** {stats['total_tokens']:,}  |  "
-              f"**Tokens saved vs grep baseline:** "
-              f"{stats['total_saved']:+,}\n")
+        print(
+            f"**Total calls:** {total:,}  |  "
+            f"**Empty rate:** {empty_pct}%  |  "
+            f"**Tokens used:** {stats['total_tokens']:,}  |  "
+            f"**Tokens saved vs grep baseline:** "
+            f"{stats['total_saved']:+,}\n"
+        )
         print("### Frequency")
-        print(f"| Tool | Calls | Share | Avg T | Empty% | Avg ms | Saved/call |")
-        print(f"|---|---|---|---|---|---|---|")
+        print("| Tool | Calls | Share | Avg T | Empty% | Avg ms | Saved/call |")
+        print("|---|---|---|---|---|---|---|")
         for t in stats["tools"]:
             saved = f"{t['saved_per_call']:+}" if t["saved_per_call"] != 0 else "—"
             empty = f"**{t['empty_pct']}%**" if t["empty_pct"] >= 40 else f"{t['empty_pct']}%"
-            print(f"| `{t['tool']}` | {t['count']} | {t['share_pct']}% "
-                  f"| {t['avg_tokens']}T | {empty} | {t['avg_ms']}ms | {saved}T |")
+            print(
+                f"| `{t['tool']}` | {t['count']} | {t['share_pct']}% "
+                f"| {t['avg_tokens']}T | {empty} | {t['avg_ms']}ms | {saved}T |"
+            )
     else:
         print(f"\nUsage report: {stats['date_from']} → {stats['date_to']}")
-        print(f"Calls: {total:,}  |  Empty: {stats['empty_calls']} ({empty_pct}%)"
-              f"  |  Tokens: {stats['total_tokens']:,}")
+        print(
+            f"Calls: {total:,}  |  Empty: {stats['empty_calls']} ({empty_pct}%)"
+            f"  |  Tokens: {stats['total_tokens']:,}"
+        )
         print(f"Saved vs grep baseline: {stats['total_saved']:+,} T\n")
-        print(f"{'Tool':<42} {'Calls':>5} {'Share':>6} {'AvgT':>6} "
-              f"{'Empty':>6} {'AvgMs':>7} {'Saved/c':>9}")
+        print(
+            f"{'Tool':<42} {'Calls':>5} {'Share':>6} {'AvgT':>6} "
+            f"{'Empty':>6} {'AvgMs':>7} {'Saved/c':>9}"
+        )
         print("-" * 88)
         for t in stats["tools"]:
             flag = " !" if t["empty_pct"] >= 40 else "  "
@@ -140,8 +149,10 @@ def _print_report(stats: Dict[str, Any], markdown: bool = False) -> None:
         print("|---|---|---|---|")
         for t in savers[:8]:
             if t["total_saved"] > 0:
-                print(f"| `{t['tool']}` | +{t['total_saved']:,}T "
-                      f"| {t['count']} | +{t['saved_per_call']}T |")
+                print(
+                    f"| `{t['tool']}` | +{t['total_saved']:,}T "
+                    f"| {t['count']} | +{t['saved_per_call']}T |"
+                )
     else:
         print("\nTop token savers:")
         for t in savers[:8]:

@@ -62,10 +62,10 @@ def grep_file(
     # that would be meaningless as a literal (| \b \d \w ^ $).
     # Prevents silent empty results when the caller passes "A|B|C" expecting
     # alternation but forgets use_regex=true (observed 81 % empty rate).
-    _REGEX_HINTS = re.compile(r"[|\\^$*+?{}\[\]()]")
-    if not use_regex and _REGEX_HINTS.search(pattern):
+    regex_hints = re.compile(r"[|\\^$*+?{}\[\]()]")
+    if not use_regex and regex_hints.search(pattern):
         try:
-            re.compile(pattern)   # validate — fallback to literal on bad regex
+            re.compile(pattern)  # validate — fallback to literal on bad regex
             use_regex = True
         except re.error:
             pass

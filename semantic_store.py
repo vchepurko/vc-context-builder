@@ -1,0 +1,366 @@
+"""Local semantic symbol index for Phase 5.
+
+The storage contract is deliberately production-friendly:
+
+* per-repo state lives under ``~/.vc-context/<repo-hash>/embeddings/``;
+* SQLite is stdlib and durable;
+* the provider interface is explicit, so a real embedding model or
+  sqlite-vec backend can replace the default without changing MCP shape.
+
+The default provider is a deterministic hashed vectorizer. It is not as
+smart as a neural model, but it is offline, fast, and good enough to make
+the semantic-search path useful immediately while preserving the final
+architecture.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import math
+import os
+import re
+import sqlite3
+import time
+from dataclasses import dataclass
+from typing import Any, Dict, List, Optional, Sequence
+
+from _test_filter import is_test_path
+from paths import ensure_local_state_dir
+
+SCHEMA_VERSION = 1
+DB_FILENAME = "symbols.sqlite"
+DEFAULT_DIM = 256
+
+
+_TOKEN_RE = re.compile(r"[A-Za-z0-9]+")
+
+
+def _split_camel(text: str) -> str:
+    text = re.sub(r"([a-z0-9])([A-Z])", r"\1 \2", text)
+    text = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1 \2", text)
+    return text
+
+
+def _tokens(text: str) -> List[str]:
+    text = _split_camel(text.replace("_", " ").replace("-", " ").replace("/", " "))
+    return [t.lower() for t in _TOKEN_RE.findall(text) if len(t) > 1]
+
+
+def _symbol_text(name: str, rec: Dict[str, Any]) -> str:
+    parts = [
+        name,
+        str(rec.get("kind") or ""),
+        str(rec.get("role") or ""),
+        str(rec.get("params") or ""),
+        str(rec.get("file") or ""),
+        str(rec.get("doc") or ""),
+    ]
+    for key in ("decorators", "callees", "raises"):
+        value = rec.get(key)
+        if isinstance(value, list):
+            parts.extend(str(v) for v in value)
+    return "\n".join(p for p in parts if p)
+
+
+def _symbols_hash(symbols: Dict[str, Dict[str, Any]]) -> str:
+    payload = json.dumps(symbols, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _pack_vector(vec: Sequence[float]) -> str:
+    return json.dumps([round(v, 8) for v in vec], separators=(",", ":"))
+
+
+def _unpack_vector(raw: str) -> List[float]:
+    data = json.loads(raw)
+    return [float(v) for v in data]
+
+
+def _cosine(a: Sequence[float], b: Sequence[float]) -> float:
+    if not a or not b or len(a) != len(b):
+        return 0.0
+    return sum(x * y for x, y in zip(a, b))
+
+
+class EmbeddingProvider:
+    """Provider interface for semantic vectors."""
+
+    name = "base"
+    dim = DEFAULT_DIM
+
+    def embed(self, text: str) -> List[float]:
+        raise NotImplementedError
+
+
+class LocalHashEmbeddingProvider(EmbeddingProvider):
+    """Deterministic bag-of-token hashing provider.
+
+    Uses signed feature hashing plus L2 normalisation. This keeps runtime
+    stdlib-only while giving us the same vector-search control flow as a
+    future sqlite-vec / neural embedding provider.
+    """
+
+    name = "local_hash"
+
+    def __init__(self, dim: int = DEFAULT_DIM) -> None:
+        self.dim = dim
+
+    def embed(self, text: str) -> List[float]:
+        vec = [0.0] * self.dim
+        for tok in _tokens(text):
+            digest = hashlib.blake2b(tok.encode("utf-8"), digest_size=8).digest()
+            n = int.from_bytes(digest, "big")
+            idx = n % self.dim
+            sign = 1.0 if (n >> 8) & 1 else -1.0
+            # Mild length dampening keeps long file paths/docstrings from
+            # swamping concise symbol names.
+            vec[idx] += sign / math.sqrt(max(1, len(tok)))
+        norm = math.sqrt(sum(v * v for v in vec))
+        if norm == 0:
+            return vec
+        return [v / norm for v in vec]
+
+
+@dataclass(frozen=True)
+class SearchHit:
+    name: str
+    score: float
+    file: str
+    line: Optional[int]
+    kind: Optional[str]
+    role: Optional[str]
+    doc: Optional[str]
+    provider: str
+    why: List[str]
+
+    def as_dict(self) -> Dict[str, Any]:
+        out: Dict[str, Any] = {
+            "name": self.name,
+            "score": round(self.score, 4),
+            "file": self.file,
+            "provider": self.provider,
+            "why": self.why,
+        }
+        for key in ("line", "kind", "role", "doc"):
+            value = getattr(self, key)
+            if value is not None:
+                out[key] = value
+        return out
+
+
+def db_path(project_root: str) -> str:
+    return os.path.join(ensure_local_state_dir(project_root, "embeddings"), DB_FILENAME)
+
+
+def _connect(project_root: str) -> sqlite3.Connection:
+    conn = sqlite3.connect(db_path(project_root))
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def _init_schema(conn: sqlite3.Connection) -> None:
+    conn.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS meta (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS symbols (
+          name TEXT PRIMARY KEY,
+          file TEXT NOT NULL,
+          line INTEGER,
+          kind TEXT,
+          role TEXT,
+          doc TEXT,
+          search_text TEXT NOT NULL,
+          tokens_json TEXT NOT NULL,
+          vector_json TEXT NOT NULL
+        );
+        """
+    )
+
+
+def _meta(conn: sqlite3.Connection, key: str) -> Optional[str]:
+    row = conn.execute("SELECT value FROM meta WHERE key = ?", (key,)).fetchone()
+    return str(row["value"]) if row else None
+
+
+def _set_meta(conn: sqlite3.Connection, key: str, value: str) -> None:
+    conn.execute(
+        "INSERT INTO meta(key, value) VALUES(?, ?) "
+        "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        (key, value),
+    )
+
+
+def build_symbol_store(
+    project_root: str,
+    symbols: Dict[str, Dict[str, Any]],
+    *,
+    provider: Optional[EmbeddingProvider] = None,
+) -> Dict[str, Any]:
+    """Rebuild the local semantic symbol store from ``agent_symbols``."""
+    provider = provider or LocalHashEmbeddingProvider()
+    source_hash = _symbols_hash(symbols)
+    path = db_path(project_root)
+    started = time.monotonic()
+    with _connect(project_root) as conn:
+        _init_schema(conn)
+        conn.execute("DELETE FROM symbols")
+        rows = []
+        for name, rec in sorted(symbols.items()):
+            if not isinstance(rec, dict):
+                continue
+            text = _symbol_text(name, rec)
+            toks = sorted(set(_tokens(text)))
+            doc = rec.get("doc")
+            doc_first = str(doc).splitlines()[0] if doc else None
+            line = rec.get("line")
+            rows.append(
+                (
+                    name,
+                    str(rec.get("file") or ""),
+                    int(line) if isinstance(line, int) else None,
+                    str(rec.get("kind")) if rec.get("kind") else None,
+                    str(rec.get("role")) if rec.get("role") else None,
+                    doc_first,
+                    text,
+                    json.dumps(toks, separators=(",", ":")),
+                    _pack_vector(provider.embed(text)),
+                )
+            )
+        conn.executemany(
+            """
+            INSERT INTO symbols(
+              name, file, line, kind, role, doc, search_text, tokens_json, vector_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            rows,
+        )
+        _set_meta(conn, "schema_version", str(SCHEMA_VERSION))
+        _set_meta(conn, "provider", provider.name)
+        _set_meta(conn, "dim", str(provider.dim))
+        _set_meta(conn, "source_hash", source_hash)
+        _set_meta(conn, "symbol_count", str(len(rows)))
+        _set_meta(conn, "built_at", str(int(time.time())))
+    return {
+        "path": path,
+        "symbols": len(rows),
+        "provider": provider.name,
+        "dim": provider.dim,
+        "duration_ms": int((time.monotonic() - started) * 1000),
+    }
+
+
+def ensure_symbol_store(
+    project_root: str,
+    symbols: Dict[str, Dict[str, Any]],
+    *,
+    provider: Optional[EmbeddingProvider] = None,
+) -> Dict[str, Any]:
+    """Build the store only when missing, stale, or provider-incompatible."""
+    provider = provider or LocalHashEmbeddingProvider()
+    source_hash = _symbols_hash(symbols)
+    try:
+        with _connect(project_root) as conn:
+            _init_schema(conn)
+            if (
+                _meta(conn, "schema_version") == str(SCHEMA_VERSION)
+                and _meta(conn, "provider") == provider.name
+                and _meta(conn, "dim") == str(provider.dim)
+                and _meta(conn, "source_hash") == source_hash
+            ):
+                return {
+                    "path": db_path(project_root),
+                    "symbols": int(_meta(conn, "symbol_count") or 0),
+                    "provider": provider.name,
+                    "dim": provider.dim,
+                    "rebuilt": False,
+                }
+    except sqlite3.Error:
+        pass
+    result = build_symbol_store(project_root, symbols, provider=provider)
+    result["rebuilt"] = True
+    return result
+
+
+def _why(query_tokens: set[str], row_tokens: set[str], name: str, file: str, doc: str) -> List[str]:
+    why: List[str] = []
+    name_tokens = set(_tokens(name))
+    file_tokens = set(_tokens(file))
+    doc_tokens = set(_tokens(doc))
+    if query_tokens & name_tokens:
+        why.append("name")
+    if query_tokens & file_tokens:
+        why.append("file")
+    if query_tokens & doc_tokens:
+        why.append("doc")
+    if query_tokens & row_tokens and not why:
+        why.append("metadata")
+    return why
+
+
+def semantic_search(
+    project_root: str,
+    symbols: Dict[str, Dict[str, Any]],
+    query: str,
+    *,
+    top_k: int = 5,
+    kind: Optional[str] = None,
+    role: Optional[str] = None,
+    include_tests: bool = False,
+    provider: Optional[EmbeddingProvider] = None,
+) -> List[Dict[str, Any]]:
+    """Search symbols by meaning-ish text, not exact symbol name."""
+    query = query.strip()
+    if not query:
+        return []
+    provider = provider or LocalHashEmbeddingProvider()
+    ensure_symbol_store(project_root, symbols, provider=provider)
+    qvec = provider.embed(query)
+    qtokens = set(_tokens(query))
+    hits: List[SearchHit] = []
+    with _connect(project_root) as conn:
+        _init_schema(conn)
+        rows = conn.execute(
+            "SELECT name, file, line, kind, role, doc, tokens_json, vector_json FROM symbols"
+        ).fetchall()
+    kind_l = kind.lower() if kind else None
+    role_l = role.lower() if role else None
+    for row in rows:
+        file = str(row["file"] or "")
+        if not include_tests and is_test_path(file):
+            continue
+        row_kind = str(row["kind"] or "")
+        row_role = str(row["role"] or "")
+        if kind_l and row_kind.lower() != kind_l:
+            continue
+        if role_l and row_role.lower() != role_l:
+            continue
+        try:
+            row_tokens = set(json.loads(row["tokens_json"]))
+            vec = _unpack_vector(row["vector_json"])
+        except (TypeError, ValueError, json.JSONDecodeError):
+            continue
+        cosine = _cosine(qvec, vec)
+        overlap = len(qtokens & row_tokens) / max(1, len(qtokens))
+        name_overlap = len(qtokens & set(_tokens(str(row["name"])))) / max(1, len(qtokens))
+        score = (0.72 * cosine) + (0.2 * overlap) + (0.08 * name_overlap)
+        if score <= 0:
+            continue
+        hits.append(
+            SearchHit(
+                name=str(row["name"]),
+                score=score,
+                file=file,
+                line=row["line"] if isinstance(row["line"], int) else None,
+                kind=row_kind or None,
+                role=row_role or None,
+                doc=str(row["doc"]) if row["doc"] else None,
+                provider=provider.name,
+                why=_why(qtokens, row_tokens, str(row["name"]), file, str(row["doc"] or "")),
+            )
+        )
+    hits.sort(key=lambda h: (-h.score, h.name))
+    return [h.as_dict() for h in hits[: max(1, min(50, top_k))]]

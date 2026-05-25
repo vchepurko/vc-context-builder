@@ -30,12 +30,19 @@ gap before that first run.
 
 from __future__ import annotations
 
+import hashlib
 import os
 
 # Target directory for all agent_*.json indexes, relative to project
 # root. ``.vc-context/`` already houses ``_parse_cache.json`` and
 # ``conventions.json`` so this slots in naturally.
 INDEX_DIR_NAME = os.path.join(".vc-context", "index")
+
+
+def repo_hash(project_root: str) -> str:
+    """Stable, short hash for per-repo local state directories."""
+    p = os.path.abspath(project_root).encode("utf-8")
+    return hashlib.sha1(p).hexdigest()[:8]
 
 
 def index_dir(project_root: str) -> str:
@@ -73,5 +80,25 @@ def index_read_path(project_root: str, filename: str) -> str:
 def ensure_index_dir(project_root: str) -> str:
     """Create the index directory (idempotent). Returns its path."""
     path = index_dir(project_root)
+    os.makedirs(path, exist_ok=True)
+    return path
+
+
+def local_state_dir(project_root: str) -> str:
+    """Per-repo local state root under ``~/.vc-context/<repo-hash>``.
+
+    This is intentionally outside the project checkout: semantic vectors,
+    learned decisions, and other regenerated/private data should not dirty
+    production repos or leak across projects.
+    """
+    base = os.environ.get("VC_CONTEXT_HOME")
+    if not base:
+        base = os.path.join(os.path.expanduser("~"), ".vc-context")
+    return os.path.join(base, repo_hash(project_root))
+
+
+def ensure_local_state_dir(project_root: str, *parts: str) -> str:
+    """Create and return a subdirectory of the per-repo local state root."""
+    path = os.path.join(local_state_dir(project_root), *parts)
     os.makedirs(path, exist_ok=True)
     return path

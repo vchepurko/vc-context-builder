@@ -10,6 +10,19 @@ bump the minor; fixes bump the patch.
 ## [Unreleased]
 
 ### Added
+- **`semantic_search(query, top_k=5)`** — Phase 5 semantic symbol
+  search backed by a per-repo local SQLite store at
+  ``~/.vc-context/<repo-hash>/embeddings/symbols.sqlite``. The first
+  provider is deterministic ``local_hash`` feature hashing:
+  stdlib-only, offline, fast, and shaped so sqlite-vec / model-backed
+  embeddings can replace it later without changing the MCP or CLI
+  contract. CLI: ``vc-context semantic "course completion"``.
+- **`remember_experience` / `recall_experience`** — Phase 5 repo-local
+  experience store for decisions, mistakes, dead ends, and patterns.
+  Writes to ``~/.vc-context/<repo-hash>/learned/experience.sqlite``;
+  recall returns compact scored hits and marks file-anchored memories
+  stale when the source file disappears. CLI:
+  ``vc-context remember-experience`` / ``vc-context recall-experience``.
 - **`find_local_agents_md(path)`** — walks up from ``path`` (file or
   directory) and returns every ``AGENTS.md`` along the way,
   most-specific first. Discovers folder-scoped invariants without a

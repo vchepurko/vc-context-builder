@@ -52,12 +52,15 @@ from cli_handlers import (
     cmd_ng_ajs_find,
     cmd_ng_module_members,
     cmd_raises,
+    cmd_recall_experience,
+    cmd_remember_experience,
     cmd_repo_map,
     cmd_restore,
     cmd_role,
     cmd_roles,
     cmd_route,
     cmd_route_callers,
+    cmd_semantic,
     cmd_slice,
     cmd_stats,
     cmd_test,
@@ -102,6 +105,54 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Embed verbatim source body in the response.",
     )
     p_find.set_defaults(handler=cmd_find)
+
+    p_sem = sub.add_parser(
+        "semantic-search",
+        aliases=("semantic", "semantic_search"),
+        help="Find symbols by concept rather than exact name.",
+    )
+    p_sem.add_argument("query")
+    p_sem.add_argument("--top-k", type=int, default=5, help="Maximum hits to return.")
+    p_sem.add_argument("--kind", default=None, help="Optional exact kind filter.")
+    p_sem.add_argument("--role", default=None, help="Optional exact role filter.")
+    p_sem.add_argument(
+        "--include-tests",
+        action="store_true",
+        help="Include symbols from tests/ in search results.",
+    )
+    p_sem.set_defaults(handler=cmd_semantic)
+
+    p_rem = sub.add_parser(
+        "remember-experience",
+        aliases=("remember_experience",),
+        help="Store a repo-local decision, mistake, dead end, or pattern.",
+    )
+    p_rem.add_argument("--context", required=True, help="Situation where this applies.")
+    p_rem.add_argument("--content", required=True, help="What to remember.")
+    p_rem.add_argument(
+        "--type",
+        default="decision",
+        choices=("decision", "mistake", "dead_end", "pattern"),
+    )
+    p_rem.add_argument("--source", default="user", choices=("user", "agent", "auto"))
+    p_rem.add_argument("--source-file", default=None, help="Optional project-relative file.")
+    p_rem.add_argument("--confidence", type=float, default=None, help="Optional 0..1 confidence.")
+    p_rem.set_defaults(handler=cmd_remember_experience)
+
+    p_rec = sub.add_parser(
+        "recall-experience",
+        aliases=("recall_experience",),
+        help="Recall repo-local decisions, mistakes, dead ends, or patterns.",
+    )
+    p_rec.add_argument("context")
+    p_rec.add_argument("--top-k", type=int, default=3, help="Maximum hits to return.")
+    p_rec.add_argument(
+        "--type",
+        default=None,
+        choices=("decision", "mistake", "dead_end", "pattern"),
+    )
+    p_rec.add_argument("--min-score", type=float, default=0.05)
+    p_rec.set_defaults(handler=cmd_recall_experience)
 
     p_calls = sub.add_parser("calls", help="Best-effort callers of a symbol.")
     p_calls.add_argument("symbol")

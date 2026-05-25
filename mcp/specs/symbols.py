@@ -104,6 +104,49 @@ def specs() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": "semantic_search",
+            "description": (
+                "Phase 5 semantic symbol search. Finds likely symbols by "
+                "meaning rather than exact name, using the local per-repo "
+                "SQLite store under ``~/.vc-context/<repo-hash>/embeddings``. "
+                "The index is built from ``agent_symbols.json`` and refreshed "
+                "on rebuild; no source text is sent over the network.\n\n"
+                "Use when you know the concept but not the symbol name: "
+                "``semantic_search(query='service that handles course completion')`` "
+                "before guessing names or grepping. Returns compact "
+                "``[{name, score, file, line?, kind?, role?, doc?, why}]`` hits."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Natural-language concept or partial symbol description.",
+                    },
+                    "top_k": {
+                        "type": "integer",
+                        "description": "Maximum hits to return (1-50, default 5).",
+                    },
+                    "kind": {
+                        "type": "string",
+                        "description": "Optional exact kind filter, e.g. class, func, interface.",
+                    },
+                    "role": {
+                        "type": "string",
+                        "description": "Optional exact role filter, e.g. service, route, webhook.",
+                    },
+                    "include_tests": {
+                        "type": "boolean",
+                        "description": (
+                            "Default false — hide test-file symbols. Set true "
+                            "when searching fixtures/helpers in tests."
+                        ),
+                    },
+                },
+                "required": ["query"],
+            },
+        },
+        {
             "name": "get_callees",
             "description": (
                 "Return identifiers this symbol calls in its body — "

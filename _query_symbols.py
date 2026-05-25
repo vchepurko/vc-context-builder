@@ -715,8 +715,11 @@ class _QuerySymbolsMixin:
                 sites = [s for s in sites if fnmatch.fnmatch(s["file"], match_path)]
             if not include_tests:
                 sites = [
-                    s for s in sites
-                    if not (".spec." in s["file"] or ".test." in s["file"] or "/tests/" in s["file"])
+                    s
+                    for s in sites
+                    if not (
+                        ".spec." in s["file"] or ".test." in s["file"] or "/tests/" in s["file"]
+                    )
                 ]
             return sorted(sites, key=lambda r: (r["file"], r["line"]))
 
@@ -859,10 +862,20 @@ class _QuerySymbolsMixin:
         self._reverse_deps = index
         return index
 
-    _TS_IGNORE_DIRS = frozenset({
-        ".git", "node_modules", "vendor", "__pycache__", "dist", "build",
-        ".venv", "venv", ".ai-context", ".vc-context",
-    })
+    _TS_IGNORE_DIRS = frozenset(
+        {
+            ".git",
+            "node_modules",
+            "vendor",
+            "__pycache__",
+            "dist",
+            "build",
+            ".venv",
+            "venv",
+            ".ai-context",
+            ".vc-context",
+        }
+    )
     _TS_EXTS = frozenset({".ts", ".tsx", ".js", ".jsx", ".mjs"})
 
     def _find_ts_importers(

@@ -178,7 +178,7 @@
     },
     "ContextBuilder": {
       "file": "agent_map.py",
-      "line": 56,
+      "line": 57,
       "direct": [
         "BuilderWithCustomRolesTests",
         "ContextBuilderRunTests",
@@ -232,8 +232,10 @@
       "direct": [
         "CheckHealthTests",
         "DispatcherIntegrationTests",
+        "ExperienceStoreTests",
         "GetSessionMetricsTests",
         "RecordBashUsageTests",
+        "SemanticSearchTests",
         "serve"
       ],
       "test": null,
@@ -242,6 +244,13 @@
     "DispatcherIntegrationTests": {
       "file": "tests/test_metrics.py",
       "line": 328,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "EmbeddingProvider": {
+      "file": "semantic_store.py",
+      "line": 86,
       "direct": [],
       "test": null,
       "template_refs": []
@@ -263,6 +272,13 @@
     "ExistsKindTests": {
       "file": "tests/test_verify.py",
       "line": 61,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "ExperienceStoreTests": {
+      "file": "tests/test_experience_store.py",
+      "line": 23,
       "direct": [],
       "test": null,
       "template_refs": []
@@ -609,6 +625,19 @@
       "test": null,
       "template_refs": []
     },
+    "LocalHashEmbeddingProvider": {
+      "file": "semantic_store.py",
+      "line": 96,
+      "direct": [
+        "build_symbol_store",
+        "ensure_symbol_store",
+        "recall_experience",
+        "remember_experience",
+        "semantic_search"
+      ],
+      "test": null,
+      "template_refs": []
+    },
     "MatchCallsToRoutesTests": {
       "file": "tests/test_route_bridge.py",
       "line": 114,
@@ -632,7 +661,7 @@
     },
     "MetricsWriter": {
       "file": "mcp/metrics.py",
-      "line": 229,
+      "line": 232,
       "direct": [
         "DispatcherIntegrationTests",
         "GetSessionMetricsTests",
@@ -788,6 +817,7 @@
       "direct": [
         "CheckHealthTests",
         "DispatcherIntegrationTests",
+        "ExperienceStoreTests",
         "FieldsWhitelistTests",
         "FindAntiPatternsTests",
         "FindHandlersWithoutTestsTests",
@@ -821,6 +851,7 @@
         "RecordBashUsageTests",
         "RepoMapTests",
         "RunCheckCacheTests",
+        "SemanticSearchTests",
         "TestAttachAndQuery",
         "TestProjectWide",
         "TestQueryEngineFindCallback",
@@ -937,7 +968,7 @@
     },
     "Result": {
       "file": "benchmark.py",
-      "line": 33,
+      "line": 32,
       "direct": [],
       "test": null,
       "template_refs": []
@@ -963,6 +994,22 @@
       "test": null,
       "template_refs": []
     },
+    "SearchHit": {
+      "file": "semantic_store.py",
+      "line": 126,
+      "direct": [
+        "semantic_search"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "SemanticSearchTests": {
+      "file": "tests/test_semantic_search.py",
+      "line": 30,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
     "SpecFixtureMixin": {
       "file": "tests/test_spec_linker.py",
       "line": 41,
@@ -972,7 +1019,7 @@
     },
     "Task": {
       "file": "benchmark.py",
-      "line": 74,
+      "line": 71,
       "direct": [
         "build_tasks"
       ],
@@ -1326,7 +1373,7 @@
     },
     "aggregate": {
       "file": "mcp/metrics.py",
-      "line": 410,
+      "line": 413,
       "direct": [
         "AggregateTests",
         "BaselineAggregationTests"
@@ -1471,9 +1518,20 @@
       "test": null,
       "template_refs": []
     },
+    "build_symbol_store": {
+      "file": "semantic_store.py",
+      "line": 197,
+      "direct": [
+        "ContextBuilder",
+        "SemanticSearchTests",
+        "ensure_symbol_store"
+      ],
+      "test": null,
+      "template_refs": []
+    },
     "build_tasks": {
       "file": "benchmark.py",
-      "line": 83,
+      "line": 80,
       "direct": [],
       "test": null,
       "template_refs": []
@@ -1531,70 +1589,70 @@
     },
     "cmd_backup": {
       "file": "cli_handlers.py",
-      "line": 592,
+      "line": 679,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_backup_inspect": {
       "file": "cli_handlers.py",
-      "line": 648,
+      "line": 737,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_build": {
       "file": "cli_handlers.py",
-      "line": 348,
+      "line": 435,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_callees": {
       "file": "cli_handlers.py",
-      "line": 76,
+      "line": 163,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_calls": {
       "file": "cli_handlers.py",
-      "line": 189,
+      "line": 276,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_card": {
       "file": "cli_handlers.py",
-      "line": 106,
+      "line": 193,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_changed": {
       "file": "cli_handlers.py",
-      "line": 237,
+      "line": 324,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_coverage": {
       "file": "cli_handlers.py",
-      "line": 506,
+      "line": 593,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_decorated": {
       "file": "cli_handlers.py",
-      "line": 171,
+      "line": 258,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_file_card": {
       "file": "cli_handlers.py",
-      "line": 204,
+      "line": 291,
       "direct": [],
       "test": null,
       "template_refs": []
@@ -1608,119 +1666,140 @@
     },
     "cmd_init": {
       "file": "cli_handlers.py",
-      "line": 417,
+      "line": 504,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_lint": {
       "file": "cli_handlers.py",
-      "line": 472,
+      "line": 559,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_module": {
       "file": "cli_handlers.py",
-      "line": 312,
+      "line": 399,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_modules": {
       "file": "cli_handlers.py",
-      "line": 338,
+      "line": 425,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_ng_ajs_find": {
       "file": "cli_handlers.py",
-      "line": 525,
+      "line": 612,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_ng_module_members": {
       "file": "cli_handlers.py",
-      "line": 540,
+      "line": 627,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_raises": {
       "file": "cli_handlers.py",
-      "line": 91,
+      "line": 178,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "cmd_recall_experience": {
+      "file": "cli_handlers.py",
+      "line": 135,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "cmd_remember_experience": {
+      "file": "cli_handlers.py",
+      "line": 108,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_repo_map": {
       "file": "cli_handlers.py",
-      "line": 258,
+      "line": 345,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_restore": {
       "file": "cli_handlers.py",
-      "line": 621,
+      "line": 708,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_role": {
       "file": "cli_handlers.py",
-      "line": 302,
+      "line": 389,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_roles": {
       "file": "cli_handlers.py",
-      "line": 328,
+      "line": 415,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_route": {
       "file": "cli_handlers.py",
-      "line": 561,
+      "line": 648,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_route_callers": {
       "file": "cli_handlers.py",
-      "line": 577,
+      "line": 664,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "cmd_semantic": {
+      "file": "cli_handlers.py",
+      "line": 76,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_slice": {
       "file": "cli_handlers.py",
-      "line": 280,
+      "line": 367,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_stats": {
       "file": "cli_handlers.py",
-      "line": 672,
+      "line": 761,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_test": {
       "file": "cli_handlers.py",
-      "line": 486,
+      "line": 573,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_verify": {
       "file": "cli_handlers.py",
-      "line": 158,
+      "line": 245,
       "direct": [],
       "test": null,
       "template_refs": []
@@ -1828,6 +1907,18 @@
       "test": null,
       "template_refs": []
     },
+    "db_path": {
+      "file": "semantic_store.py",
+      "line": 152,
+      "direct": [
+        "ExperienceStoreTests",
+        "SemanticSearchTests",
+        "build_symbol_store",
+        "ensure_symbol_store"
+      ],
+      "test": null,
+      "template_refs": []
+    },
     "decoratorMeta": {
       "file": "parsers/_ts_ast_extractor.mjs",
       "line": 88,
@@ -1874,7 +1965,7 @@
     },
     "ensure_index_dir": {
       "file": "paths.py",
-      "line": 73,
+      "line": 80,
       "direct": [
         "ContextBuilder",
         "write_callback_index",
@@ -1886,6 +1977,24 @@
         "write_route_index",
         "write_test_categories",
         "write_test_index"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "ensure_local_state_dir": {
+      "file": "paths.py",
+      "line": 100,
+      "direct": [
+        "db_path"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "ensure_symbol_store": {
+      "file": "semantic_store.py",
+      "line": 256,
+      "direct": [
+        "semantic_search"
       ],
       "test": null,
       "template_refs": []
@@ -2056,6 +2165,7 @@
         "ContextBuilder",
         "ContextBuilderRunTests",
         "Dispatcher",
+        "ExperienceStoreTests",
         "GetPutTests",
         "GetSessionMetricsTests",
         "InspectClassTsTests",
@@ -2063,6 +2173,7 @@
         "MetricsWriter",
         "QueryEngine",
         "RunCheckCacheTests",
+        "SemanticSearchTests",
         "TestAttachAndQuery",
         "TestCollectAndQuery",
         "TestLogLineParse",
@@ -2075,6 +2186,7 @@
         "attach_python_callers",
         "build_impact_graph",
         "build_locale_index",
+        "build_symbol_store",
         "build_test_index",
         "callers_for_route",
         "category_summary",
@@ -2085,8 +2197,11 @@
         "cmd_file_card",
         "cmd_init",
         "cmd_ng_module_members",
+        "cmd_recall_experience",
+        "cmd_remember_experience",
         "cmd_repo_map",
         "cmd_route_callers",
+        "cmd_semantic",
         "cmd_slice",
         "cmd_stats",
         "cmd_test",
@@ -2119,6 +2234,7 @@
         "load_custom_roles",
         "load_http_clients",
         "load_rules",
+        "local_state_dir",
         "logline_to_symbol",
         "lookup_tests_by_category",
         "match_calls_to_routes",
@@ -2307,7 +2423,7 @@
     },
     "index_dir": {
       "file": "paths.py",
-      "line": 41,
+      "line": 48,
       "direct": [
         "ensure_index_dir",
         "index_path"
@@ -2317,7 +2433,7 @@
     },
     "index_path": {
       "file": "paths.py",
-      "line": 46,
+      "line": 53,
       "direct": [
         "ContextBuilder",
         "ContextBuilderRunTests",
@@ -2340,7 +2456,7 @@
     },
     "index_read_path": {
       "file": "paths.py",
-      "line": 56,
+      "line": 63,
       "direct": [
         "ContextBuilder",
         "should_auto_reindex"
@@ -2350,7 +2466,7 @@
     },
     "inspect_backup": {
       "file": "backup_manager.py",
-      "line": 226,
+      "line": 224,
       "direct": [
         "cmd_backup_inspect"
       ],
@@ -2406,7 +2522,8 @@
       "line": 29,
       "direct": [
         "IsTestPathTests",
-        "filter_test_records"
+        "filter_test_records",
+        "semantic_search"
       ],
       "test": null,
       "template_refs": []
@@ -2601,6 +2718,17 @@
       "test": null,
       "template_refs": []
     },
+    "local_state_dir": {
+      "file": "paths.py",
+      "line": 87,
+      "direct": [
+        "ExperienceStoreTests",
+        "SemanticSearchTests",
+        "ensure_local_state_dir"
+      ],
+      "test": null,
+      "template_refs": []
+    },
     "logline_to_symbol": {
       "file": "logline_parser.py",
       "line": 52,
@@ -2630,7 +2758,7 @@
     },
     "main": {
       "file": "cli.py",
-      "line": 323,
+      "line": 374,
       "direct": [],
       "test": null,
       "template_refs": []
@@ -2722,7 +2850,7 @@
     },
     "preview_backup": {
       "file": "backup_manager.py",
-      "line": 251,
+      "line": 249,
       "direct": [
         "Dispatcher",
         "cmd_backup"
@@ -2785,7 +2913,7 @@
     },
     "read_metrics": {
       "file": "mcp/metrics.py",
-      "line": 364,
+      "line": 367,
       "direct": [
         "DispatcherIntegrationTests",
         "ReadMetricsTests",
@@ -2794,9 +2922,42 @@
       "test": null,
       "template_refs": []
     },
+    "recall_experience": {
+      "file": "experience_store.py",
+      "line": 162,
+      "direct": [
+        "Dispatcher",
+        "ExperienceStoreTests",
+        "QueryEngine",
+        "cmd_recall_experience"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "remember_experience": {
+      "file": "experience_store.py",
+      "line": 99,
+      "direct": [
+        "Dispatcher",
+        "ExperienceStoreTests",
+        "QueryEngine",
+        "cmd_remember_experience"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "repo_hash": {
+      "file": "paths.py",
+      "line": 42,
+      "direct": [
+        "local_state_dir"
+      ],
+      "test": null,
+      "template_refs": []
+    },
     "restore": {
       "file": "backup_manager.py",
-      "line": 162,
+      "line": 160,
       "direct": [
         "cmd_restore"
       ],
@@ -2834,7 +2995,7 @@
     },
     "run_benchmark": {
       "file": "benchmark.py",
-      "line": 198,
+      "line": 202,
       "direct": [],
       "test": null,
       "template_refs": []
@@ -2935,6 +3096,18 @@
         "test_function": "test_search_doc_text_file_scope",
         "line": 254
       },
+      "template_refs": []
+    },
+    "semantic_search": {
+      "file": "semantic_store.py",
+      "line": 304,
+      "direct": [
+        "Dispatcher",
+        "QueryEngine",
+        "SemanticSearchTests",
+        "cmd_semantic"
+      ],
+      "test": null,
       "template_refs": []
     },
     "serve": {

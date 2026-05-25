@@ -91,7 +91,7 @@ the code — if you spot an inconsistency, file an issue.
 
 ## 🧭 Phase 5 — Semantic memory + experience store (discussed 2026-05-22)
 
-**Status**: design-stage. Emerged from a session analysing submodule MCP setup and agent
+**Status**: in progress. Emerged from a session analysing submodule MCP setup and agent
 limitations. Three features, ordered by value/effort ratio.
 
 ---
@@ -103,11 +103,17 @@ limitations. Three features, ordered by value/effort ratio.
 or do multiple probing calls — 3–8 round-trips, ~800 tokens, unreliable results.
 
 **Solution:** embed every symbol as `{name} {doc} {signature} {filepath}` at
-`agent_map.py` time; store in `sqlite-vec` at `.vc-context/embeddings/symbols.db`.
-New MCP tool: `semantic_search(query, top_k=5)`.
+`agent_map.py` time; store in per-repo local SQLite under
+`~/.vc-context/<repo-hash>/embeddings/symbols.sqlite`. New MCP tool:
+`semantic_search(query, top_k=5)`.
+
+**Status:** first slice shipped — local SQLite store, deterministic
+`local_hash` provider, CLI `vc-context semantic`, MCP `semantic_search`.
+The provider/storage contract is ready for a sqlite-vec or neural
+embedding backend without changing callers.
 
 **Implementation notes:**
-- sqlite-vec: zero external deps, ships with Python 3.12, SQLite extension for
+- sqlite-vec: future backend candidate; zero external deps, ships with Python 3.12, SQLite extension for
   everything older. Fits the "stdlib-only runtime" philosophy.
 - Embedding model: configurable via `conventions.json` →
   `embedding_provider: "local" | "openai" | "anthropic"`.
@@ -129,6 +135,11 @@ New MCP tool: `semantic_search(query, top_k=5)`.
 ---
 
 ### Feature 2 — Experience store  *(highest long-term value, highest effort)*
+
+**Status:** first slice shipped — local SQLite store under
+`~/.vc-context/<repo-hash>/learned/experience.sqlite`, MCP tools
+`remember_experience` / `recall_experience`, CLI parity, confidence
+decay, and stale-file marking for file-anchored entries.
 
 **Problem:** Every session starts from zero. The agent repeats the same
 architectural questions, makes the same mistakes, re-derives the same decisions.

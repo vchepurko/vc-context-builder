@@ -42,6 +42,7 @@ from parsers import get_parser, get_supported_extensions, get_supported_filename
 from parsers.python_parser import PythonParser
 from paths import ensure_index_dir, index_path, index_read_path
 from route_bridge import ROUTES_FILENAME, build_route_index, write_route_index
+from semantic_store import build_symbol_store
 from symbols import extract_scheduler_jobs_from_codebase
 from test_classifier import (
     TEST_CATEGORIES_FILENAME,
@@ -396,6 +397,7 @@ class ContextBuilder:
         # AFTER root-map and BEFORE the SOP regen (so the SOP can refer
         # to it by name without the file going stale).
         self._build_symbol_index()
+        self._build_semantic_symbol_store()
         # Feature B + C — depend on the symbol index being on disk.
         self._build_test_index()
         self._build_route_index()
@@ -634,6 +636,22 @@ class ContextBuilder:
             )
         except OSError as e:
             logging.error(f"Failed to write symbol index: {e}")
+
+    def _build_semantic_symbol_store(self) -> None:
+        """Build the Phase 5 local semantic index for symbol search."""
+        symbols_path = index_read_path(self.root_dir, self.symbols_filename)
+        try:
+            with open(symbols_path, encoding="utf-8") as fh:
+                symbols = json.load(fh)
+            result = build_symbol_store(self.root_dir, symbols)
+            logging.info(
+                "Wrote semantic symbol store: %s (%d symbols, %s provider).",
+                result["path"],
+                result["symbols"],
+                result["provider"],
+            )
+        except (OSError, json.JSONDecodeError) as e:
+            logging.error("Failed to build semantic symbol store: %s", e)
 
     # ------------------------------------------------------------------
     # Feature B — test linking artifact
@@ -917,14 +935,14 @@ class ContextBuilder:
                         )
 
         ordered = {
-            k: sorted(v, key=lambda x: (x["file"], x["line"]))
-            for k, v in sorted(index.items())
+            k: sorted(v, key=lambda x: (x["file"], x["line"])) for k, v in sorted(index.items())
         }
         ensure_index_dir(self.root_dir)
         out_path = index_path(self.root_dir, self.DI_INDEX_FILENAME)
         try:
             with open(out_path, "w", encoding="utf-8") as fh:
                 import json as _json
+
                 _json.dump(ordered, fh, indent=2, ensure_ascii=False)
                 fh.write("\n")
             logging.info("Wrote DI index: %d services.", len(ordered))

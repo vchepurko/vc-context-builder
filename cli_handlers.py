@@ -73,6 +73,93 @@ def cmd_find(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_semantic(args: argparse.Namespace) -> int:
+    engine = _engine(args)
+    out = engine.semantic_search(
+        args.query,
+        top_k=int(getattr(args, "top_k", 5)),
+        kind=getattr(args, "kind", None),
+        role=getattr(args, "role", None),
+        include_tests=bool(getattr(args, "include_tests", False)),
+    )
+    if args.json:
+        _emit_json(out)
+        return 0 if out else 1
+    if not out:
+        print(f"No semantic symbol hits for {args.query!r}.")
+        return 1
+    print(f"{len(out)} semantic hit(s) for {args.query!r}:")
+    for hit in out:
+        line = hit.get("line")
+        suffix = f":{line}" if line else ""
+        tags = []
+        if hit.get("kind"):
+            tags.append(hit["kind"])
+        if hit.get("role"):
+            tags.append(hit["role"])
+        tag = f" ({', '.join(tags)})" if tags else ""
+        why = f"  why={','.join(hit.get('why') or [])}" if hit.get("why") else ""
+        print(f"  {hit['name']}  {hit.get('score'):.4f}  {hit.get('file')}{suffix}{tag}{why}")
+        if hit.get("doc"):
+            print(f"    {hit['doc']}")
+    return 0
+
+
+def cmd_remember_experience(args: argparse.Namespace) -> int:
+    engine = _engine(args)
+    try:
+        out = engine.remember_experience(
+            context_text=args.context,
+            content=args.content,
+            type=getattr(args, "type", "decision"),
+            source=getattr(args, "source", "user"),
+            source_file=getattr(args, "source_file", None),
+            confidence=getattr(args, "confidence", None),
+        )
+    except ValueError as e:
+        if args.json:
+            _emit_json({"error": str(e)})
+        else:
+            print(f"Could not remember experience: {e}", file=sys.stderr)
+        return 1
+    if args.json:
+        _emit_json(out)
+    else:
+        print(f"Remembered {out['type']} experience: {out['id']}")
+        print(f"  source: {out['source']}  confidence: {out['confidence']}")
+        if out.get("source_file"):
+            print(f"  file: {out['source_file']}")
+    return 0
+
+
+def cmd_recall_experience(args: argparse.Namespace) -> int:
+    engine = _engine(args)
+    out = engine.recall_experience(
+        args.context,
+        top_k=int(getattr(args, "top_k", 3)),
+        type=getattr(args, "type", None),
+        min_score=float(getattr(args, "min_score", 0.05)),
+    )
+    if args.json:
+        _emit_json(out)
+        return 0 if out else 1
+    if not out:
+        print(f"No remembered experience for {args.context!r}.")
+        return 1
+    print(f"{len(out)} recalled experience(s) for {args.context!r}:")
+    for hit in out:
+        stale = " stale" if hit.get("stale") else ""
+        print(
+            f"  {hit['id']}  {hit['score']:.4f}  "
+            f"{hit['type']}  confidence={hit['confidence']}{stale}"
+        )
+        if hit.get("source_file"):
+            print(f"    file: {hit['source_file']}")
+        print(f"    context: {hit['context_text']}")
+        print(f"    remember: {hit['content']}")
+    return 0
+
+
 def cmd_callees(args: argparse.Namespace) -> int:
     engine = _engine(args)
     callees = engine.get_callees(args.symbol)
@@ -637,7 +724,9 @@ def cmd_restore(args: argparse.Namespace) -> int:
         for p in result["restored"]:
             print(f"  + {p}")
     if result["conflicts"] and not force:
-        print(f"\n{prefix}{len(result['conflicts'])} conflict(s) skipped (use --force to overwrite):")
+        print(
+            f"\n{prefix}{len(result['conflicts'])} conflict(s) skipped (use --force to overwrite):"
+        )
         for p in result["conflicts"]:
             print(f"  ! {p}")
     if not result["restored"] and not result["conflicts"]:

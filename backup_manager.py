@@ -130,9 +130,7 @@ def backup(
         for abs_path, arc_path in files:
             try:
                 zf.write(abs_path, arc_path)
-                manifest_files.append(
-                    {"path": arc_path, "size_bytes": os.path.getsize(abs_path)}
-                )
+                manifest_files.append({"path": arc_path, "size_bytes": os.path.getsize(abs_path)})
             except OSError:
                 pass
 

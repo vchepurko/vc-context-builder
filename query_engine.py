@@ -167,6 +167,75 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
                 self._symbols = json.load(fh)
         return self._symbols
 
+    def semantic_search(
+        self,
+        query: str,
+        *,
+        top_k: int = 5,
+        kind: Optional[str] = None,
+        role: Optional[str] = None,
+        include_tests: bool = False,
+    ) -> List[Dict[str, Any]]:
+        """Search indexed symbols by semantic text rather than exact name.
+
+        Backed by the local per-repo SQLite store under
+        ``~/.vc-context/<repo-hash>/embeddings/``. The store is rebuilt
+        lazily if ``agent_symbols.json`` changed since the last build.
+        """
+        from semantic_store import semantic_search
+
+        return semantic_search(
+            self.project_root,
+            self._load_symbols(),
+            query,
+            top_k=top_k,
+            kind=kind,
+            role=role,
+            include_tests=include_tests,
+        )
+
+    def remember_experience(
+        self,
+        *,
+        context_text: str,
+        content: str,
+        type: str = "decision",
+        source: str = "user",
+        source_file: Optional[str] = None,
+        confidence: Optional[float] = None,
+    ) -> Dict[str, Any]:
+        """Persist a repo-local Phase 5 experience."""
+        from experience_store import remember_experience
+
+        return remember_experience(
+            self.project_root,
+            context_text=context_text,
+            content=content,
+            type=type,
+            source=source,
+            source_file=source_file,
+            confidence=confidence,
+        )
+
+    def recall_experience(
+        self,
+        context: str,
+        *,
+        top_k: int = 3,
+        type: Optional[str] = None,
+        min_score: float = 0.05,
+    ) -> List[Dict[str, Any]]:
+        """Recall repo-local decisions, mistakes, dead ends, and patterns."""
+        from experience_store import recall_experience
+
+        return recall_experience(
+            self.project_root,
+            context,
+            top_k=top_k,
+            type=type,
+            min_score=min_score,
+        )
+
     def _load_tests(self) -> Dict[str, Any]:
         """Return ``agent_tests.json`` content (or ``{}`` if missing).
 
@@ -1147,11 +1216,23 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
                     with open(abs_path, encoding="utf-8", errors="replace") as fh:
                         for lineno, raw in enumerate(fh, 1):
                             if ctor_re.search(raw):
-                                out.append({"file": rel, "line": lineno,
-                                            "kind": "constructor", "service": service})
+                                out.append(
+                                    {
+                                        "file": rel,
+                                        "line": lineno,
+                                        "kind": "constructor",
+                                        "service": service,
+                                    }
+                                )
                             elif inject_re.search(raw):
-                                out.append({"file": rel, "line": lineno,
-                                            "kind": "inject", "service": service})
+                                out.append(
+                                    {
+                                        "file": rel,
+                                        "line": lineno,
+                                        "kind": "inject",
+                                        "service": service,
+                                    }
+                                )
                 except OSError:
                     continue
                 if len(out) >= 200:
@@ -1173,18 +1254,16 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
 
         # Regex: captures the injected type from both patterns.
         # constructor(private x: TypeName,  or  inject(TypeName)
-        ctor_any_re = _re.compile(
-            r"(?:private|public|protected|readonly)\s+\w+\s*:\s*([A-Z]\w+)"
-        )
+        ctor_any_re = _re.compile(r"(?:private|public|protected|readonly)\s+\w+\s*:\s*([A-Z]\w+)")
         inject_any_re = _re.compile(r"\binject\s*\(\s*([A-Z]\w+)\s*[,\)]")
 
         out: List[Dict[str, Any]] = []
         abs_dir = os.path.join(self.project_root, module_dir)
 
         for dirpath, dirs, files in os.walk(abs_dir):
-            dirs[:] = [d for d in dirs if d not in {
-                "node_modules", "__pycache__", ".git", "dist", "build"
-            }]
+            dirs[:] = [
+                d for d in dirs if d not in {"node_modules", "__pycache__", ".git", "dist", "build"}
+            ]
             for fname in files:
                 if not fname.endswith((".ts", ".tsx")):
                     continue
@@ -1197,13 +1276,25 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
                         for lineno, raw in enumerate(fh, 1):
                             m = ctor_any_re.search(raw)
                             if m:
-                                out.append({"file": rel, "line": lineno,
-                                            "kind": "constructor", "service": m.group(1)})
+                                out.append(
+                                    {
+                                        "file": rel,
+                                        "line": lineno,
+                                        "kind": "constructor",
+                                        "service": m.group(1),
+                                    }
+                                )
                                 continue
                             m = inject_any_re.search(raw)
                             if m:
-                                out.append({"file": rel, "line": lineno,
-                                            "kind": "inject", "service": m.group(1)})
+                                out.append(
+                                    {
+                                        "file": rel,
+                                        "line": lineno,
+                                        "kind": "inject",
+                                        "service": m.group(1),
+                                    }
+                                )
                 except OSError:
                     continue
                 if len(out) >= 500:
@@ -1436,13 +1527,9 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
             return paths
 
         # canonical_pat extracts the actual registered name from the match line.
-        _canonical_pat = _re.compile(
-            r"\.\s*(?:" + _kinds_pat + r")\s*\(\s*['\"](\w+)['\"]"
-        )
+        _canonical_pat = _re.compile(r"\.\s*(?:" + _kinds_pat + r")\s*\(\s*['\"](\w+)['\"]")
 
-        def _scan_one(
-            abs_path: str, pat: _re.Pattern[str], sym: str
-        ) -> Optional[Dict[str, Any]]:
+        def _scan_one(abs_path: str, pat: _re.Pattern[str], sym: str) -> Optional[Dict[str, Any]]:
             rel = os.path.relpath(abs_path, self.project_root).replace("\\", "/")
             try:
                 with open(abs_path, encoding="utf-8", errors="replace") as fh:
@@ -1486,9 +1573,7 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
 
         # Pass 3: nothing found — collect all AJS registrations and suggest
         # the closest ones so the agent can correct the query.
-        all_reg_pat = _re.compile(
-            r"\.\s*(" + _kinds_pat + r")\s*\(\s*['\"](\w+)['\"]"
-        )
+        all_reg_pat = _re.compile(r"\.\s*(" + _kinds_pat + r")\s*\(\s*['\"](\w+)['\"]")
         all_names: List[Dict[str, Any]] = []
         for fpath in files:
             rel = os.path.relpath(fpath, self.project_root).replace("\\", "/")
@@ -1497,8 +1582,14 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
                     for lineno, line in enumerate(fh, 1):
                         m = all_reg_pat.search(line)
                         if m:
-                            all_names.append({"name": m.group(2), "kind": m.group(1),
-                                              "file": rel, "line": lineno})
+                            all_names.append(
+                                {
+                                    "name": m.group(2),
+                                    "kind": m.group(1),
+                                    "file": rel,
+                                    "line": lineno,
+                                }
+                            )
             except OSError:
                 pass
 

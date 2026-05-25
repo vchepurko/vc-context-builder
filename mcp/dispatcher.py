@@ -47,6 +47,7 @@ class Dispatcher:
         self._handlers: Dict[str, Callable[[Dict[str, Any]], Any]] = {
             "find_symbol": self._find_symbol,
             "find_symbols": self._find_symbols,
+            "semantic_search": self._semantic_search,
             "get_callees": self._get_callees,
             "get_raised_exceptions": self._get_raised_exceptions,
             "verify": self._verify,
@@ -80,6 +81,8 @@ class Dispatcher:
             "list_checks": self._list_checks,
             "run_check": self._run_check,
             "get_session_metrics": self._get_session_metrics,
+            "remember_experience": self._remember_experience,
+            "recall_experience": self._recall_experience,
             "inspect_class": self._inspect_class,
             "list_locale_keys": self._list_locale_keys,
             "find_locale_key": self._find_locale_key,
@@ -162,6 +165,24 @@ class Dispatcher:
         cleaned = [str(n) for n in names if n]
         kw = self._symbol_kwargs(args)
         return self.engine.find_symbols(cleaned, **kw)
+
+    def _semantic_search(self, args: Dict[str, Any]) -> Any:
+        query = str(args.get("query", "")).strip()
+        try:
+            top_k = int(args.get("top_k", 5))
+        except (TypeError, ValueError):
+            top_k = 5
+        kind_raw = args.get("kind")
+        role_raw = args.get("role")
+        kind = str(kind_raw).strip() if isinstance(kind_raw, str) and kind_raw.strip() else None
+        role = str(role_raw).strip() if isinstance(role_raw, str) and role_raw.strip() else None
+        return self.engine.semantic_search(
+            query,
+            top_k=max(1, min(50, top_k)),
+            kind=kind,
+            role=role,
+            include_tests=self._include_tests(args),
+        )
 
     @staticmethod
     def _symbol_kwargs(args: Dict[str, Any]) -> Dict[str, Any]:
@@ -388,6 +409,50 @@ class Dispatcher:
         if args.get("baseline") is True:
             kw["baseline"] = True
         return self.engine.get_session_metrics(**kw)
+
+    def _remember_experience(self, args: Dict[str, Any]) -> Any:
+        confidence_raw = args.get("confidence")
+        confidence: Optional[float] = None
+        if confidence_raw is not None:
+            try:
+                confidence = float(confidence_raw)
+            except (TypeError, ValueError):
+                confidence = None
+        source_file_raw = args.get("source_file")
+        source_file = (
+            str(source_file_raw).strip()
+            if isinstance(source_file_raw, str) and source_file_raw.strip()
+            else None
+        )
+        try:
+            return self.engine.remember_experience(
+                context_text=str(args.get("context_text", "")),
+                content=str(args.get("content", "")),
+                type=str(args.get("type", "decision")),
+                source=str(args.get("source", "user")),
+                source_file=source_file,
+                confidence=confidence,
+            )
+        except ValueError as e:
+            return {"error": str(e)}
+
+    def _recall_experience(self, args: Dict[str, Any]) -> Any:
+        try:
+            top_k = int(args.get("top_k", 3))
+        except (TypeError, ValueError):
+            top_k = 3
+        type_raw = args.get("type")
+        exp_type = str(type_raw).strip() if isinstance(type_raw, str) and type_raw.strip() else None
+        try:
+            min_score = float(args.get("min_score", 0.05))
+        except (TypeError, ValueError):
+            min_score = 0.05
+        return self.engine.recall_experience(
+            str(args.get("context", "")),
+            top_k=max(1, min(20, top_k)),
+            type=exp_type,
+            min_score=max(0.0, min(1.0, min_score)),
+        )
 
     def _inspect_class(self, args: Dict[str, Any]) -> Any:
         return self.engine.inspect_class(str(args.get("name", "")).strip())
