@@ -123,6 +123,10 @@ if [ -z "$EMBEDDING_PROVIDER" ] && [ -t 0 ]; then
     esac
 fi
 EMBEDDING_PROVIDER="${EMBEDDING_PROVIDER:-local_hash}"
+SENTENCE_UV_PYTHON="3.12"
+SENTENCE_UV_WITH_1="numpy<2"
+SENTENCE_UV_WITH_2="transformers<5"
+SENTENCE_UV_WITH_3="sentence-transformers==3.0.1"
 
 if [ "$EMBEDDING_PROVIDER" != "local_hash" ]; then
     python3 - ".vc-context/conventions.json" "$EMBEDDING_PROVIDER" <<'PY'
@@ -132,7 +136,13 @@ path = Path(sys.argv[1])
 provider = sys.argv[2]
 path.parent.mkdir(parents=True, exist_ok=True)
 cfg = json.loads(path.read_text()) if path.exists() else {}
-cfg["embedding_provider"] = provider
+if provider == "sentence_transformers":
+    cfg["embedding_provider"] = {
+        "name": "sentence_transformers",
+        "model": "sentence-transformers/all-MiniLM-L6-v2",
+    }
+else:
+    cfg["embedding_provider"] = provider
 path.write_text(json.dumps(cfg, indent=2) + "\n")
 PY
     echo "✅ Embedding provider set to '$EMBEDDING_PROVIDER' in .vc-context/conventions.json."
@@ -144,7 +154,11 @@ PY
         _IMPORT="openai"
     fi
     if [ -n "${_PKG:-}" ]; then
-        if python3 -c "import $_IMPORT" 2>/dev/null; then
+        if [ "$EMBEDDING_PROVIDER" = "sentence_transformers" ] && command -v uv >/dev/null 2>&1; then
+            echo "   ℹ️  sentence_transformers will run via uv profile:"
+            echo "      python $SENTENCE_UV_PYTHON + $SENTENCE_UV_WITH_1 + $SENTENCE_UV_WITH_2 + $SENTENCE_UV_WITH_3"
+            echo "      (avoids Python 3.13 / torch wheel incompatibilities)."
+        elif python3 -c "import $_IMPORT" 2>/dev/null; then
             echo "   ✅ $_PKG already installed."
         elif command -v uv >/dev/null 2>&1; then
             echo "   ℹ️  $_PKG will be fetched by uv into its cache — your venv stays clean."
@@ -169,7 +183,7 @@ _AGENT_MAP_CMD="python3 $RELATIVE_DIR/agent_map.py"
 case "$EMBEDDING_PROVIDER" in
     sentence_transformers)
         if command -v uv >/dev/null 2>&1; then
-            _AGENT_MAP_CMD="uv run --with sentence-transformers python3 $RELATIVE_DIR/agent_map.py"
+            _AGENT_MAP_CMD="uv run --no-project --python $SENTENCE_UV_PYTHON --with $SENTENCE_UV_WITH_1 --with $SENTENCE_UV_WITH_2 --with $SENTENCE_UV_WITH_3 python3 $RELATIVE_DIR/agent_map.py"
         fi
         ;;
     openai)
@@ -275,23 +289,53 @@ fi
 # 4. Project-rooted MCP config (.mcp.json) — auto-wires Claude Code.
 if ! $NO_MCP; then
     MCP_CONFIG=".mcp.json"
-    STATUS=$(python3 - "$MCP_CONFIG" "$RELATIVE_DIR" <<'PY'
+    STATUS=$(python3 - "$MCP_CONFIG" "$RELATIVE_DIR" "$EMBEDDING_PROVIDER" "$SENTENCE_UV_PYTHON" "$SENTENCE_UV_WITH_1" "$SENTENCE_UV_WITH_2" "$SENTENCE_UV_WITH_3" <<'PY'
 import json, sys
 from pathlib import Path
 path = Path(sys.argv[1])
 relative_dir = sys.argv[2]
-entry = {
-    "type": "stdio",
-    "command": f"{relative_dir}/bin/vc-context-mcp",
-    "args": [],
-    "env": {},
-}
-meta_entry = {
-    "type": "stdio",
-    "command": f"{relative_dir}/bin/vc-context-mcp",
-    "args": ["--root", relative_dir],
-    "env": {},
-}
+provider = sys.argv[3]
+py_ver = sys.argv[4]
+with_1 = sys.argv[5]
+with_2 = sys.argv[6]
+with_3 = sys.argv[7]
+
+if provider == "sentence_transformers":
+    base_args = [
+        "run",
+        "--no-project",
+        "--python", py_ver,
+        "--with", with_1,
+        "--with", with_2,
+        "--with", with_3,
+        "python3",
+        f"{relative_dir}/mcp_server.py",
+    ]
+    entry = {
+        "type": "stdio",
+        "command": "uv",
+        "args": base_args,
+        "env": {},
+    }
+    meta_entry = {
+        "type": "stdio",
+        "command": "uv",
+        "args": base_args + ["--root", relative_dir],
+        "env": {},
+    }
+else:
+    entry = {
+        "type": "stdio",
+        "command": f"{relative_dir}/bin/vc-context-mcp",
+        "args": [],
+        "env": {},
+    }
+    meta_entry = {
+        "type": "stdio",
+        "command": f"{relative_dir}/bin/vc-context-mcp",
+        "args": ["--root", relative_dir],
+        "env": {},
+    }
 if path.exists():
     try:
         cfg = json.loads(path.read_text())
