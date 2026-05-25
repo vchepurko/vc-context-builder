@@ -137,11 +137,27 @@ path.write_text(json.dumps(cfg, indent=2) + "\n")
 PY
     echo "✅ Embedding provider set to '$EMBEDDING_PROVIDER' in .vc-context/conventions.json."
     if [ "$EMBEDDING_PROVIDER" = "sentence_transformers" ]; then
-        echo "   ℹ️  Model (~25 MB) will download on first agent_map.py run."
-        echo "      Install the package now: pip install sentence-transformers"
+        if python3 -c "import sentence_transformers" 2>/dev/null; then
+            echo "   ✅ sentence-transformers already installed."
+        else
+            echo "   📦 Installing sentence-transformers..."
+            pip install sentence-transformers --quiet && \
+                echo "   ✅ sentence-transformers installed." || \
+                echo "   ⚠️  pip install failed — run manually: pip install sentence-transformers"
+        fi
+        echo "   ℹ️  Model (~25 MB) downloads to ~/.cache/huggingface/ on first agent_map.py run."
     elif [ "$EMBEDDING_PROVIDER" = "openai" ]; then
-        echo "   ℹ️  Set OPENAI_API_KEY before running agent_map.py."
-        echo "      Install the package now: pip install openai"
+        if python3 -c "import openai" 2>/dev/null; then
+            echo "   ✅ openai already installed."
+        else
+            echo "   📦 Installing openai..."
+            pip install openai --quiet && \
+                echo "   ✅ openai installed." || \
+                echo "   ⚠️  pip install failed — run manually: pip install openai"
+        fi
+        if [ -z "${OPENAI_API_KEY:-}" ]; then
+            echo "   ⚠️  OPENAI_API_KEY is not set — add it to your environment before rebuilding."
+        fi
     fi
 fi
 
