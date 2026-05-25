@@ -26,7 +26,37 @@ SUBMODULE="$(cd "$HERE/.." && pwd)"
 
 GIT_DIR="$(git rev-parse --absolute-git-dir 2>/dev/null || true)"
 
-python3 "$SUBMODULE/agent_map.py"
+# Use 'uv run --with' for neural providers to avoid polluting the project venv.
+_PROVIDER=$(python3 -c "
+import json, os, sys
+p = os.path.join(os.getcwd(), '.vc-context', 'conventions.json')
+try:
+    d = json.load(open(p))
+    v = d.get('embedding_provider', 'local_hash')
+    print(v if isinstance(v, str) else v.get('name', 'local_hash'))
+except Exception:
+    print('local_hash')
+" 2>/dev/null || echo "local_hash")
+
+case "$_PROVIDER" in
+    sentence_transformers)
+        if command -v uv >/dev/null 2>&1; then
+            uv run --with sentence-transformers python3 "$SUBMODULE/agent_map.py"
+        else
+            python3 "$SUBMODULE/agent_map.py"
+        fi
+        ;;
+    openai)
+        if command -v uv >/dev/null 2>&1; then
+            uv run --with openai python3 "$SUBMODULE/agent_map.py"
+        else
+            python3 "$SUBMODULE/agent_map.py"
+        fi
+        ;;
+    *)
+        python3 "$SUBMODULE/agent_map.py"
+        ;;
+esac
 
 if [ -n "$GIT_DIR" ] && [ -f "$GIT_DIR/vc-context-local" ]; then
     echo "🔒 vc-context-builder: local mode — artifacts not staged."

@@ -29,6 +29,37 @@ from paths import index_read_path
 DEFAULT_INTERVAL_SECONDS = 3600
 MIN_INTERVAL_SECONDS = 60
 
+_PROVIDER_PACKAGES = {
+    "sentence_transformers": "sentence-transformers",
+    "openai": "openai",
+}
+
+
+def _build_cmd(builder: str, project_root: str) -> list:
+    """Return the command list to run agent_map.py.
+
+    When a neural embedding provider is configured and uv is available,
+    wraps the call in 'uv run --with <pkg>' so the dependency is fetched
+    into uv's isolated cache instead of the project venv.
+    """
+    base = [sys.executable, builder, "--root", project_root]
+    conv_path = os.path.join(project_root, ".vc-context", "conventions.json")
+    try:
+        with open(conv_path, encoding="utf-8") as fh:
+            cfg = json.load(fh)
+        provider = cfg.get("embedding_provider", "local_hash")
+        if isinstance(provider, dict):
+            provider = provider.get("name", "local_hash")
+    except (OSError, json.JSONDecodeError):
+        provider = "local_hash"
+
+    pkg = _PROVIDER_PACKAGES.get(str(provider))
+    if pkg and subprocess.run(
+        ["uv", "--version"], capture_output=True, check=False
+    ).returncode == 0:
+        return ["uv", "run", "--with", pkg, sys.executable, builder, "--root", project_root]
+    return base
+
 
 def _load_config(project_root: str) -> Dict[str, Any]:
     path = os.path.join(project_root, ".vc-context", "conventions.json")
@@ -84,8 +115,9 @@ def maybe_auto_reindex(project_root: str) -> Dict[str, Any]:
     if not os.path.isfile(builder):
         return {"ok": False, "ran": False, "error": f"agent_map.py not found at {builder}"}
 
+    cmd = _build_cmd(builder, project_root)
     proc = subprocess.run(
-        [sys.executable, builder, "--root", project_root],
+        cmd,
         capture_output=True,
         text=True,
         timeout=120,

@@ -137,24 +137,10 @@ path.write_text(json.dumps(cfg, indent=2) + "\n")
 PY
     echo "✅ Embedding provider set to '$EMBEDDING_PROVIDER' in .vc-context/conventions.json."
     if [ "$EMBEDDING_PROVIDER" = "sentence_transformers" ]; then
-        if python3 -c "import sentence_transformers" 2>/dev/null; then
-            echo "   ✅ sentence-transformers already installed."
-        else
-            echo "   📦 Installing sentence-transformers..."
-            pip install sentence-transformers --quiet && \
-                echo "   ✅ sentence-transformers installed." || \
-                echo "   ⚠️  pip install failed — run manually: pip install sentence-transformers"
-        fi
-        echo "   ℹ️  Model (~25 MB) downloads to ~/.cache/huggingface/ on first agent_map.py run."
+        echo "   ℹ️  sentence-transformers runs via 'uv run --with' — no changes to your venv."
+        echo "   ℹ️  Model (~25 MB) downloads to ~/.cache/huggingface/ on first build."
     elif [ "$EMBEDDING_PROVIDER" = "openai" ]; then
-        if python3 -c "import openai" 2>/dev/null; then
-            echo "   ✅ openai already installed."
-        else
-            echo "   📦 Installing openai..."
-            pip install openai --quiet && \
-                echo "   ✅ openai installed." || \
-                echo "   ⚠️  pip install failed — run manually: pip install openai"
-        fi
+        echo "   ℹ️  openai runs via 'uv run --with' — no changes to your venv."
         if [ -z "${OPENAI_API_KEY:-}" ]; then
             echo "   ⚠️  OPENAI_API_KEY is not set — add it to your environment before rebuilding."
         fi
@@ -162,7 +148,23 @@ PY
 fi
 
 # 1b. Initial context build.
-python3 "$RELATIVE_DIR/agent_map.py"
+# When a neural embedding provider is configured, wrap agent_map.py in
+# 'uv run --with <pkg>' so the heavy dependency (torch, transformers, openai)
+# is fetched into uv's isolated cache and never pollutes the project venv.
+_AGENT_MAP_CMD="python3 $RELATIVE_DIR/agent_map.py"
+case "$EMBEDDING_PROVIDER" in
+    sentence_transformers)
+        if command -v uv >/dev/null 2>&1; then
+            _AGENT_MAP_CMD="uv run --with sentence-transformers python3 $RELATIVE_DIR/agent_map.py"
+        fi
+        ;;
+    openai)
+        if command -v uv >/dev/null 2>&1; then
+            _AGENT_MAP_CMD="uv run --with openai python3 $RELATIVE_DIR/agent_map.py"
+        fi
+        ;;
+esac
+$_AGENT_MAP_CMD
 
 # 2. Hook: native pre-push (default) or pre-commit framework (--pre-commit).
 HOOK_ENTRY="$RELATIVE_DIR/bin/vc-context-build-hook"
