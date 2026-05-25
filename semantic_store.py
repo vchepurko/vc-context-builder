@@ -122,6 +122,26 @@ class LocalHashEmbeddingProvider(EmbeddingProvider):
         return [v / norm for v in vec]
 
 
+def _hf_model_is_cached(model_name: str) -> bool:
+    """Return True when the HuggingFace model snapshot already exists locally.
+
+    HF Hub stores models under ~/.cache/huggingface/hub/models--<org>--<name>/snapshots/.
+    When at least one snapshot directory is present, we can load offline.
+    """
+    cache_root = os.environ.get(
+        "HF_HUB_CACHE",
+        os.path.join(os.path.expanduser("~"), ".cache", "huggingface", "hub"),
+    )
+    folder = "models--" + model_name.replace("/", "--")
+    snapshots_dir = os.path.join(cache_root, folder, "snapshots")
+    if not os.path.isdir(snapshots_dir):
+        return False
+    try:
+        return any(True for _ in os.scandir(snapshots_dir))
+    except OSError:
+        return False
+
+
 class SentenceTransformersEmbeddingProvider(EmbeddingProvider):
     """Local neural embeddings via sentence-transformers.
 
@@ -149,7 +169,11 @@ class SentenceTransformersEmbeddingProvider(EmbeddingProvider):
                 "sentence-transformers is not installed. "
                 "Run: pip install sentence-transformers"
             ) from exc
-        self._model = SentenceTransformer(self.model_name)
+        # Skip HuggingFace Hub version-check HEAD request when model is cached.
+        # local_files_only=True tells the Hub library not to reach out to the
+        # network at all, which eliminates the ~200 ms stall on every rebuild.
+        local_only = _hf_model_is_cached(self.model_name)
+        self._model = SentenceTransformer(self.model_name, local_files_only=local_only)
 
     def embed(self, text: str) -> List[float]:
         self._load()
