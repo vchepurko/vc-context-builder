@@ -639,12 +639,26 @@ class ContextBuilder:
 
     def _build_semantic_symbol_store(self) -> None:
         """Build the Phase 5 local semantic index for symbol search."""
+        from semantic_store import LocalHashEmbeddingProvider
+
         symbols_path = index_read_path(self.root_dir, self.symbols_filename)
         try:
             with open(symbols_path, encoding="utf-8") as fh:
                 symbols = json.load(fh)
             provider = provider_from_conventions(self.root_dir)
-            result = build_symbol_store(self.root_dir, symbols, provider=provider)
+            try:
+                result = build_symbol_store(self.root_dir, symbols, provider=provider)
+            except RuntimeError as e:
+                logging.warning(
+                    "Embedding provider '%s' unavailable (%s). "
+                    "Falling back to local_hash. Run `pip install %s` to use it.",
+                    provider.name,
+                    e,
+                    "sentence-transformers" if "sentence" in provider.name else "openai",
+                )
+                result = build_symbol_store(
+                    self.root_dir, symbols, provider=LocalHashEmbeddingProvider()
+                )
             logging.info(
                 "Wrote semantic symbol store: %s (%d symbols, %s provider).",
                 result["path"],
