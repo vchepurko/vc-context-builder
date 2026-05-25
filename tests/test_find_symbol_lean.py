@@ -1,8 +1,10 @@
 """Tests for the find_symbol token-economy improvements:
 
 * ``fields=`` whitelist — slim response.
-* ``include_body=true`` — embed source slice (Python AST + JS/TS regex).
 * ``find_symbols`` — batch wrapper.
+* ``include_body`` — internal-only; removed from the public MCP spec.
+  Agents must use find_symbol (location) + read_slice (targeted range).
+  Tests kept to guard the internal implementation used by conventions.
 """
 
 from __future__ import annotations
@@ -146,7 +148,9 @@ class FieldsWhitelistTests(_FixtureMixin, unittest.TestCase):
         )
 
 
-class IncludeBodyTests(_FixtureMixin, unittest.TestCase):
+class IncludeBodyInternalTests(_FixtureMixin, unittest.TestCase):
+    """Internal implementation tests — include_body is NOT exposed via MCP spec.
+    The find_symbol + read_slice two-step pattern is the correct agent pattern."""
     def setUp(self) -> None:
         self.root = self._make_root()
         self.engine = QueryEngine(self.root)

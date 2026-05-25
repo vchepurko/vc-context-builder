@@ -83,7 +83,11 @@ class ArgsSummaryTests(unittest.TestCase):
 
 
 class WastefulPairsTests(unittest.TestCase):
-    def test_finds_pair_within_window(self) -> None:
+    """find_symbol → read_slice is the CORRECT two-step pattern and must NOT fire.
+    Wasteful pairs now detect read_slice called twice on the same file."""
+
+    def test_find_symbol_then_read_slice_is_not_wasteful(self) -> None:
+        # The correct pattern: find_symbol gets location, read_slice gets body.
         entries = [
             _entry(tool="find_symbol", ts=_ts(0), args_keys=["name"], args_summary={"name": "X"}),
             _entry(
@@ -93,33 +97,35 @@ class WastefulPairsTests(unittest.TestCase):
                 args_summary={"file": "pkg/x.py"},
             ),
         ]
+        self.assertEqual(detect_wasteful_pairs(entries), [])
+
+    def test_double_read_slice_same_file_is_wasteful(self) -> None:
+        entries = [
+            _entry(tool="read_slice", ts=_ts(0), args_summary={"file": "pkg/x.py"}),
+            _entry(tool="read_slice", ts=_ts(10), args_summary={"file": "pkg/x.py"}),
+        ]
         findings = detect_wasteful_pairs(entries)
         self.assertEqual(len(findings), 1)
-        self.assertEqual(findings[0]["symbol"], "X")
         self.assertEqual(findings[0]["kind"], "wasteful_pair")
+        self.assertEqual(findings[0]["symbol"], "pkg/x.py")
 
-    def test_skip_when_include_body_passed(self) -> None:
+    def test_double_read_slice_different_files_is_not_wasteful(self) -> None:
         entries = [
-            _entry(
-                tool="find_symbol",
-                ts=_ts(0),
-                args_keys=["name", "include_body"],
-                args_summary={"name": "X"},
-            ),
-            _entry(tool="read_slice", ts=_ts(5), args_summary={"file": "pkg/x.py"}),
+            _entry(tool="read_slice", ts=_ts(0), args_summary={"file": "pkg/x.py"}),
+            _entry(tool="read_slice", ts=_ts(5), args_summary={"file": "pkg/y.py"}),
         ]
         self.assertEqual(detect_wasteful_pairs(entries), [])
 
     def test_skip_when_outside_window(self) -> None:
         entries = [
-            _entry(tool="find_symbol", ts=_ts(0), args_keys=["name"], args_summary={"name": "X"}),
+            _entry(tool="read_slice", ts=_ts(0), args_summary={"file": "pkg/x.py"}),
             _entry(tool="read_slice", ts=_ts(120), args_summary={"file": "pkg/x.py"}),
         ]
         self.assertEqual(detect_wasteful_pairs(entries, window_sec=60), [])
 
     def test_intervening_call_resets(self) -> None:
         entries = [
-            _entry(tool="find_symbol", ts=_ts(0), args_keys=["name"], args_summary={"name": "X"}),
+            _entry(tool="read_slice", ts=_ts(0), args_summary={"file": "pkg/x.py"}),
             _entry(tool="who_calls", ts=_ts(5), args_summary={"symbol": "X"}),
             _entry(tool="read_slice", ts=_ts(10), args_summary={"file": "pkg/x.py"}),
         ]
@@ -180,11 +186,9 @@ class EmptyStreaksTests(unittest.TestCase):
 class QualityReportTests(unittest.TestCase):
     def test_combines_all_three(self) -> None:
         entries = (
-            # Wasteful pair
+            # Wasteful pair: read_slice twice on same file
             [
-                _entry(
-                    tool="find_symbol", ts=_ts(0), args_keys=["name"], args_summary={"name": "X"}
-                ),
+                _entry(tool="read_slice", ts=_ts(0), args_summary={"file": "pkg/x.py"}),
                 _entry(tool="read_slice", ts=_ts(5), args_summary={"file": "pkg/x.py"}),
             ]
             # Hot reread (4 same calls)

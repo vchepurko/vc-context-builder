@@ -21,12 +21,14 @@ def specs() -> List[Dict[str, Any]]:
                 "`end_line` are 1-indexed; `end_line` is Python-only "
                 "(JS/TS only carries `line`).\n\n"
                 "Token economy:\n"
-                "- Need the body? Pass `include_body: true` — ONE call "
-                "instead of find_symbol + read_slice. DEFAULT choice "
-                "when you plan to read the source next.\n"
                 "- Only need the location? Pass `fields: ['file', 'line']` "
-                "(~40 tokens) and skip the body.\n"
-                "- Multiple symbols? Use `find_symbols` (one round-trip vs N)."
+                "(~40 tokens).\n"
+                "- Need the body? Call find_symbol to get file+line, then "
+                "read_slice for the exact range — cheaper than fetching the "
+                "full body here (JS/TS bodies can exceed 8 KB).\n"
+                "- Multiple symbols? Use `find_symbols` (one round-trip vs N).\n"
+                "- Supports case-insensitive lookup and I-prefix stripping "
+                "(`IMyInterface` → finds `MyInterface`)."
             ),
             "inputSchema": {
                 "type": "object",
@@ -42,15 +44,6 @@ def specs() -> List[Dict[str, Any]]:
                             "Whitelist of keys to keep in the response "
                             "(e.g. ['file'], ['file', 'kind']). Default "
                             "= full record."
-                        ),
-                    },
-                    "include_body": {
-                        "type": "boolean",
-                        "description": (
-                            "Embed verbatim source body and skip the "
-                            "follow-up read_slice. Use this whenever "
-                            "you need to see the implementation — "
-                            "it is cheaper than find_symbol + read_slice."
                         ),
                     },
                     "include_tests": {
@@ -72,7 +65,7 @@ def specs() -> List[Dict[str, Any]]:
             "description": (
                 "Batch lookup — N symbol records in one MCP call. "
                 "Returns a {name → record_or_null} map. Same `fields` "
-                "and `include_body` knobs as find_symbol.\n\n"
+                "knob as find_symbol.\n\n"
                 "Token economy: 3 separate find_symbol calls cost "
                 "~3 × 135 = ~400 tokens of round-trip overhead; one "
                 "find_symbols(['A','B','C']) call carries the same "
@@ -90,10 +83,6 @@ def specs() -> List[Dict[str, Any]]:
                         "type": "array",
                         "items": {"type": "string"},
                         "description": "Same as find_symbol.fields.",
-                    },
-                    "include_body": {
-                        "type": "boolean",
-                        "description": "Same as find_symbol.include_body.",
                     },
                     "include_tests": {
                         "type": "boolean",

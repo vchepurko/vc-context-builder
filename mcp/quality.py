@@ -81,64 +81,51 @@ def detect_wasteful_pairs(
     entries: List[Dict[str, Any]],
     window_sec: int = WASTEFUL_PAIR_WINDOW_SEC,
 ) -> List[Dict[str, Any]]:
-    """Flag a `find_symbol(name=X)` immediately followed by a
-    `read_slice(file=...)` against the SAME ``name``-scoped file when
-    the find_symbol call did NOT pass ``include_body=true``.
+    """Flag pairs of calls that could be collapsed into one round-trip.
 
-    Why it's wasteful: ``find_symbol(..., include_body=true)`` would
-    have returned the body in the same round-trip.  We don't know the
-    file from `find_symbol` because we don't capture its result; we
-    look for proximity (same agent step) and the same ``name`` /
-    ``symbol`` carrier — ``read_slice`` calls usually follow up the
-    last find with `file=` set to the result.
+    Currently detected:
+      - ``read_slice`` called twice on the same file within ``window_sec``
+        (hot double-read: the agent read a range, then re-read overlapping
+        lines without an intervening edit).
 
-    Conservative match — pair only when:
-      - both entries succeeded (``ok=true``)
-      - the find_symbol args did NOT carry ``include_body``
-      - the read_slice happened within ``window_sec`` of find_symbol
-      - the find_symbol's name is non-empty.
+    Note: ``find_symbol → read_slice`` is the *correct* two-step pattern
+    (location lookup, then targeted slice) and is intentionally NOT flagged.
+    The ``include_body`` flag was removed from the find_symbol spec because
+    full JS/TS bodies cost more tokens than a targeted read_slice.
     """
     findings: List[Dict[str, Any]] = []
-    pending: Optional[Dict[str, Any]] = None
+    last_slice: Optional[Dict[str, Any]] = None
 
     for e in entries:
         if not e.get("ok"):
-            pending = None
+            last_slice = None
             continue
         tool = e.get("tool")
-        if tool == "find_symbol":
-            args_keys = e.get("args_keys") or []
+        if tool == "read_slice":
             args_summary = e.get("args_summary") or {}
-            if "include_body" in args_keys:
-                pending = None
-                continue
-            if not args_summary.get("name"):
-                pending = None
-                continue
-            pending = e
+            if last_slice is not None:
+                prev_file = (last_slice.get("args_summary") or {}).get("file", "")
+                this_file = args_summary.get("file", "")
+                if prev_file and this_file and prev_file == this_file:
+                    t_prev = _ts(last_slice)
+                    t_now = _ts(e)
+                    if t_prev and t_now and (t_now - t_prev).total_seconds() <= window_sec:
+                        findings.append(
+                            {
+                                "kind": "wasteful_pair",
+                                "severity": "info",
+                                "message": (
+                                    f"read_slice({this_file!r}) called twice within "
+                                    f"{window_sec}s — consider merging the two ranges "
+                                    f"into one slice"
+                                ),
+                                "symbol": this_file,
+                                "evidence": [_entry_summary(last_slice), _entry_summary(e)],
+                            }
+                        )
+            last_slice = e
             continue
-        if tool == "read_slice" and pending is not None:
-            t_pending = _ts(pending)
-            t_now = _ts(e)
-            if t_pending and t_now and (t_now - t_pending).total_seconds() <= window_sec:
-                findings.append(
-                    {
-                        "kind": "wasteful_pair",
-                        "severity": "info",
-                        "message": (
-                            f"find_symbol({pending['args_summary'].get('name')!r}) "
-                            f"→ read_slice within {window_sec}s; could have used "
-                            f"include_body=true"
-                        ),
-                        "symbol": pending["args_summary"].get("name"),
-                        "evidence": [_entry_summary(pending), _entry_summary(e)],
-                    }
-                )
-            pending = None
-            continue
-        # Any other tool resets the buffer — we only catch immediate
-        # follow-ups.
-        pending = None
+        last_slice = None
 
     return findings
 

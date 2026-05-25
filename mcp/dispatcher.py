@@ -191,15 +191,12 @@ class Dispatcher:
         fields = args.get("fields")
         if isinstance(fields, list):
             kw["fields"] = [str(f) for f in fields if isinstance(f, str)]
-        # Pass include_body only when the caller explicitly sets it.
-        # Omitting it lets find_symbol apply the project convention from
-        # conventions.json ("find_symbol_include_body"). Passing False
-        # explicitly overrides the convention — agent says "location only".
-        ib = args.get("include_body")
-        if ib is True:
-            kw["include_body"] = True
-        elif ib is False:
-            kw["include_body"] = False
+        # include_body is removed from the public spec — agents must use
+        # find_symbol (location) + read_slice (targeted range) instead.
+        # Passing include_body=False ensures the convention default
+        # ("find_symbol_include_body" in conventions.json) is never
+        # accidentally activated by an old config file.
+        kw["include_body"] = False
         if args.get("include_tests") is True:
             kw["include_tests"] = True
         return kw
