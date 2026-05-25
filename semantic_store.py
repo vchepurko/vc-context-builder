@@ -122,6 +122,113 @@ class LocalHashEmbeddingProvider(EmbeddingProvider):
         return [v / norm for v in vec]
 
 
+class SentenceTransformersEmbeddingProvider(EmbeddingProvider):
+    """Local neural embeddings via sentence-transformers.
+
+    Downloads the model to ~/.cache/huggingface/ on first use (~25 MB for
+    all-MiniLM-L6-v2). Subsequent runs use the cached model — no network.
+    Requires: ``pip install sentence-transformers`` (dev/install-time only).
+    """
+
+    name = "sentence_transformers"
+    dim = 384  # all-MiniLM-L6-v2 output dimension
+
+    DEFAULT_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
+
+    def __init__(self, model_name: str = DEFAULT_MODEL) -> None:
+        self.model_name = model_name
+        self._model = None  # lazy-load on first embed()
+
+    def _load(self) -> None:
+        if self._model is not None:
+            return
+        try:
+            from sentence_transformers import SentenceTransformer  # type: ignore
+        except ImportError as exc:
+            raise RuntimeError(
+                "sentence-transformers is not installed. "
+                "Run: pip install sentence-transformers"
+            ) from exc
+        self._model = SentenceTransformer(self.model_name)
+
+    def embed(self, text: str) -> List[float]:
+        self._load()
+        vec = self._model.encode(text, normalize_embeddings=True)  # type: ignore[union-attr]
+        return [float(v) for v in vec]
+
+
+class OpenAIEmbeddingProvider(EmbeddingProvider):
+    """OpenAI text-embedding-3-small via the openai SDK.
+
+    Cost: ~$0.002 per full project rebuild (2000 symbols × 50 tokens).
+    Requires: ``pip install openai`` and OPENAI_API_KEY env var.
+    """
+
+    name = "openai"
+    dim = 1536
+
+    DEFAULT_MODEL = "text-embedding-3-small"
+
+    def __init__(self, model: str = DEFAULT_MODEL, api_key: Optional[str] = None) -> None:
+        self.model = model
+        self._api_key = api_key or os.environ.get("OPENAI_API_KEY")
+
+    def embed(self, text: str) -> List[float]:
+        try:
+            from openai import OpenAI  # type: ignore
+        except ImportError as exc:
+            raise RuntimeError(
+                "openai package is not installed. Run: pip install openai"
+            ) from exc
+        if not self._api_key:
+            raise RuntimeError(
+                "OPENAI_API_KEY environment variable is not set."
+            )
+        client = OpenAI(api_key=self._api_key)
+        response = client.embeddings.create(input=text, model=self.model)
+        return response.data[0].embedding
+
+
+def provider_from_conventions(project_root: str) -> EmbeddingProvider:
+    """Read .vc-context/conventions.json and return the configured provider.
+
+    Supported values for ``embedding_provider``:
+      - ``"local_hash"`` (default, no deps)
+      - ``"sentence_transformers"`` (local neural, needs sentence-transformers)
+      - ``"openai"`` (API, needs openai + OPENAI_API_KEY)
+
+    Falls back to LocalHashEmbeddingProvider when the key is absent or unknown.
+    """
+    conv_path = os.path.join(project_root, ".vc-context", "conventions.json")
+    provider_name = "local_hash"
+    model_override: Optional[str] = None
+
+    if os.path.exists(conv_path):
+        try:
+            with open(conv_path, encoding="utf-8") as fh:
+                conv = json.load(fh)
+            embedding_cfg = conv.get("embedding_provider")
+            if isinstance(embedding_cfg, str):
+                provider_name = embedding_cfg
+            elif isinstance(embedding_cfg, dict):
+                provider_name = str(embedding_cfg.get("name", "local_hash"))
+                model_override = embedding_cfg.get("model")
+        except (OSError, json.JSONDecodeError):
+            pass
+
+    if provider_name == "sentence_transformers":
+        kwargs = {}
+        if model_override:
+            kwargs["model_name"] = model_override
+        return SentenceTransformersEmbeddingProvider(**kwargs)
+    if provider_name == "openai":
+        kwargs = {}
+        if model_override:
+            kwargs["model"] = model_override
+        return OpenAIEmbeddingProvider(**kwargs)
+    return LocalHashEmbeddingProvider()
+
+
 @dataclass(frozen=True)
 class SearchHit:
     name: str

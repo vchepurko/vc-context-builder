@@ -104,7 +104,52 @@ cd "$PROJECT_ROOT" || exit 1
 
 echo "🤖 vc-context-builder install — $PROJECT_ROOT"
 
-# 1. Initial context build.
+# 1a. Choose embedding provider (interactive unless --embedding-provider given).
+EMBEDDING_PROVIDER=""
+for arg in "$@"; do
+    case "$arg" in
+        --embedding-provider=*) EMBEDDING_PROVIDER="${arg#*=}" ;;
+    esac
+done
+
+if [ -z "$EMBEDDING_PROVIDER" ] && [ -t 0 ]; then
+    echo ""
+    echo "🔍 Semantic search provider for agent_map.py:"
+    echo "   1) sentence_transformers  (local, free, ~25 MB model on first use)"
+    echo "   2) openai                 (text-embedding-3-small, needs OPENAI_API_KEY, ~\$0.002/rebuild)"
+    echo "   3) none                   (local_hash fallback — fast, no deps, lower quality)"
+    printf "   Choice [1/2/3, default 3]: "
+    read -r _choice
+    case "$_choice" in
+        1) EMBEDDING_PROVIDER="sentence_transformers" ;;
+        2) EMBEDDING_PROVIDER="openai" ;;
+        *) EMBEDDING_PROVIDER="local_hash" ;;
+    esac
+fi
+EMBEDDING_PROVIDER="${EMBEDDING_PROVIDER:-local_hash}"
+
+if [ "$EMBEDDING_PROVIDER" != "local_hash" ]; then
+    python3 - ".vc-context/conventions.json" "$EMBEDDING_PROVIDER" <<'PY'
+import json, sys
+from pathlib import Path
+path = Path(sys.argv[1])
+provider = sys.argv[2]
+path.parent.mkdir(parents=True, exist_ok=True)
+cfg = json.loads(path.read_text()) if path.exists() else {}
+cfg["embedding_provider"] = provider
+path.write_text(json.dumps(cfg, indent=2) + "\n")
+PY
+    echo "✅ Embedding provider set to '$EMBEDDING_PROVIDER' in .vc-context/conventions.json."
+    if [ "$EMBEDDING_PROVIDER" = "sentence_transformers" ]; then
+        echo "   ℹ️  Model (~25 MB) will download on first agent_map.py run."
+        echo "      Install the package now: pip install sentence-transformers"
+    elif [ "$EMBEDDING_PROVIDER" = "openai" ]; then
+        echo "   ℹ️  Set OPENAI_API_KEY before running agent_map.py."
+        echo "      Install the package now: pip install openai"
+    fi
+fi
+
+# 1b. Initial context build.
 python3 "$RELATIVE_DIR/agent_map.py"
 
 # 2. Hook: native pre-push (default) or pre-commit framework (--pre-commit).
