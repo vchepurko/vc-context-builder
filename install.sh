@@ -330,6 +330,54 @@ if ! $NO_COMMANDS; then
     fi
 fi
 
+# 7. Agent instructions — write/update AGENTS.md (vendor-neutral) and
+#    CLAUDE.md (Claude Code pointer) in the parent project.
+VC_SECTION_BEGIN="# >>> vc-context agent rules"
+VC_SECTION_END="# <<< vc-context agent rules"
+VC_AGENTS_BLOCK="$VC_SECTION_BEGIN
+## find_symbol vs semantic_search
+
+| Situation | Tool | Cost |
+|---|---|---|
+| Know the exact symbol name | \`find_symbol(\"Name\")\` | ~28 tokens |
+| Know the concept, not the name | \`semantic_search(\"...\") \` | ~195 tokens |
+| Guessing with find_symbol | 3–4 attempts | ~400 tokens (avoid) |
+
+Rule: know the name → \`find_symbol\`. Don't know → \`semantic_search\` first, then \`find_symbol\` for the body.
+$VC_SECTION_END"
+
+# Idempotent: strip old block, then re-append.
+strip_vc_block() {
+    local f="$1"
+    [ -f "$f" ] || return 0
+    grep -q "$VC_SECTION_BEGIN" "$f" || return 0
+    awk -v B="$VC_SECTION_BEGIN" -v E="$VC_SECTION_END" \
+        '$0==B{skip=1;next} $0==E{skip=0;next} !skip{print}' \
+        "$f" > "$f.tmp" && mv "$f.tmp" "$f"
+}
+
+AGENTS_FILE="AGENTS.md"
+strip_vc_block "$AGENTS_FILE"
+printf '\n%s\n' "$VC_AGENTS_BLOCK" >> "$AGENTS_FILE"
+echo "📋 Updated $AGENTS_FILE with vc-context agent rules."
+
+# CLAUDE.md — Claude Code pointer only (no duplication).
+CLAUDE_MD="CLAUDE.md"
+CLAUDE_VC_BLOCK="$VC_SECTION_BEGIN
+## MCP tools (vc-context)
+
+See \`AGENTS.md\` for the full tool-selection rules (vendor-neutral).
+
+Claude Code specifics:
+- MCP server: \`vc-context\` (project index) + \`vc-context-meta\` (submodule self-index)
+- Tools live under \`mcp__vc-context__*\` — always prefer over grep/Read
+- Reload Claude Code after \`.mcp.json\` changes to pick up new servers
+$VC_SECTION_END"
+
+strip_vc_block "$CLAUDE_MD"
+printf '\n%s\n' "$CLAUDE_VC_BLOCK" >> "$CLAUDE_MD"
+echo "📋 Updated $CLAUDE_MD with Claude Code MCP pointer."
+
 echo ""
 echo "🎉 Done. What now:"
 echo "   • Reload Claude Code so it picks up .mcp.json + .claude/commands/."
