@@ -137,13 +137,27 @@ path.write_text(json.dumps(cfg, indent=2) + "\n")
 PY
     echo "✅ Embedding provider set to '$EMBEDDING_PROVIDER' in .vc-context/conventions.json."
     if [ "$EMBEDDING_PROVIDER" = "sentence_transformers" ]; then
-        echo "   ℹ️  sentence-transformers runs via 'uv run --with' — no changes to your venv."
-        echo "   ℹ️  Model (~25 MB) downloads to ~/.cache/huggingface/ on first build."
+        _PKG="sentence-transformers"
+        _IMPORT="sentence_transformers"
     elif [ "$EMBEDDING_PROVIDER" = "openai" ]; then
-        echo "   ℹ️  openai runs via 'uv run --with' — no changes to your venv."
-        if [ -z "${OPENAI_API_KEY:-}" ]; then
-            echo "   ⚠️  OPENAI_API_KEY is not set — add it to your environment before rebuilding."
+        _PKG="openai"
+        _IMPORT="openai"
+    fi
+    if [ -n "${_PKG:-}" ]; then
+        if python3 -c "import $_IMPORT" 2>/dev/null; then
+            echo "   ✅ $_PKG already installed."
+        elif command -v uv >/dev/null 2>&1; then
+            echo "   ℹ️  $_PKG will be fetched by uv into its cache — your venv stays clean."
+        else
+            echo "   📦 uv not found. Installing $_PKG into current environment..."
+            python3 -m pip install "$_PKG" --index-url https://pypi.org/simple/ --quiet && \
+                echo "   ✅ $_PKG installed." || \
+                echo "   ⚠️  pip install failed — run: python3 -m pip install $_PKG --index-url https://pypi.org/simple/"
         fi
+        echo "   ℹ️  Model downloads on first agent_map.py run."
+    fi
+    if [ "$EMBEDDING_PROVIDER" = "openai" ] && [ -z "${OPENAI_API_KEY:-}" ]; then
+        echo "   ⚠️  OPENAI_API_KEY is not set — add it before rebuilding."
     fi
 fi
 
