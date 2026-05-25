@@ -182,7 +182,7 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
         ``~/.vc-context/<repo-hash>/embeddings/``. The store is rebuilt
         lazily if ``agent_symbols.json`` changed since the last build.
         """
-        from semantic_store import semantic_search
+        from semantic_store import semantic_search, provider_from_conventions
 
         return semantic_search(
             self.project_root,
@@ -192,6 +192,7 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
             kind=kind,
             role=role,
             include_tests=include_tests,
+            provider=provider_from_conventions(self.project_root),
         )
 
     def remember_experience(
