@@ -641,6 +641,10 @@ class ContextBuilder:
         """Build the Phase 5 local semantic index for symbol search."""
         from semantic_store import LocalHashEmbeddingProvider
 
+        if os.environ.get("VC_CONTEXT_SKIP_SEMANTIC"):
+            logging.info("Skipping semantic store (VC_CONTEXT_SKIP_SEMANTIC set).")
+            return
+
         symbols_path = index_read_path(self.root_dir, self.symbols_filename)
         try:
             with open(symbols_path, encoding="utf-8") as fh:
