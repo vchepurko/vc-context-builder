@@ -1,6 +1,7 @@
 [
   "check_health",
   "classify_tests",
+  "configure_tools",
   "coverage_for_role",
   "devops_card",
   "docs_link_graph",

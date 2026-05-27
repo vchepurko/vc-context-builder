@@ -122,6 +122,7 @@ class Dispatcher:
             "search_doc_text": self._search_doc_text,
             "docs_link_graph": self._docs_link_graph,
             "export_config": self._export_config,
+            "configure_tools": self._configure_tools,
         }
         self.disabled_tools: set = set(disabled_tools or [])
         for t in self.disabled_tools:
@@ -830,3 +831,59 @@ class Dispatcher:
         if isinstance(out, str):
             out = out.strip() or None
         return backup(root, out_path=out)
+
+    def _configure_tools(self, args: Dict[str, Any]) -> Any:
+        from cli_handlers import _detect_stack, _STACK_DISABLED
+        import json, os
+
+        root = self.engine.project_root
+        vc_dir = os.path.join(root, ".vc-context")
+        conv_path = os.path.join(vc_dir, "conventions.json")
+        action = args.get("action", "detect")
+
+        stack = _detect_stack(root)
+        auto_groups = _STACK_DISABLED.get(stack, _STACK_DISABLED["generic"])
+
+        if action == "detect":
+            return {
+                "stack": stack,
+                "would_disable": auto_groups,
+                "all_stacks": _STACK_DISABLED,
+            }
+
+        existing: dict = {}
+        if os.path.exists(conv_path):
+            try:
+                with open(conv_path, encoding="utf-8") as fh:
+                    existing = json.load(fh)
+            except (json.JSONDecodeError, OSError):
+                pass
+
+        force = bool(args.get("force", False))
+
+        if action == "set":
+            groups = args.get("disable_groups")
+            if not isinstance(groups, list):
+                return {"error": "disable_groups must be a list for action=set"}
+            existing["disabled_tool_groups"] = groups
+        elif action == "apply":
+            if "disabled_tool_groups" in existing and not force:
+                return {
+                    "status": "skipped",
+                    "reason": "disabled_tool_groups already set — pass force=true to overwrite",
+                    "current": existing["disabled_tool_groups"],
+                    "stack": stack,
+                }
+            existing["disabled_tool_groups"] = auto_groups
+
+        os.makedirs(vc_dir, exist_ok=True)
+        with open(conv_path, "w", encoding="utf-8") as fh:
+            json.dump(existing, fh, indent=2)
+            fh.write("\n")
+
+        return {
+            "status": "updated",
+            "stack": stack,
+            "disabled_tool_groups": existing["disabled_tool_groups"],
+            "note": "Reload the MCP server for changes to take effect.",
+        }

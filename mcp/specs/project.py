@@ -764,6 +764,55 @@ def specs() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": "configure_tools",
+            "description": (
+                "Detect the project stack and manage ``disabled_tool_groups`` "
+                "in ``.vc-context/conventions.json``.\n\n"
+                "**action=detect** (default) — dry run: returns the detected "
+                "stack and the groups that *would* be disabled, without writing "
+                "anything. Use this first to verify before applying.\n\n"
+                "**action=apply** — detect stack and write ``disabled_tool_groups`` "
+                "to conventions.json. Skipped when the key already exists unless "
+                "``force=true`` is passed.\n\n"
+                "**action=set** — manually set ``disabled_tool_groups`` to the "
+                "provided ``disable_groups`` list. Use when auto-detection is wrong "
+                "or the project is a hybrid (e.g. Django + Angular).\n\n"
+                "Detected stacks: ``django``, ``fastapi``, ``flask``, ``angular``, "
+                "``bot`` (aiogram/telebot/pyrogram), ``generic``.\n\n"
+                "Returns ``{stack, disabled_tool_groups, status}`` on write, or "
+                "``{stack, would_disable, all_stacks}`` for detect. Requires an "
+                "MCP server reload to take effect after writing."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "enum": ["detect", "apply", "set"],
+                        "description": (
+                            "detect — dry run (default); apply — auto-detect and write; "
+                            "set — write disable_groups as-is."
+                        ),
+                    },
+                    "disable_groups": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": (
+                            "Required for action=set. List of tool group names to disable. "
+                            "Available groups: angular, locale, fsm, notify_log, route."
+                        ),
+                    },
+                    "force": {
+                        "type": "boolean",
+                        "description": (
+                            "For action=apply: overwrite disabled_tool_groups even if "
+                            "it is already set in conventions.json."
+                        ),
+                    },
+                },
+            },
+        },
+        {
             "name": "find_locale_drift",
             "description": (
                 "Anti-pattern detector — every locale key present in "
