@@ -59,11 +59,25 @@ Note: with the `local_hash` embedding provider scores are 0.28–0.40 (fuzzy nam
 With `sentence-transformers` or an API provider scores reach 0.7+ and semantic queries work reliably.
 Check `~/.vc-context/<repo-hash>/embeddings/` to see which provider is active.
 
-## Angular-specific tools (for lms-client parent project)
+## Submodule structure
 
-These tools were built for this Angular project — context when debugging them:
+This submodule lives at `.ai-context/` inside the parent project. Two MCP servers are wired:
 
-- `ng_ajs_find` — searches `app/` AND `src/app/downgraded/*.ajs.ts` bridge files
-- `find_call_sites` — detects `inject(Service)` and `private x: Service` DI patterns (kind: "di"/"inject"/"call")
-- `find_symbol` — case-insensitive fallback + `I`-prefix stripping for TS interfaces
-- `ng_eslint_violations` — runs ESLint on the parent project; use this, not `lint_violations`
+| Server | Root | Purpose |
+|---|---|---|
+| `vc-context` | parent project | index + search over the main codebase |
+| `vc-context-meta` | `.ai-context/` | self-index for contributors working on the submodule |
+
+When working on the **parent project** — use `mcp__vc-context__*` tools.
+When working on the **submodule itself** — use `mcp__vc-context-meta__*` tools.
+
+## Angular tools (Angular projects only)
+
+For projects with Angular/AngularJS — full details in `.claude/commands/ng-*.md`:
+
+- `ng-overview` — project shape snapshot
+- `ng-impact` — blast radius of changing a symbol
+- `ng-find-selector` — all templates using a selector
+- `ng-audit-component` — pre-refactor component audit
+- `ng-trace-service` — service injection graph
+- `ng-route-impact` — route → guards → lazy children

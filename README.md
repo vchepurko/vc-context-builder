@@ -6,7 +6,7 @@ Zero-dependency, auto-updating **code intelligence layer for LLM agents**.
 
 ```bash
 # 1. Drop into your project as a submodule (or clone standalone).
-git submodule add https://github.com/<you>/vc-context-builder .ai-context
+git submodule add https://github.com/vchepurko/vc-context-builder .ai-context
 
 # 2. Build the index — scans the project, writes agent_*.json artefacts.
 python3 .ai-context/agent_map.py
