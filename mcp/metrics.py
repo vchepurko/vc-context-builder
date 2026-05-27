@@ -203,6 +203,7 @@ _BASELINE_BYTES_PER_TOOL: Dict[str, int] = {
     "remember_experience": 0,
     "recall_experience": 3000,
     "configure_tools": 0,
+    "status": 0,
 }
 
 

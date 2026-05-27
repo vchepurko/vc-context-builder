@@ -815,3 +815,57 @@ def cmd_stats(args: argparse.Namespace) -> int:
             if len(findings) > 5:
                 print(f"    ... +{len(findings) - 5} more")
     return 0
+
+
+def cmd_status(args: argparse.Namespace) -> int:
+    from status import get_status
+
+    out = get_status(args.root)
+    if args.json:
+        _emit_json(out)
+        return 0
+
+    idx = out.get("index", {})
+    emb = out.get("embeddings", {})
+
+    print(f"project root : {out['project_root']}")
+    print()
+
+    # Index section
+    print("── index ─────────────────────────────────────")
+    if idx.get("error"):
+        print(f"  error: {idx['error']}")
+    else:
+        exists = idx.get("exists", False)
+        print(f"  exists       : {exists}")
+        if exists:
+            print(f"  last built   : {idx.get('last_built')}")
+            age = idx.get("age_seconds")
+            if age is not None:
+                age_h = age / 3600
+                print(f"  age          : {age:.0f}s  ({age_h:.1f}h)")
+            print(f"  stale        : {idx.get('stale')}")
+            print(f"  symbols      : {idx.get('symbols_count', 0)}")
+        ar = idx.get("auto_reindex", {})
+        print(f"  auto_reindex : enabled={ar.get('enabled')}  interval={ar.get('interval_seconds')}s")
+
+    print()
+
+    # Embeddings section
+    print("── embeddings ────────────────────────────────")
+    if emb.get("error"):
+        print(f"  error: {emb['error']}")
+    else:
+        print(f"  provider     : {emb.get('provider')}")
+        model = emb.get("model")
+        if model:
+            print(f"  model        : {model}")
+        sqlite_exists = emb.get("sqlite_exists", False)
+        print(f"  sqlite       : {sqlite_exists}")
+        if sqlite_exists:
+            size = emb.get("sqlite_size_bytes")
+            if size is not None:
+                print(f"  sqlite size  : {size / 1024:.1f} KB")
+            print(f"  indexed      : {emb.get('symbols_indexed', 0)} symbols")
+
+    return 0

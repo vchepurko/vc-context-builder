@@ -72,6 +72,7 @@
   "run_check",
   "search_doc_text",
   "semantic_search",
+  "status",
   "summarise_module",
   "tests_by_category",
   "trace_fsm_flow",

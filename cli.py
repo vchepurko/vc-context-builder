@@ -63,6 +63,7 @@ from cli_handlers import (
     cmd_semantic,
     cmd_slice,
     cmd_stats,
+    cmd_status,
     cmd_test,
     cmd_verify,
 )
@@ -367,6 +368,12 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Add Phase-2 quality findings (wasteful pairs, hot rereads, empty streaks).",
     )
     p_stats.set_defaults(handler=cmd_stats)
+
+    p_status = sub.add_parser(
+        "status",
+        help="Show index age, embedding provider, SQLite info, and auto_reindex config.",
+    )
+    p_status.set_defaults(handler=cmd_status)
 
     return parser
 

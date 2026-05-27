@@ -813,6 +813,30 @@ def specs() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": "status",
+            "description": (
+                "Return a status snapshot of the vc-context index and embedding "
+                "layer for the current project.\n\n"
+                "**index** — path to ``agent_root.json``, whether it exists, "
+                "ISO timestamp of the last build, age in seconds, whether the "
+                "index is considered stale (older than ``auto_reindex.interval_seconds``), "
+                "total symbol count from ``agent_symbols.json``, and the "
+                "``auto_reindex`` config block (``enabled``, ``interval_seconds``).\n\n"
+                "**embeddings** — configured provider name (``local_hash`` / "
+                "``sentence_transformers`` / ``openai``), model name when "
+                "applicable, path to the SQLite file, whether it exists, its "
+                "size in bytes, and how many symbols are currently indexed "
+                "in it.\n\n"
+                "Use this tool to diagnose stale indexes, verify which embedding "
+                "provider is active, or check SQLite health before running "
+                "``semantic_search``."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {},
+            },
+        },
+        {
             "name": "find_locale_drift",
             "description": (
                 "Anti-pattern detector — every locale key present in "

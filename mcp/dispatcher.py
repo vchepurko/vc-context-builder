@@ -123,6 +123,7 @@ class Dispatcher:
             "docs_link_graph": self._docs_link_graph,
             "export_config": self._export_config,
             "configure_tools": self._configure_tools,
+            "status": self._status,
         }
         self.disabled_tools: set = set(disabled_tools or [])
         for t in self.disabled_tools:
@@ -887,3 +888,8 @@ class Dispatcher:
             "disabled_tool_groups": existing["disabled_tool_groups"],
             "note": "Reload the MCP server for changes to take effect.",
         }
+
+    def _status(self, args: Dict[str, Any]) -> Any:
+        from status import get_status
+
+        return get_status(self.engine.project_root)
