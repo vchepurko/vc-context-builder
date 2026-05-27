@@ -1302,6 +1302,13 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
                     return out
         return out
 
+    # Per-instance ESLint cache: key → (timestamp, results)
+    # Avoids re-running the 40+ s subprocess for the same path twice in
+    # one MCP session. TTL=300s — stale enough to avoid thrashing, fresh
+    # enough that a re-lint within the same session picks up edits.
+    _eslint_cache: Dict[str, Any] = {}
+    _ESLINT_CACHE_TTL = 300
+
     def ng_eslint_violations(
         self,
         path: Optional[str] = None,
@@ -1314,11 +1321,23 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
         ``max_results``. Uses ``npx eslint --format json`` so the
         project's own eslint config and plugins are always respected.
         Returns ``[{error}]`` on spawn failure.
+
+        Results are cached for ``_ESLINT_CACHE_TTL`` seconds per path
+        to avoid re-running the 40+ s subprocess multiple times in one
+        session.
         """
         import json as _json
         import subprocess as _sp
+        import time as _time
 
         target_rel = path or "src"
+        cache_key = f"{self.project_root}:{target_rel}"
+        cached = self._eslint_cache.get(cache_key)
+        now = _time.monotonic()
+        if cached and (now - cached[0]) < self._ESLINT_CACHE_TTL:
+            raw_results: List[Dict[str, Any]] = cached[1]
+            return raw_results[:max_results]
+
         abs_target = os.path.join(self.project_root, target_rel)
         try:
             proc = _sp.run(
@@ -1331,6 +1350,7 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
             )
             raw = (proc.stdout or "").strip()
             if not raw:
+                self._eslint_cache[cache_key] = (now, [])
                 return []
             data = _json.loads(raw)
         except _sp.TimeoutExpired:
@@ -1354,9 +1374,8 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
                         "message": msg.get("message"),
                     }
                 )
-                if len(out) >= max_results:
-                    return out
-        return out
+        self._eslint_cache[cache_key] = (now, out)
+        return out[:max_results]
 
     def ng_find_module(self, component_name: str) -> Optional[Dict[str, Any]]:
         """Find the NgModule that declares a given Angular symbol.

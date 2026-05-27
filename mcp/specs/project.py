@@ -25,7 +25,14 @@ def specs() -> List[Dict[str, Any]]:
                 "'end_line'])` for evidence-citation patterns: agent "
                 "asserts a fact, then reads exactly the line range "
                 "that proves it. Path is resolved against "
-                "``project_root`` and rejected if it escapes the tree."
+                "``project_root`` and rejected if it escapes the "
+                "tree.\n\n"
+                "**Read wide, not twice.** Two consecutive calls on "
+                "the same file within 60 s are flagged as wasteful "
+                "pairs in session metrics. Always request the full "
+                "range you need in one call — e.g. if the function "
+                "spans lines 40–110, pass ``start=40, end=110``, not "
+                "40–70 then 70–110."
             ),
             "inputSchema": {
                 "type": "object",
@@ -909,9 +916,17 @@ def specs() -> List[Dict[str, Any]]:
                 "Distinct from ``find_pattern_in_configs`` (config-"
                 "kind walk) and ``search_doc_text`` (markdown only).\n\n"
                 "``case_sensitive`` defaults to false; ``use_regex`` "
-                "treats ``pattern`` as a Python regex. Path is "
-                "resolved against ``project_root`` and rejected if "
-                "it escapes the tree."
+                "treats ``pattern`` as a Python ``re`` regex (auto-"
+                "detected when the pattern contains ``|``, ``\\``, "
+                "``^``, etc.). Path is resolved against "
+                "``project_root`` and rejected if it escapes the "
+                "tree.\n\n"
+                "**Regex alternation syntax:** use ``a|b|c`` (pipe "
+                "unescaped) — NOT ``a\\|b\\|c``. In Python regex "
+                "``\\|`` matches a literal pipe character, not OR. "
+                "For a simple substring with no special chars, leave "
+                "``use_regex`` unset (default false — faster and "
+                "always correct)."
             ),
             "inputSchema": {
                 "type": "object",

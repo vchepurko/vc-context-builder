@@ -151,7 +151,15 @@ def specs() -> List[Dict[str, Any]]:
                 "Uses the project's own ESLint config via `npx eslint "
                 "--format json`. Replaces the Python-only "
                 "`lint_violations` for TypeScript/Angular projects. "
-                "Capped at `max_results` (default 100)."
+                "Capped at `max_results` (default 100).\n\n"
+                "**Warning — slow tool (40+ s typical).** Spawns a "
+                "full ESLint subprocess over the entire src/ tree. "
+                "Only call this when you are explicitly auditing lint "
+                "issues. For reading/navigating code, prefer "
+                "``read_slice``, ``find_in_file``, or "
+                "``ng_ts_class_shape`` instead. Pass a narrow "
+                "``path`` (e.g. a single file or feature directory) "
+                "to cut runtime when the project is large."
             ),
             "inputSchema": {
                 "type": "object",

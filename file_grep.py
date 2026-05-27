@@ -61,14 +61,25 @@ def grep_file(
     # Auto-promote to regex when the pattern contains regex metacharacters
     # that would be meaningless as a literal (| \b \d \w ^ $).
     # Prevents silent empty results when the caller passes "A|B|C" expecting
-    # alternation but forgets use_regex=true (observed 81 % empty rate).
+    # alternation but forgets use_regex=true.
+    #
+    # Also normalise the common \| mistake: in a literal context agents
+    # sometimes write "foo\|bar" meaning alternation, but in Python regex
+    # \| matches a literal pipe rather than OR. Unescape it first.
     regex_hints = re.compile(r"[|\\^$*+?{}\[\]()]")
     if not use_regex and regex_hints.search(pattern):
+        # Unescape \| → | so "foo\|bar" becomes correct alternation regex.
+        promoted = pattern.replace(r"\|", "|")
         try:
-            re.compile(pattern)  # validate — fallback to literal on bad regex
+            re.compile(promoted)
             use_regex = True
+            pattern = promoted
         except re.error:
-            pass
+            try:
+                re.compile(pattern)
+                use_regex = True
+            except re.error:
+                pass
 
     flags = 0 if case_sensitive else re.IGNORECASE
     matcher: Optional[re.Pattern[str]] = re.compile(pattern, flags) if use_regex else None

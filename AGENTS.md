@@ -71,6 +71,72 @@ This submodule lives at `.ai-context/` inside the parent project. Two MCP server
 When working on the **parent project** — use `mcp__vc-context__*` tools.
 When working on the **submodule itself** — use `mcp__vc-context-meta__*` tools.
 
+## Efficiency rules (from session quality analysis)
+
+These rules come from real session data — violations show up in `get_session_metrics` quality findings.
+
+### read_slice — read wide, not twice
+
+Two calls on the same file within 60 s = wasteful pair. Always fetch the full range you need in one call.
+
+```
+# BAD — two narrow calls
+read_slice(file, 40, 70)
+read_slice(file, 70, 110)
+
+# GOOD — one wide call
+read_slice(file, 40, 110)
+```
+
+Use `find_symbol(..., fields=["file","line","end_line"])` to get `start` and `end` upfront.
+
+### find_in_file — regex alternation syntax
+
+Use `|` (pipe), NOT `\|` (escaped pipe). In Python regex `\|` matches a literal `|` character.
+
+```
+# BAD — \| matches the character |, NOT alternation
+find_in_file(file, pattern="loadUser\|saveUser")
+
+# GOOD — alternation
+find_in_file(file, pattern="loadUser|saveUser", use_regex=True)
+
+# ALSO GOOD — simple substring, skip regex entirely
+find_in_file(file, pattern="loadUser")
+```
+
+The tool auto-promotes patterns containing `|` or `\` to regex, but `\|` still means "literal pipe" in regex.
+
+### find_call_sites — TS limitation
+
+The DI fast-path (O(1)) only works for **Angular service/class names** indexed in `agent_di_index.json`.  
+For plain TS function calls (not DI injection) it always returns empty.  
+**Use `find_in_file` with the call expression as pattern instead.**
+
+```
+# WRONG for a plain TS function call
+find_call_sites("formatDate")   # → []
+
+# RIGHT
+find_in_file("src/app/utils.ts", "formatDate(")
+```
+
+### ng_eslint_violations — only for lint audits
+
+Spawns `npx eslint` over the full `src/` tree — expect 40+ s.  
+Do **not** call this for navigation or "what does this code do?" questions.  
+Pass a specific `path` (single file or directory) to reduce runtime.
+
+```
+# SLOW — scans entire src/
+ng_eslint_violations()
+
+# FASTER — scoped to one module
+ng_eslint_violations(path="src/app/my-feature/")
+```
+
+Results are cached for 5 min within a session — calling it twice for the same path is free.
+
 ## Angular tools (Angular projects only)
 
 For projects with Angular/AngularJS — full details in `.claude/commands/ng-*.md`:
