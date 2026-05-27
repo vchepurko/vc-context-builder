@@ -285,8 +285,9 @@ def db_path(project_root: str) -> str:
 
 
 def _connect(project_root: str) -> sqlite3.Connection:
-    conn = sqlite3.connect(db_path(project_root))
+    conn = sqlite3.connect(db_path(project_root), timeout=30)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
     return conn
 
 
