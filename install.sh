@@ -33,6 +33,9 @@
 #                      are older than N minutes (default: 60).
 #   --auto-reindex-minutes N
 #                      Same as above, easier for shells/scripts.
+#   --force-init       Re-detect project stack and overwrite
+#                      disabled_tool_groups in conventions.json even
+#                      if it is already set.
 #   --pre-commit       Use the pre-commit framework instead of the
 #                      native pre-push hook (legacy path; can race
 #                      with autofix hooks during stash/unstash).
@@ -193,6 +196,19 @@ case "$EMBEDDING_PROVIDER" in
         ;;
 esac
 $_AGENT_MAP_CMD
+
+# 1c. Auto-configure conventions.json for the detected project stack.
+# Idempotent: only writes disabled_tool_groups when not already present.
+# Use --force-init to reset even if the key already exists.
+FORCE_INIT=false
+for _a in "$@"; do
+    [ "$_a" = "--force-init" ] && FORCE_INIT=true
+done
+_INIT_CMD="python3 $RELATIVE_DIR/cli.py init --root ."
+if $FORCE_INIT; then
+    _INIT_CMD="$_INIT_CMD --force"
+fi
+$_INIT_CMD
 
 # 2. Hook: native pre-push (default) or pre-commit framework (--pre-commit).
 HOOK_ENTRY="$RELATIVE_DIR/bin/vc-context-build-hook"
