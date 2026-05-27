@@ -278,6 +278,29 @@ DI injection + template `[input]` bindings + `@Input()` declarations). Store as
 - Replace inline `import re` / `import ast` with module-level imports
   where the perf benefit is negligible.
 
+### Production-readiness gaps (audit 2026-05-27, base `b1f4d60`)
+
+Findings from a static + structural audit. Nothing blocks current use —
+all are debt items to resolve before wider open-source promotion.
+
+**Tests (MEDIUM)**
+- `semantic_store.py` — zero unit tests for embedding provider system
+  (`LocalHashEmbeddingProvider`, `SentenceTransformersEmbeddingProvider`,
+  `OpenAIEmbeddingProvider`, cosine similarity search). Highest-risk
+  untested module.
+- `_query_symbols.py`, `_query_routes.py`, `_query_tests.py`,
+  `_query_inspectors.py` — no dedicated test files despite being
+  load-bearing query mixins.
+- `backup_manager.py`, `usage_report.py` — no coverage.
+
+**Type annotations (LOW)**
+- `mcp/dispatcher.py` — 48+ tool handler methods lack return-type
+  annotations. Public MCP surface should be fully annotated.
+
+**Documentation (LOW)**
+- `semantic_store.py::_connect()` — SQLite auto-commit behaviour
+  (via context manager) not documented; add a one-line docstring.
+
 ### Telemetry & quality detectors — observations from real sessions
 
 A long klodchickknifes session (2026-05-12, IDEAS #27 + #28 + Phase
