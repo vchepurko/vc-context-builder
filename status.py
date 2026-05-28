@@ -5,8 +5,9 @@ CLI:              ``vc-context status [--root .] [--json]``
 MCP tool:         ``status``
 
 Returns a structured dict covering:
-- index  : last build time, age, staleness, symbol count, auto_reindex config
+- index     : last build time, age, staleness, symbol count, auto_reindex config
 - embeddings: provider name, model, SQLite existence + size + indexed symbols
+- chat      : provider name, model, reachable flag
 """
 
 from __future__ import annotations
@@ -122,6 +123,44 @@ def _embeddings_info(project_root: str) -> Dict[str, Any]:
     }
 
 
+def _chat_info(project_root: str) -> Dict[str, Any]:
+    """Return information about the configured chat provider."""
+    try:
+        from ollama_chat import chat_provider_from_conventions  # type: ignore[import-not-found]
+    except ImportError:
+        return {"configured": False}
+
+    provider = chat_provider_from_conventions(project_root)
+    if provider is None:
+        return {"configured": False}
+
+    info: Dict[str, Any] = {
+        "configured": True,
+        "provider": "ollama",
+        "model": provider.model,
+        "host": provider.host,
+        "reachable": False,
+    }
+    try:
+        import urllib.request
+        req = urllib.request.Request(
+            f"{provider.host}/api/tags",
+            headers={"Content-Type": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=3) as resp:
+            tags = json.loads(resp.read().decode())
+        names = [m.get("name", "") for m in tags.get("models", [])]
+        info["reachable"] = True
+        info["model_available"] = any(
+            n == provider.model or n.startswith(provider.model.split(":")[0])
+            for n in names
+        )
+    except Exception:
+        pass
+
+    return info
+
+
 def get_status(project_root: str) -> Dict[str, Any]:
     """Return a full status snapshot for the given project root.
 
@@ -143,8 +182,15 @@ def get_status(project_root: str) -> Dict[str, Any]:
     except Exception as exc:
         embeddings = {"error": str(exc)}
 
+    chat: Dict[str, Any]
+    try:
+        chat = _chat_info(project_root)
+    except Exception as exc:
+        chat = {"error": str(exc)}
+
     return {
         "project_root": project_root,
         "index": index,
         "embeddings": embeddings,
+        "chat": chat,
     }

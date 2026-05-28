@@ -868,4 +868,25 @@ def cmd_status(args: argparse.Namespace) -> int:
                 print(f"  sqlite size  : {size / 1024:.1f} KB")
             print(f"  indexed      : {emb.get('symbols_indexed', 0)} symbols")
 
+    print()
+
+    # Chat section
+    chat = out.get("chat", {})
+    print("── chat ──────────────────────────────────────")
+    if chat.get("error"):
+        print(f"  error: {chat['error']}")
+    elif not chat.get("configured"):
+        print("  configured   : False")
+        print("  hint         : add \"chat_provider\" to .vc-context/conventions.json")
+    else:
+        print(f"  provider     : {chat.get('provider')}")
+        print(f"  model        : {chat.get('model')}")
+        print(f"  host         : {chat.get('host')}")
+        reachable = chat.get("reachable", False)
+        print(f"  reachable    : {reachable}")
+        if reachable:
+            avail = chat.get("model_available")
+            if avail is not None:
+                print(f"  model pulled : {avail}")
+
     return 0

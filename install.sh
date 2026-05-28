@@ -284,7 +284,51 @@ except Exception as e:
     fi
 fi
 
-# 1b. Initial context build.
+# 1b. Choose chat provider (optional — enables LLM-based tools).
+CHAT_PROVIDER="${CHAT_PROVIDER:-}"
+CHAT_MODEL="qwen2.5-coder:1.5b"
+
+if [ -z "$CHAT_PROVIDER" ] && [ -t 0 ]; then
+    echo ""
+    echo "💬 LLM chat provider (enables summarise_module + LLM anti-patterns):"
+    echo "   1) ollama  (local, free, $CHAT_MODEL ~1 GB)"
+    echo "   2) none    (skip — LLM tools silently disabled)"
+    printf "   Choice [1/2, default 2]: "
+    read -r _chat_choice
+    case "$_chat_choice" in
+        1) CHAT_PROVIDER="ollama" ;;
+        *) CHAT_PROVIDER="none" ;;
+    esac
+fi
+
+if [ "$CHAT_PROVIDER" = "ollama" ]; then
+    python3 - ".vc-context/conventions.json" "$CHAT_MODEL" "$OLLAMA_HOST" <<'PY'
+import json, sys
+from pathlib import Path
+path = Path(sys.argv[1])
+model = sys.argv[2]
+host = sys.argv[3]
+path.parent.mkdir(parents=True, exist_ok=True)
+cfg = json.loads(path.read_text()) if path.exists() else {}
+cfg["chat_provider"] = {"name": "ollama", "model": model, "host": host}
+path.write_text(json.dumps(cfg, indent=2) + "\n")
+PY
+    echo "✅ Chat provider set to 'ollama ($CHAT_MODEL)' in .vc-context/conventions.json."
+    if command -v ollama >/dev/null 2>&1; then
+        if ollama list 2>/dev/null | grep -q "$(echo "$CHAT_MODEL" | cut -d: -f1)"; then
+            echo "   ✅ Chat model '$CHAT_MODEL' already pulled."
+        else
+            echo "   📥 Pulling '$CHAT_MODEL' (~1 GB, one-time download)..."
+            ollama pull "$CHAT_MODEL" && \
+                echo "   ✅ Chat model '$CHAT_MODEL' ready." || \
+                echo "   ⚠️  Pull failed — run manually: ollama pull $CHAT_MODEL"
+        fi
+    else
+        echo "   ⚠️  ollama not found — pull '$CHAT_MODEL' after installing ollama."
+    fi
+fi
+
+# 1c. Initial context build.
 # When a neural embedding provider is configured, wrap agent_map.py in
 # 'uv run --with <pkg>' so the heavy dependency (torch, transformers, openai)
 # is fetched into uv's isolated cache and never pollutes the project venv.
@@ -306,7 +350,7 @@ case "$EMBEDDING_PROVIDER" in
 esac
 $_AGENT_MAP_CMD
 
-# 1c. Auto-configure conventions.json for the detected project stack.
+# 1d. Auto-configure conventions.json for the detected project stack.
 # Idempotent: only writes disabled_tool_groups when not already present.
 # Use --force-init to reset even if the key already exists.
 FORCE_INIT=false
