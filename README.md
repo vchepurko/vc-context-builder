@@ -1,52 +1,69 @@
 # 🤖 vc-context-builder
 
-Zero-dependency, auto-updating **code intelligence layer for LLM agents**.
+**Retrieval-Augmented Generation (RAG) layer for code repositories.**
+Turns your project into a structured knowledge base that LLM agents can
+query in 50–250 tokens instead of reading multi-thousand-line source
+files. Works as a git submodule, exposes an MCP server, a CLI, and
+raw JSON — same engine behind all three.
 
 ## TL;DR
 
 ```bash
-# 1. Drop into your project as a submodule (or clone standalone).
+# 1. Add as a git submodule.
 git submodule add https://github.com/vchepurko/vc-context-builder .ai-context
 
-# 2. Build the index — scans the project, writes agent_*.json artefacts.
+# 2. Build the index (first run ~30 s; incremental < 2 s on git-hook).
+bash .ai-context/install.sh        # interactive: picks embedding + chat provider
+# or non-interactive:
 python3 .ai-context/agent_map.py
 
-# 3. Wire the MCP server in your editor (one of):
-#    Claude Code:  see docs/MCP_SETUP.md
-#    Cursor / Continue / Codex CLI / Aider: same file, copy-paste blocks.
+# 3. Wire the MCP server (Claude Code, Cursor, Continue, Aider…).
+#    See docs/MCP_SETUP.md for copy-paste config blocks.
 
-# 4. Your agent now has ~40 tools that answer in 50–250 tokens.
-#    Example claim → evidence flow:
-find_symbol("MyClass", fields=["file","line"])  → 40 tokens
-read_slice("path/to/file.py", 42, 58)           → 200 tokens
-# vs. reading the whole file: 5,000+ tokens, no chance to cite the line.
+# 4. Your agent now has 80+ tools. Token cost comparison:
+find_symbol("MyClass")                         →  ~150 tokens
+read_slice("path/file.py", 42, 67)             →  ~200 tokens
+summarise_module("business_logic/users")       →  ~300 tokens  (+ LLM summary)
+# vs. reading source files manually: 5,000–50,000+ tokens per task.
+
+# 5. Check what's running:
+vc-context status
 ```
-
-Read the rest of this README for the full surface, or jump to a
-playbook in [`playbooks/`](playbooks/) when you have a concrete task
-type (bug hunt, impact analysis, refactor review).
 
 ---
 
-The builder scans your project, parses ASTs + path heuristics, and emits
-three artifacts that let an agent navigate the repo **without loading the
-full source tree into its context window**:
+## What is this?
+
+vc-context-builder is a **code RAG system** — it pre-indexes your
+repository so an LLM agent never has to read full source files to answer
+structural questions. Think of it as a compiled search index that turns
+"what does this module do?" from a 5-file read into a single sub-second
+query.
+
+**Three-tier retrieval architecture:**
+
+| Tier | How | Latency | Best for |
+|---|---|---|---|
+| **Structural** | AST + path heuristics → JSON artifacts | < 1 ms | Symbol lookups, role queries, call-site counts |
+| **Semantic** | Vector embeddings (Ollama / OpenAI / local) → SQLite | 5–50 ms | Natural-language queries, "find code that does X" |
+| **LLM-enhanced** | Ollama chat model on demand | 2–10 s | Module summaries, custom anti-pattern detection |
+
+The system emits three artifacts that the agent queries without loading
+source files:
 
 | Artifact | Granularity | Typical use |
 |---|---|---|
-| `agent_root.json` | project-level | "what modules exist? which symbols are routes / migrations / scheduler-jobs?" |
-| `agent_symbols.json` | one entry per symbol | "where is `add_admin` defined? what does it return?" |
+| `agent_root.json` | project-level | "what modules exist? which symbols are routes / scheduler-jobs?" |
+| `agent_symbols.json` | one entry per symbol | "where is `add_admin` defined? what does it call?" |
 | `<dir>/_module_map.json` | one entry per file | "what does `bot/handlers/admin.py` expose?" |
 
-On top of those, two query surfaces:
+**Three query surfaces — same engine, pick the lightest your agent supports:**
 
-| Surface | Who it's for | Token cost |
+| Surface | Who it's for | Overhead |
 |---|---|---|
-| **MCP server** | Claude Code, Cursor, Codex CLI ≥ 0.x, Continue, Aider+plugin | ~150 bytes per call — JSON files **never enter context** |
-| **CLI** (`vc-context …`) | shell pipes, CI, generic LLM-with-shell-access agents, humans | ~200-2000 bytes per call |
-| **JSON files** (fallback) | any text-LLM | reads the whole artifact (~hundreds of KB total) |
-
-Same query engine behind all three. Pick the lightest your agent supports.
+| **MCP server** | Claude Code, Cursor, Codex CLI, Continue, Aider | ~150 bytes/call — JSON never enters context |
+| **CLI** (`vc-context …`) | shell, CI, generic LLM-with-shell agents, humans | ~200–2000 bytes/call |
+| **JSON files** (fallback) | any text-LLM | reads whole artifact (~hundreds of KB) |
 
 ---
 
@@ -840,8 +857,10 @@ Each entry adds Python call-sites to the matching route's
 ### Whitelisted check runner (Feature J)
 
 A third optional block exposes safe-to-run commands to the MCP
-`run_check` tool — handy when an agent needs to run tests / lint /
-typecheck without arbitrary shell:
+`run_checks` tool — handy when an agent needs to run tests / lint /
+typecheck without arbitrary shell. `run_checks` accepts a list of names
+and runs them **in parallel** (up to 4 concurrent workers), so an agent
+can fire lint + tests in one call instead of two sequential round-trips:
 
 ```json
 {
@@ -885,14 +904,89 @@ append `run_check(args=[...])` only after every token passes
 }
 ```
 
-Example MCP call:
+Example MCP calls:
 
-```json
-{"name": "pytest", "args": ["-q", "tests/test_locales.py", "-k", "placeholders"]}
+```jsonc
+// Run one check
+run_checks(names=["lint"])
+
+// Run two checks in parallel — returns both results in one response
+run_checks(names=["lint", "test-unit"])
+
+// Targeted check with extra args
+run_checks(names=["pytest"], args=["-q", "tests/test_locales.py", "-k", "placeholders"])
 ```
 
 Refused extra args return `-4`. Cache keys include `(name, args,
 git_state_hash)`, so targeted runs do not collide with each other.
+
+---
+
+## LLM-enhanced tools
+
+When a `chat_provider` is configured in `.vc-context/conventions.json`,
+two additional capabilities activate. Both degrade gracefully — they
+return the normal result without a `summary`/hits when Ollama is not
+running or the model is not pulled.
+
+### `summarise_module` — natural-language module descriptions
+
+```jsonc
+summarise_module("business_logic/users")
+→ {
+    "directory": "business_logic/users",
+    "files": { ... },
+    "summary": "Handles user account lifecycle: creation, password
+                recovery, group assignments, and profile validation.
+                Depends on business_logic/core for DB access and
+                signals for cross-domain side-effects."
+  }
+```
+
+The summary is generated once per session (cached by prompt hash) so
+repeated calls are instant. Agents can use it to orient to an unfamiliar
+module in one call instead of reading 10+ files.
+
+Configure via `conventions.json`:
+
+```json
+{
+  "chat_provider": {
+    "name": "ollama",
+    "model": "qwen2.5-coder:1.5b",
+    "host": "http://localhost:11434"
+  }
+}
+```
+
+### `find_anti_patterns` — LLM-based custom rules
+
+Beyond the built-in AST detectors, you can define project-specific
+anti-patterns in plain English. The LLM evaluates each function/method
+chunk independently and returns hits in the same `{rule, file, line,
+function, evidence}` format as static detectors. Results are cached by
+file mtime so unchanged files are not re-scanned within a session.
+
+```json
+{
+  "anti_patterns": [
+    {
+      "name": "raw-sql-in-view",
+      "description": "Direct SQL queries inside view functions instead of the service layer",
+      "scope": "web_services/**/*.py"
+    },
+    {
+      "name": "business-logic-in-serializer",
+      "description": "Database writes or complex business logic inside DRF serializer.save()",
+      "scope": "**/*serializers.py"
+    }
+  ]
+}
+```
+
+`list_anti_patterns()` returns both static and custom rule names.
+`install.sh` now includes an interactive step to configure the chat
+provider and pull the model (~1 GB, one-time).
 
 ---
 
@@ -921,54 +1015,113 @@ to update.
 
 ---
 
+## MCP ↔ CLI parity
+
+Every MCP tool has a CLI equivalent (or vice-versa). The same query
+engine runs both — use MCP inside an editor session, CLI for scripts
+and CI.
+
+| Category | MCP tool | CLI command |
+|---|---|---|
+| **Navigation** | `find_symbol` | `vc-context find <name>` |
+| | `find_symbols` | `vc-context find <n1> <n2> …` |
+| | `semantic_search` | `vc-context semantic-search "query"` |
+| | `search_doc_text` | `vc-context search-doc "query"` |
+| | `who_calls` | `vc-context calls <name>` |
+| | `find_by_role` | `vc-context role <role>` |
+| | `list_roles` | `vc-context roles` |
+| | `list_modules` | `vc-context modules` |
+| **Cards** | `get_symbol_card` | `vc-context card <name>` |
+| | `get_file_card` | `vc-context file-card <path>` |
+| | `repo_map` | `vc-context repo-map` |
+| | `summarise_module` | `vc-context module <path>` |
+| | `get_changed_symbols` | `vc-context changed [--base <ref>]` |
+| **Evidence** | `read_slice` | `vc-context slice <file> <start> <end>` |
+| | `get_callees` | `vc-context callees <name>` |
+| | `get_raised_exceptions` | `vc-context raises <name>` |
+| | `get_decorated_with` | `vc-context decorated <decorator>` |
+| | `inspect_class` | `vc-context inspect <class>` |
+| **Quality** | `run_checks` | `vc-context check <name> [name…]` |
+| | `lint_violations` | `vc-context lint` |
+| | `ruff_violations` | `vc-context ruff` |
+| | `mypy_violations` | `vc-context mypy` |
+| | `find_anti_patterns` | `vc-context anti-pattern <rule>` |
+| | `list_anti_patterns` | `vc-context anti-patterns` |
+| | `find_handlers_without_tests` | `vc-context untested` |
+| | `coverage_for_role` | `vc-context coverage` |
+| **Tests** | `find_test` | `vc-context test <name>` |
+| | `classify_tests` | `vc-context classify-tests <path>` |
+| | `tests_by_category` | `vc-context tests-by-category` |
+| **Impact** | `impact` | `vc-context impact <name>` |
+| | `find_call_sites` | `vc-context call-sites <name>` |
+| **Docs** | `list_docs` | `vc-context docs` |
+| | `find_doc_section` | `vc-context doc-find <query>` |
+| | `get_doc_toc` | `vc-context doc-toc <file>` |
+| **Status** | `status` | `vc-context status` |
+| | `get_session_metrics` | `vc-context metrics` |
+| | `rebuild_index` | `vc-context build` |
+
+Tools in the `angular`, `locale`, `fsm`, `notify_log`, `route`,
+`devops` groups can be disabled per-project via `disabled_tool_groups`
+in `conventions.json` — they won't appear in `tools/list` at all,
+keeping the agent's tool menu focused.
+
+---
+
 ## How big is the win
 
-Honest numbers from a real Python repo (~50K LOC, 1231 indexed symbols):
+Honest numbers from a real Python repo (~50K LOC, 5600+ indexed symbols):
 
-| Scenario | Without builder | With JSON tier | With MCP tier |
-|---|---|---|---|
-| "find one symbol" | ~10K tokens (grep + read candidates) | ~55K tokens (load `agent_symbols.json`) | **~150 bytes** |
-| "list all webhooks" | ~30K tokens (grep + cross-check) | ~250 tokens (read `roles` block) | ~80 bytes |
-| "describe one folder" | full file reads | ~2K tokens (one map) | ~2K tokens (returned as text) |
+| Scenario | Without builder | With MCP structural tier | With MCP semantic tier | With LLM tier |
+|---|---|---|---|---|
+| "find one symbol" | ~10K tokens (grep + read) | **~150 tokens** | ~200 tokens | — |
+| "list all routes" | ~30K tokens | ~80 tokens | — | — |
+| "describe one module" | full file reads (~5K+) | ~2K tokens (map) | — | ~300 tokens + summary |
+| "find custom anti-pattern" | manual code review | — | — | scans files automatically |
+| "what does X call?" | open file + search | ~100 tokens | — | — |
+| "find code doing X" | grep + judge hits | — | ~200 tokens | — |
 
-Discovery-phase savings sit around **30-50% of total session tokens** in
-practice — not the marketing 70×. Edit + verify phases dominate; this
-tool only attacks the orientation slice.
+Discovery-phase savings sit around **30–50% of total session tokens** in
+practice. Edit + verify phases dominate; this tool attacks the
+orientation and evidence-gathering slices.
+
+**Potential metrics for your project:**
+
+- **Tool calls per task** — track `get_session_metrics` at session end;
+  aim for < 15 tool calls on a typical bug-fix task.
+- **Tokens per session** — compare sessions with vs. without MCP enabled
+  in your editor's usage dashboard.
+- **Round-trips to evidence** — `find_symbol` + `read_slice` = 2 calls
+  for any fact. Without builder: grep → read candidates → open file = 5+.
+- **Stale-hit rate** — `rebuild_index` should run on every git push hook;
+  monitor with `status` (stale = True means the agent is working from an
+  old index).
+- **LLM call savings** — `summarise_module` cached per session: if a
+  module is referenced 5× in one session, only 1 LLM call is made.
 
 ### Per-command savings (slash commands)
 
 Every curated slash command in `templates/commands/*.md` ends with a
-"Token cost" table that estimates the win versus the manual approach
-(grep + Read fan-out). The agent prints a one-line summary at the
-bottom of its response so the saving is visible per call:
-
-```
-_Used 5 MCP calls (~600 tokens) — saved ~9K vs reading sources directly._
-```
-
-Approximate ranges per command shape:
+"Token cost" table. Approximate ranges:
 
 | Command shape | MCP cost | Manual cost | Savings |
 |---|---|---|---|
-| Symbol audit (`/audit-handler`, `/ng-audit-component`) | ~600–1500 tokens | 10–20K | 90–95% |
-| Surface map (`/ng-overview`, `/ng-list-by-role`) | ~100 tokens | 50K+ | ~99% |
-| Selector / call-site lookup (`/ng-find-selector`, `/refactor-callsites`) | ~200–700 tokens | 5–40K | 90–98% |
-| Pattern-match (`/find-similar`) | ~400–700 tokens | 15–40K | 95–98% |
-
-Numbers are estimates — the actual win depends on project size and
-how deep the manual approach would go. The point is to make the
-benefit *visible at the call site*, not to claim a fixed number.
+| Symbol audit (`/audit-handler`) | ~600–1500 tokens | 10–20K | 90–95% |
+| Surface map (`/ng-overview`) | ~100 tokens | 50K+ | ~99% |
+| Call-site lookup | ~200–700 tokens | 5–40K | 90–98% |
+| Pattern-match | ~400–700 tokens | 15–40K | 95–98% |
+| Module orientation | ~300 tokens (+ LLM) | 10K+ | 97%+ |
 
 ---
 
 ## What this tool is **not**
 
 - Not a runtime call-graph — `who_calls` is a best-effort static
-  heuristic, not a true call graph.
-- Not an LLM-summary engine — docstrings are extracted verbatim, not
-  generated.
-- Not a coverage / metrics tool — no test mapping, no hot-path data.
+  heuristic, not a true dynamic call graph.
+- Not a coverage / metrics tool — no hot-path data, no branch coverage.
 - Not a refactor sandbox — purely read-only outside of `git commit`.
+- Not a substitute for reading code — it reduces *how much* you read,
+  not whether you read at all. Use `read_slice` after locating symbols.
 
 ---
 
