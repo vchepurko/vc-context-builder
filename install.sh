@@ -33,6 +33,9 @@
 #                      are older than N minutes (default: 60).
 #   --auto-reindex-minutes N
 #                      Same as above, easier for shells/scripts.
+#   --embedding-provider=NAME
+#                      Set embedding provider non-interactively.
+#                      Values: sentence_transformers | openai | ollama | local_hash
 #   --force-init       Re-detect project stack and overwrite
 #                      disabled_tool_groups in conventions.json even
 #                      if it is already set.
@@ -111,17 +114,22 @@ echo "🤖 vc-context-builder install — $PROJECT_ROOT"
 
 # 1a. Choose embedding provider (interactive unless --embedding-provider given).
 
+OLLAMA_MODEL="nomic-embed-text"
+OLLAMA_HOST="http://localhost:11434"
+
 if [ -z "$EMBEDDING_PROVIDER" ] && [ -t 0 ]; then
     echo ""
     echo "🔍 Semantic search provider for agent_map.py:"
     echo "   1) sentence_transformers  (local, free, ~25 MB model on first use)"
     echo "   2) openai                 (text-embedding-3-small, needs OPENAI_API_KEY, ~\$0.002/rebuild)"
-    echo "   3) none                   (local_hash fallback — fast, no deps, lower quality)"
-    printf "   Choice [1/2/3, default 3]: "
+    echo "   3) ollama                 (local REST API, no extra deps, best local quality)"
+    echo "   4) none                   (local_hash fallback — fast, no deps, lower quality)"
+    printf "   Choice [1/2/3/4, default 4]: "
     read -r _choice
     case "$_choice" in
         1) EMBEDDING_PROVIDER="sentence_transformers" ;;
         2) EMBEDDING_PROVIDER="openai" ;;
+        3) EMBEDDING_PROVIDER="ollama" ;;
         *) EMBEDDING_PROVIDER="local_hash" ;;
     esac
 fi
@@ -132,11 +140,13 @@ SENTENCE_UV_WITH_2="transformers<5"
 SENTENCE_UV_WITH_3="sentence-transformers==3.0.1"
 
 if [ "$EMBEDDING_PROVIDER" != "local_hash" ]; then
-    python3 - ".vc-context/conventions.json" "$EMBEDDING_PROVIDER" <<'PY'
+    python3 - ".vc-context/conventions.json" "$EMBEDDING_PROVIDER" "$OLLAMA_MODEL" "$OLLAMA_HOST" <<'PY'
 import json, sys
 from pathlib import Path
 path = Path(sys.argv[1])
 provider = sys.argv[2]
+ollama_model = sys.argv[3]
+ollama_host  = sys.argv[4]
 path.parent.mkdir(parents=True, exist_ok=True)
 cfg = json.loads(path.read_text()) if path.exists() else {}
 if provider == "sentence_transformers":
@@ -144,20 +154,22 @@ if provider == "sentence_transformers":
         "name": "sentence_transformers",
         "model": "sentence-transformers/all-MiniLM-L6-v2",
     }
+elif provider == "ollama":
+    cfg["embedding_provider"] = {
+        "name": "ollama",
+        "model": ollama_model,
+        "host": ollama_host,
+    }
 else:
     cfg["embedding_provider"] = provider
 path.write_text(json.dumps(cfg, indent=2) + "\n")
 PY
     echo "✅ Embedding provider set to '$EMBEDDING_PROVIDER' in .vc-context/conventions.json."
+
     if [ "$EMBEDDING_PROVIDER" = "sentence_transformers" ]; then
         _PKG="sentence-transformers"
         _IMPORT="sentence_transformers"
-    elif [ "$EMBEDDING_PROVIDER" = "openai" ]; then
-        _PKG="openai"
-        _IMPORT="openai"
-    fi
-    if [ -n "${_PKG:-}" ]; then
-        if [ "$EMBEDDING_PROVIDER" = "sentence_transformers" ] && command -v uv >/dev/null 2>&1; then
+        if command -v uv >/dev/null 2>&1; then
             echo "   ℹ️  sentence_transformers will run via uv profile:"
             echo "      python $SENTENCE_UV_PYTHON + $SENTENCE_UV_WITH_1 + $SENTENCE_UV_WITH_2 + $SENTENCE_UV_WITH_3"
             echo "      (avoids Python 3.13 / torch wheel incompatibilities)."
@@ -172,9 +184,56 @@ PY
                 echo "   ⚠️  pip install failed — run: python3 -m pip install $_PKG --index-url https://pypi.org/simple/"
         fi
         echo "   ℹ️  Model downloads on first agent_map.py run."
-    fi
-    if [ "$EMBEDDING_PROVIDER" = "openai" ] && [ -z "${OPENAI_API_KEY:-}" ]; then
-        echo "   ⚠️  OPENAI_API_KEY is not set — add it before rebuilding."
+
+    elif [ "$EMBEDDING_PROVIDER" = "openai" ]; then
+        _PKG="openai"
+        _IMPORT="openai"
+        if python3 -c "import $_IMPORT" 2>/dev/null; then
+            echo "   ✅ $_PKG already installed."
+        elif command -v uv >/dev/null 2>&1; then
+            echo "   ℹ️  $_PKG will be fetched by uv into its cache — your venv stays clean."
+        else
+            python3 -m pip install "$_PKG" --quiet && echo "   ✅ $_PKG installed." || \
+                echo "   ⚠️  pip install failed — run: python3 -m pip install $_PKG"
+        fi
+        if [ -z "${OPENAI_API_KEY:-}" ]; then
+            echo "   ⚠️  OPENAI_API_KEY is not set — add it before rebuilding."
+        fi
+
+    elif [ "$EMBEDDING_PROVIDER" = "ollama" ]; then
+        echo "   ℹ️  Ollama uses stdlib urllib — no extra Python packages needed."
+        if ! command -v ollama >/dev/null 2>&1; then
+            echo "   ⚠️  ollama not found. Install from https://ollama.com then run:"
+            echo "       ollama pull $OLLAMA_MODEL"
+            echo "       ollama serve   (or configure as a LaunchAgent/systemd service)"
+        else
+            echo "   ✅ ollama found: $(ollama --version 2>/dev/null | head -1)"
+            # Check if model is already pulled.
+            if ollama list 2>/dev/null | grep -q "$OLLAMA_MODEL"; then
+                echo "   ✅ Model '$OLLAMA_MODEL' already pulled."
+            else
+                echo "   📥 Pulling '$OLLAMA_MODEL' (~274 MB, one-time download)..."
+                ollama pull "$OLLAMA_MODEL" && \
+                    echo "   ✅ Model '$OLLAMA_MODEL' ready." || \
+                    echo "   ⚠️  Pull failed — run manually: ollama pull $OLLAMA_MODEL"
+            fi
+            # Check if server is running.
+            if python3 -c "
+import urllib.request, sys
+try:
+    urllib.request.urlopen('$OLLAMA_HOST', timeout=3)
+except Exception as e:
+    # A 404 still means server is up
+    if 'HTTP Error' in str(type(e).__name__) or '404' in str(e):
+        sys.exit(0)
+    sys.exit(1)
+" 2>/dev/null; then
+                echo "   ✅ ollama serve is running at $OLLAMA_HOST."
+            else
+                echo "   ⚠️  ollama serve is not running. Start it with: ollama serve"
+                echo "      To auto-start on login (macOS): brew services start ollama"
+            fi
+        fi
     fi
 fi
 
@@ -193,6 +252,9 @@ case "$EMBEDDING_PROVIDER" in
         if command -v uv >/dev/null 2>&1; then
             _AGENT_MAP_CMD="uv run --with openai python3 $RELATIVE_DIR/agent_map.py"
         fi
+        ;;
+    ollama)
+        # stdlib urllib only — no uv wrapper needed
         ;;
 esac
 $_AGENT_MAP_CMD
@@ -508,6 +570,11 @@ For plain TypeScript function calls use \`find_in_file\` with the call expressio
 **ng_eslint_violations — slow tool (40+ s).**
 Spawns the full ESLint subprocess. Only call when explicitly auditing lint issues.
 Pass a specific \`path\` to scope the run. Results are cached 5 min per session.
+
+## Diagnostics
+
+Run \`vc-context status\` (CLI) or the \`status\` MCP tool to check:
+index age + staleness, embedding provider + model, SQLite size + indexed symbols.
 $VC_SECTION_END"
 
 # Idempotent: strip old block, then re-append.

@@ -32,6 +32,7 @@ MIN_INTERVAL_SECONDS = 60
 _PROVIDER_PACKAGES = {
     "sentence_transformers": "sentence-transformers",
     "openai": "openai",
+    # "ollama": omitted — uses stdlib urllib, no extra package needed.
 }
 
 

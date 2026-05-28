@@ -213,6 +213,69 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
         return response.data[0].embedding
 
 
+class OllamaEmbeddingProvider(EmbeddingProvider):
+    """Local embeddings via Ollama REST API (stdlib only — no extra deps).
+
+    Requires: ``ollama serve`` running locally.
+    Pull the model once: ``ollama pull nomic-embed-text``
+
+    Default model ``nomic-embed-text`` (768 dim) is trained on code + docs
+    and significantly outperforms ``all-MiniLM-L6-v2`` for symbol search.
+    ``mxbai-embed-large`` (1024 dim) gives the best local quality.
+
+    The dim is inferred from the first embed() call if unknown, then cached
+    on the instance so subsequent calls skip the inference.
+    """
+
+    name = "ollama"
+    dim = 768  # nomic-embed-text default; updated after first embed if needed
+
+    DEFAULT_MODEL = "nomic-embed-text"
+    DEFAULT_HOST = "http://localhost:11434"
+
+    # Known output dimensions for common Ollama embedding models.
+    _KNOWN_DIMS: Dict[str, int] = {
+        "nomic-embed-text": 768,
+        "mxbai-embed-large": 1024,
+        "all-minilm": 384,
+        "bge-m3": 1024,
+        "snowflake-arctic-embed": 1024,
+    }
+
+    def __init__(self, model: str = DEFAULT_MODEL, host: str = DEFAULT_HOST) -> None:
+        self.model = model
+        self.host = host.rstrip("/")
+        # Pre-set dim from known-dims table; updated dynamically on first call.
+        for key, d in self._KNOWN_DIMS.items():
+            if key in model.lower():
+                self.dim = d
+                break
+
+    def embed(self, text: str) -> List[float]:
+        import urllib.request as _req
+
+        payload = json.dumps({"model": self.model, "prompt": text}).encode("utf-8")
+        request = _req.Request(
+            f"{self.host}/api/embeddings",
+            data=payload,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with _req.urlopen(request, timeout=30) as resp:
+                data = json.loads(resp.read())
+        except Exception as exc:
+            raise RuntimeError(
+                f"Ollama embedding failed — is `ollama serve` running "
+                f"and model '{self.model}' pulled? ({exc})"
+            ) from exc
+        vec = [float(v) for v in data["embedding"]]
+        # Sync dim to actual output on first call (handles unlisted models).
+        if len(vec) != self.dim:
+            self.dim = len(vec)
+        return vec
+
+
 def provider_from_conventions(project_root: str) -> EmbeddingProvider:
     """Read .vc-context/conventions.json and return the configured provider.
 
@@ -220,12 +283,17 @@ def provider_from_conventions(project_root: str) -> EmbeddingProvider:
       - ``"local_hash"`` (default, no deps)
       - ``"sentence_transformers"`` (local neural, needs sentence-transformers)
       - ``"openai"`` (API, needs openai + OPENAI_API_KEY)
+      - ``"ollama"`` (local REST API, needs ``ollama serve``)
+
+    Dict form allows model/host overrides:
+      ``{"name": "ollama", "model": "mxbai-embed-large", "host": "http://localhost:11434"}``
 
     Falls back to LocalHashEmbeddingProvider when the key is absent or unknown.
     """
     conv_path = os.path.join(project_root, ".vc-context", "conventions.json")
     provider_name = "local_hash"
     model_override: Optional[str] = None
+    host_override: Optional[str] = None
 
     if os.path.exists(conv_path):
         try:
@@ -237,11 +305,12 @@ def provider_from_conventions(project_root: str) -> EmbeddingProvider:
             elif isinstance(embedding_cfg, dict):
                 provider_name = str(embedding_cfg.get("name", "local_hash"))
                 model_override = embedding_cfg.get("model")
+                host_override = embedding_cfg.get("host")
         except (OSError, json.JSONDecodeError):
             pass
 
     if provider_name == "sentence_transformers":
-        kwargs = {}
+        kwargs: Dict[str, Any] = {}
         if model_override:
             kwargs["model_name"] = model_override
         return SentenceTransformersEmbeddingProvider(**kwargs)
@@ -250,6 +319,13 @@ def provider_from_conventions(project_root: str) -> EmbeddingProvider:
         if model_override:
             kwargs["model"] = model_override
         return OpenAIEmbeddingProvider(**kwargs)
+    if provider_name == "ollama":
+        kwargs = {}
+        if model_override:
+            kwargs["model"] = model_override
+        if host_override:
+            kwargs["host"] = host_override
+        return OllamaEmbeddingProvider(**kwargs)
     return LocalHashEmbeddingProvider()
 
 
