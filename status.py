@@ -77,7 +77,7 @@ def _index_info(project_root: str) -> Dict[str, Any]:
 
 def _embeddings_info(project_root: str) -> Dict[str, Any]:
     """Return information about the semantic embedding layer."""
-    from semantic_store import db_path, provider_from_conventions
+    from stores.semantic_store import db_path, provider_from_conventions
 
     # Provider
     try:

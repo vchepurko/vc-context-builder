@@ -139,7 +139,7 @@ class GetStatusEmbeddingsTests(unittest.TestCase):
 
     def test_sqlite_exists_reports_size_and_count(self) -> None:
         from paths import ensure_local_state_dir
-        from semantic_store import DB_FILENAME
+        from stores.semantic_store import DB_FILENAME
 
         db_dir = ensure_local_state_dir(self.root, "embeddings")
         db_file = os.path.join(db_dir, DB_FILENAME)

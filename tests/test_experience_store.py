@@ -13,7 +13,7 @@ _SUBMODULE = os.path.dirname(_HERE)
 if _SUBMODULE not in sys.path:
     sys.path.insert(0, _SUBMODULE)
 
-from experience_store import db_path, recall_experience, remember_experience
+from stores.experience_store import db_path, recall_experience, remember_experience
 from mcp.dispatcher import Dispatcher
 from mcp_server import _tool_specs
 from paths import local_state_dir

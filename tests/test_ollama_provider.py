@@ -15,7 +15,7 @@ _SUBMODULE = os.path.dirname(_HERE)
 if _SUBMODULE not in sys.path:
     sys.path.insert(0, _SUBMODULE)
 
-from semantic_store import (
+from stores.semantic_store import (
     LocalHashEmbeddingProvider,
     OllamaEmbeddingProvider,
     provider_from_conventions,

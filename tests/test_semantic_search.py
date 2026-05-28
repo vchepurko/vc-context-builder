@@ -18,7 +18,7 @@ from mcp.dispatcher import Dispatcher
 from mcp_server import _tool_specs
 from paths import local_state_dir
 from query_engine import QueryEngine
-from semantic_store import build_symbol_store, db_path, semantic_search
+from stores.semantic_store import build_symbol_store, db_path, semantic_search
 
 
 def _write_json(path: str, payload: object) -> None:

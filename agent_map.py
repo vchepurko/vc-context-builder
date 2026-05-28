@@ -42,7 +42,7 @@ from parsers import get_parser, get_supported_extensions, get_supported_filename
 from parsers.python_parser import PythonParser
 from paths import ensure_index_dir, index_path, index_read_path
 from route_bridge import ROUTES_FILENAME, build_route_index, write_route_index
-from semantic_store import build_symbol_store, build_doc_store, provider_from_conventions
+from stores.semantic_store import build_symbol_store, build_doc_store, provider_from_conventions
 from symbols import extract_scheduler_jobs_from_codebase
 from test_analysis.test_classifier import (
     TEST_CATEGORIES_FILENAME,
@@ -640,7 +640,7 @@ class ContextBuilder:
 
     def _build_semantic_symbol_store(self) -> None:
         """Build the Phase 5 local semantic index for symbol search."""
-        from semantic_store import LocalHashEmbeddingProvider
+        from stores.semantic_store import LocalHashEmbeddingProvider
 
         if os.environ.get("VC_CONTEXT_SKIP_SEMANTIC"):
             logging.info("Skipping semantic store (VC_CONTEXT_SKIP_SEMANTIC set).")
@@ -907,7 +907,7 @@ class ContextBuilder:
         """
         if os.environ.get("VC_CONTEXT_SKIP_SEMANTIC"):
             return
-        from semantic_store import LocalHashEmbeddingProvider
+        from stores.semantic_store import LocalHashEmbeddingProvider
         from markdown_index import extract_section_bodies
 
         docs_path = index_read_path(self.root_dir, self.docs_filename)

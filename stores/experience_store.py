@@ -18,7 +18,7 @@ from contextlib import contextmanager
 from typing import Any, Dict, Generator, List, Optional, Sequence
 
 from paths import ensure_local_state_dir
-from semantic_store import LocalHashEmbeddingProvider, _tokens
+from stores.semantic_store import LocalHashEmbeddingProvider, _tokens
 
 DB_FILENAME = "experience.sqlite"
 SCHEMA_VERSION = 1

@@ -23,7 +23,7 @@ if _SUBMODULE not in sys.path:
     sys.path.insert(0, _SUBMODULE)
 
 from markdown_index import extract_section_bodies, build_index
-from semantic_store import (
+from stores.semantic_store import (
     build_doc_store,
     ensure_doc_store,
     search_doc_sections,
@@ -262,7 +262,7 @@ class QueryEngineSearchDocTextTests(unittest.TestCase):
     def test_semantic_path_when_store_built(self) -> None:
         from query_engine import QueryEngine
         from markdown_index import build_index
-        from semantic_store import build_doc_store, LocalHashEmbeddingProvider
+        from stores.semantic_store import build_doc_store, LocalHashEmbeddingProvider
         from markdown_index import extract_section_bodies
 
         idx = build_index(self.root)
@@ -279,7 +279,7 @@ class QueryEngineSearchDocTextTests(unittest.TestCase):
     def test_regex_forces_grep_path(self) -> None:
         from query_engine import QueryEngine
         from markdown_index import build_index
-        from semantic_store import build_doc_store, LocalHashEmbeddingProvider
+        from stores.semantic_store import build_doc_store, LocalHashEmbeddingProvider
         from markdown_index import extract_section_bodies
 
         idx = build_index(self.root)

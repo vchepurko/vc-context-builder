@@ -182,7 +182,7 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
         ``~/.vc-context/<repo-hash>/embeddings/``. The store is rebuilt
         lazily if ``agent_symbols.json`` changed since the last build.
         """
-        from semantic_store import semantic_search, provider_from_conventions
+        from stores.semantic_store import semantic_search, provider_from_conventions
 
         return semantic_search(
             self.project_root,
@@ -206,7 +206,7 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
         confidence: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Persist a repo-local Phase 5 experience."""
-        from experience_store import remember_experience
+        from stores.experience_store import remember_experience
 
         return remember_experience(
             self.project_root,
@@ -227,7 +227,7 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
         min_score: float = 0.05,
     ) -> List[Dict[str, Any]]:
         """Recall repo-local decisions, mistakes, dead ends, and patterns."""
-        from experience_store import recall_experience
+        from stores.experience_store import recall_experience
 
         return recall_experience(
             self.project_root,
@@ -397,7 +397,7 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
         # Semantic search when the doc_sections table is built and no regex.
         if not regex:
             try:
-                from semantic_store import search_doc_sections, provider_from_conventions
+                from stores.semantic_store import search_doc_sections, provider_from_conventions
 
                 provider = provider_from_conventions(self.project_root)
                 results = search_doc_sections(
