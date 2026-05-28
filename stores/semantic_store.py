@@ -435,45 +435,55 @@ def build_symbol_store(
     source_hash = _symbols_hash(symbols)
     path = db_path(project_root)
     started = time.monotonic()
-    with _connect(project_root) as conn:
-        _init_schema(conn)
-        conn.execute("DELETE FROM symbols")
-        rows = []
-        for name, rec in sorted(symbols.items()):
-            if not isinstance(rec, dict):
-                continue
-            text = _symbol_text(name, rec)
-            toks = sorted(set(_tokens(text)))
-            doc = rec.get("doc")
-            doc_first = str(doc).splitlines()[0] if doc else None
-            line = rec.get("line")
-            rows.append(
-                (
-                    name,
-                    str(rec.get("file") or ""),
-                    int(line) if isinstance(line, int) else None,
-                    str(rec.get("kind")) if rec.get("kind") else None,
-                    str(rec.get("role")) if rec.get("role") else None,
-                    doc_first,
-                    text,
-                    json.dumps(toks, separators=(",", ":")),
-                    _pack_vector(provider.embed(text)),
-                )
+    # Build rows (with embeddings) before opening the DB connection so that
+    # slow embedding calls don't hold a write lock on symbols.sqlite.
+    rows = []
+    for name, rec in sorted(symbols.items()):
+        if not isinstance(rec, dict):
+            continue
+        text = _symbol_text(name, rec)
+        toks = sorted(set(_tokens(text)))
+        doc = rec.get("doc")
+        doc_first = str(doc).splitlines()[0] if doc else None
+        line = rec.get("line")
+        rows.append(
+            (
+                name,
+                str(rec.get("file") or ""),
+                int(line) if isinstance(line, int) else None,
+                str(rec.get("kind")) if rec.get("kind") else None,
+                str(rec.get("role")) if rec.get("role") else None,
+                doc_first,
+                text,
+                json.dumps(toks, separators=(",", ":")),
+                _pack_vector(provider.embed(text)),
             )
-        conn.executemany(
-            """
-            INSERT INTO symbols(
-              name, file, line, kind, role, doc, search_text, tokens_json, vector_json
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            rows,
         )
-        _set_meta(conn, "schema_version", str(SCHEMA_VERSION))
-        _set_meta(conn, "provider", provider.name)
-        _set_meta(conn, "dim", str(provider.dim))
-        _set_meta(conn, "source_hash", source_hash)
-        _set_meta(conn, "symbol_count", str(len(rows)))
-        _set_meta(conn, "built_at", str(int(time.time())))
+    # Retry the write if another process (e.g. MCP server) holds the lock.
+    for _attempt in range(3):
+        try:
+            with _connect(project_root) as conn:
+                _init_schema(conn)
+                conn.execute("DELETE FROM symbols")
+                conn.executemany(
+                    """
+                    INSERT INTO symbols(
+                      name, file, line, kind, role, doc, search_text, tokens_json, vector_json
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    rows,
+                )
+                _set_meta(conn, "schema_version", str(SCHEMA_VERSION))
+                _set_meta(conn, "provider", provider.name)
+                _set_meta(conn, "dim", str(provider.dim))
+                _set_meta(conn, "source_hash", source_hash)
+                _set_meta(conn, "symbol_count", str(len(rows)))
+                _set_meta(conn, "built_at", str(int(time.time())))
+            break
+        except sqlite3.OperationalError as exc:
+            if "database is locked" not in str(exc) or _attempt == 2:
+                raise
+            time.sleep(5.0 * (_attempt + 1))
     return {
         "path": path,
         "symbols": len(rows),
@@ -554,43 +564,50 @@ def build_doc_store(
     source_hash = _doc_sections_hash(sections)
     path = db_path(project_root)
     started = time.monotonic()
-    with _connect(project_root) as conn:
-        _init_schema(conn)
-        conn.execute("DELETE FROM doc_sections")
-        rows = []
-        for s in sections:
-            text = s.get("search_text") or s.get("title") or ""
-            if not text:
-                continue
-            toks = sorted(set(_tokens(text)))
-            rows.append(
-                (
-                    s["id"],
-                    str(s.get("file") or ""),
-                    str(s.get("title") or ""),
-                    s.get("anchor"),
-                    s.get("level"),
-                    s.get("line_start"),
-                    s.get("line_end"),
-                    text,
-                    json.dumps(toks, separators=(",", ":")),
-                    _pack_vector(provider.embed(text)),
-                )
+    rows = []
+    for s in sections:
+        text = s.get("search_text") or s.get("title") or ""
+        if not text:
+            continue
+        toks = sorted(set(_tokens(text)))
+        rows.append(
+            (
+                s["id"],
+                str(s.get("file") or ""),
+                str(s.get("title") or ""),
+                s.get("anchor"),
+                s.get("level"),
+                s.get("line_start"),
+                s.get("line_end"),
+                text,
+                json.dumps(toks, separators=(",", ":")),
+                _pack_vector(provider.embed(text)),
             )
-        conn.executemany(
-            """
-            INSERT INTO doc_sections(
-              id, file, title, anchor, level, line_start, line_end,
-              search_text, tokens_json, vector_json
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            rows,
         )
-        _set_meta(conn, "doc_schema_version", str(DOC_SCHEMA_VERSION))
-        _set_meta(conn, "doc_provider", provider.name)
-        _set_meta(conn, "doc_dim", str(provider.dim))
-        _set_meta(conn, "doc_source_hash", source_hash)
-        _set_meta(conn, "doc_section_count", str(len(rows)))
+    for _attempt in range(3):
+        try:
+            with _connect(project_root) as conn:
+                _init_schema(conn)
+                conn.execute("DELETE FROM doc_sections")
+                conn.executemany(
+                    """
+                    INSERT INTO doc_sections(
+                      id, file, title, anchor, level, line_start, line_end,
+                      search_text, tokens_json, vector_json
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    rows,
+                )
+                _set_meta(conn, "doc_schema_version", str(DOC_SCHEMA_VERSION))
+                _set_meta(conn, "doc_provider", provider.name)
+                _set_meta(conn, "doc_dim", str(provider.dim))
+                _set_meta(conn, "doc_source_hash", source_hash)
+                _set_meta(conn, "doc_section_count", str(len(rows)))
+            break
+        except sqlite3.OperationalError as exc:
+            if "database is locked" not in str(exc) or _attempt == 2:
+                raise
+            time.sleep(5.0 * (_attempt + 1))
     return {
         "path": path,
         "sections": len(rows),
