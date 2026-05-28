@@ -173,7 +173,11 @@ def specs() -> List[Dict[str, Any]]:
             "description": (
                 "Tight summary of a folder's _module_map.json: file "
                 "names + each export's name/kind/role/first-line doc. "
-                "Params are stripped — call find_symbol for signatures."
+                "Params are stripped — call find_symbol for signatures.\n\n"
+                "When ``chat_provider`` is configured in "
+                "``.vc-context/conventions.json`` the result also includes "
+                "a ``summary`` key with a 2-3 sentence LLM-generated "
+                "description of what the module does. Cached per session."
             ),
             "inputSchema": {
                 "type": "object",
