@@ -20,7 +20,7 @@ _SUBMODULE = os.path.dirname(_HERE)
 if _SUBMODULE not in sys.path:
     sys.path.insert(0, _SUBMODULE)
 
-import ruff_inspector
+import linters.ruff_inspector as ruff_inspector
 from query_engine import QueryEngine
 
 
@@ -41,7 +41,7 @@ def _patch_run(records: list, *, returncode: int = 1):
     proc = mock.MagicMock(returncode=returncode)
     proc.stdout = json.dumps(records)
     proc.stderr = ""
-    return mock.patch("ruff_inspector.subprocess.run", return_value=proc)
+    return mock.patch("linters.ruff_inspector.subprocess.run", return_value=proc)
 
 
 def _force_ruff_enabled(root: str) -> None:
@@ -140,7 +140,7 @@ class CollectTests(unittest.TestCase):
         """Spawn failure (no ruff in PATH) must degrade to empty
         results, not crash the MCP request."""
         with mock.patch(
-            "ruff_inspector.subprocess.run",
+            "linters.ruff_inspector.subprocess.run",
             side_effect=FileNotFoundError(),
         ):
             out = ruff_inspector.collect(self.root)
@@ -150,7 +150,7 @@ class CollectTests(unittest.TestCase):
         proc = mock.MagicMock(returncode=2)
         proc.stdout = "not json"
         proc.stderr = "internal error"
-        with mock.patch("ruff_inspector.subprocess.run", return_value=proc):
+        with mock.patch("linters.ruff_inspector.subprocess.run", return_value=proc):
             out = ruff_inspector.collect(self.root)
         self.assertEqual(out["total"], 0)
 

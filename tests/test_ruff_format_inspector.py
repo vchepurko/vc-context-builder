@@ -17,8 +17,8 @@ from unittest import mock
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(_HERE))
 
-import ruff_format_inspector
-from ruff_format_inspector import _norm_file, collect
+import linters.ruff_format_inspector as ruff_format_inspector
+from linters.ruff_format_inspector import _norm_file, collect
 
 
 class NormFileTests(unittest.TestCase):
@@ -40,7 +40,7 @@ class CollectTests(unittest.TestCase):
         # Mock the skip-detector so collect() actually runs.
         # `should_skip_ruff` is imported lazily inside collect(), so
         # we patch it on the *importable* module.
-        import ruff_inspector
+        import linters.ruff_inspector as ruff_inspector
 
         self._patch_skip = mock.patch.object(
             ruff_inspector,
@@ -77,7 +77,7 @@ class CollectTests(unittest.TestCase):
 
     def test_skip_short_circuits(self) -> None:
         self._patch_skip.stop()
-        import ruff_inspector
+        import linters.ruff_inspector as ruff_inspector
 
         with mock.patch.object(
             ruff_inspector,

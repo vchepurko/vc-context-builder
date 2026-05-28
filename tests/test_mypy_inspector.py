@@ -18,8 +18,8 @@ from unittest import mock
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(_HERE))
 
-import mypy_inspector
-from mypy_inspector import _norm_file, _to_entry, collect
+import linters.mypy_inspector as mypy_inspector
+from linters.mypy_inspector import _norm_file, _to_entry, collect
 
 
 class NormFileTests(unittest.TestCase):

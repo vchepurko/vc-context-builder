@@ -110,7 +110,7 @@ def collect(
     the project isn't Python (auto-detected) or has explicitly opted
     out via ``conventions.json["ruff"]["enabled"] = false``.
     """
-    from ruff_inspector import should_skip_ruff  # type: ignore[import-not-found]
+    from linters.ruff_inspector import should_skip_ruff
 
     skip, reason = should_skip_ruff(project_root)
     if skip:

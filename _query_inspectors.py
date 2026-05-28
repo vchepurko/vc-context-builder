@@ -329,7 +329,7 @@ class _InspectorsMixin:
         per-violation list. ``limit`` caps the violations list to
         keep MCP responses bounded.
         """
-        from ruff_inspector import collect as _collect  # type: ignore[import-not-found]
+        from linters.ruff_inspector import collect as _collect
 
         return _collect(
             self.project_root,
@@ -354,7 +354,7 @@ class _InspectorsMixin:
         get the file paths so a follow-up ``ruff format`` knows what
         will move.
         """
-        from ruff_format_inspector import collect as _collect  # type: ignore[import-not-found]
+        from linters.ruff_format_inspector import collect as _collect
 
         return _collect(
             self.project_root,
@@ -382,7 +382,7 @@ class _InspectorsMixin:
         responses bounded. Auto-skips on non-Python projects or
         projects without mypy config.
         """
-        from mypy_inspector import collect as _collect  # type: ignore[import-not-found]
+        from linters.mypy_inspector import collect as _collect
 
         return _collect(
             self.project_root,
