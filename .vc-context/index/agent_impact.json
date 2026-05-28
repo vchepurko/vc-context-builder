@@ -29,6 +29,13 @@
       "test": null,
       "template_refs": []
     },
+    "AutoReindexOllamaTests": {
+      "file": "tests/test_ollama_provider.py",
+      "line": 184,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
     "AutoReindexTests": {
       "file": "tests/test_auto_reindex.py",
       "line": 22,
@@ -60,6 +67,13 @@
     "BlockScanTests": {
       "file": "tests/test_spec_linker.py",
       "line": 124,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "BuildDocStoreTests": {
+      "file": "tests/test_doc_search.py",
+      "line": 127,
       "direct": [],
       "test": null,
       "template_refs": []
@@ -250,14 +264,14 @@
     },
     "EmbeddingProvider": {
       "file": "semantic_store.py",
-      "line": 86,
+      "line": 87,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "EmptyStreaksTests": {
       "file": "tests/test_quality.py",
-      "line": 155,
+      "line": 161,
       "direct": [],
       "test": null,
       "template_refs": []
@@ -304,6 +318,13 @@
       "test": null,
       "template_refs": []
     },
+    "ExtractSectionBodiesTests": {
+      "file": "tests/test_doc_search.py",
+      "line": 45,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
     "FactProjectionTests": {
       "file": "tests/test_facts_and_slice.py",
       "line": 118,
@@ -320,7 +341,7 @@
     },
     "FieldsWhitelistTests": {
       "file": "tests/test_find_symbol_lean.py",
-      "line": 114,
+      "line": 116,
       "direct": [],
       "test": null,
       "template_refs": []
@@ -397,7 +418,7 @@
     },
     "FindSymbolsBatchTests": {
       "file": "tests/test_find_symbol_lean.py",
-      "line": 189,
+      "line": 193,
       "direct": [],
       "test": null,
       "template_refs": []
@@ -451,6 +472,27 @@
       "test": null,
       "template_refs": []
     },
+    "GetStatusEmbeddingsTests": {
+      "file": "tests/test_status.py",
+      "line": 98,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "GetStatusErrorHandlingTests": {
+      "file": "tests/test_status.py",
+      "line": 175,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "GetStatusIndexTests": {
+      "file": "tests/test_status.py",
+      "line": 29,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
     "GetSymbolCardTests": {
       "file": "tests/test_phase_b_tools.py",
       "line": 155,
@@ -467,7 +509,7 @@
     },
     "HotRereadsTests": {
       "file": "tests/test_quality.py",
-      "line": 129,
+      "line": 135,
       "direct": [],
       "test": null,
       "template_refs": []
@@ -511,9 +553,9 @@
       "test": null,
       "template_refs": []
     },
-    "IncludeBodyTests": {
+    "IncludeBodyInternalTests": {
       "file": "tests/test_find_symbol_lean.py",
-      "line": 149,
+      "line": 151,
       "direct": [],
       "test": null,
       "template_refs": []
@@ -627,12 +669,19 @@
     },
     "LocalHashEmbeddingProvider": {
       "file": "semantic_store.py",
-      "line": 96,
+      "line": 97,
       "direct": [
+        "BuildDocStoreTests",
+        "ContextBuilder",
+        "QueryEngineSearchDocTextTests",
+        "build_doc_store",
         "build_symbol_store",
+        "ensure_doc_store",
         "ensure_symbol_store",
+        "provider_from_conventions",
         "recall_experience",
         "remember_experience",
+        "search_doc_sections",
         "semantic_search"
       ],
       "test": null,
@@ -661,7 +710,7 @@
     },
     "MetricsWriter": {
       "file": "mcp/metrics.py",
-      "line": 232,
+      "line": 234,
       "direct": [
         "DispatcherIntegrationTests",
         "GetSessionMetricsTests",
@@ -728,6 +777,40 @@
       "test": null,
       "template_refs": []
     },
+    "OllamaEmbeddingProvider": {
+      "file": "semantic_store.py",
+      "line": 217,
+      "direct": [
+        "OllamaProviderEmbedTests",
+        "OllamaProviderInitTests",
+        "provider_from_conventions"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "OllamaProviderEmbedTests": {
+      "file": "tests/test_ollama_provider.py",
+      "line": 64,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "OllamaProviderInitTests": {
+      "file": "tests/test_ollama_provider.py",
+      "line": 31,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "OpenAIEmbeddingProvider": {
+      "file": "semantic_store.py",
+      "line": 185,
+      "direct": [
+        "provider_from_conventions"
+      ],
+      "test": null,
+      "template_refs": []
+    },
     "PackageJsonTests": {
       "file": "tests/test_json_parser.py",
       "line": 38,
@@ -779,6 +862,13 @@
       "test": null,
       "template_refs": []
     },
+    "ProviderFromConventionsOllamaTests": {
+      "file": "tests/test_ollama_provider.py",
+      "line": 120,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
     "PruneTests": {
       "file": "tests/test_parse_cache.py",
       "line": 148,
@@ -806,7 +896,7 @@
     },
     "QualityReportTests": {
       "file": "tests/test_quality.py",
-      "line": 180,
+      "line": 186,
       "direct": [],
       "test": null,
       "template_refs": []
@@ -832,7 +922,7 @@
         "GetSymbolCardTests",
         "HideByDefaultTests",
         "ImpactTests",
-        "IncludeBodyTests",
+        "IncludeBodyInternalTests",
         "InspectClassTsTests",
         "McpServerTests",
         "NgAuditComponentTests",
@@ -845,6 +935,7 @@
         "QueryEngineLocaleTests",
         "QueryEngineRouteTests",
         "QueryEngineRuffTests",
+        "QueryEngineSearchDocTextTests",
         "QueryEngineTestLinkingTests",
         "QueryEngineTests",
         "QueryHelperTests",
@@ -899,6 +990,13 @@
     "QueryEngineRuffTests": {
       "file": "tests/test_ruff_inspector.py",
       "line": 179,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "QueryEngineSearchDocTextTests": {
+      "file": "tests/test_doc_search.py",
+      "line": 218,
       "direct": [],
       "test": null,
       "template_refs": []
@@ -996,7 +1094,7 @@
     },
     "SearchHit": {
       "file": "semantic_store.py",
-      "line": 126,
+      "line": 334,
       "direct": [
         "semantic_search"
       ],
@@ -1007,6 +1105,15 @@
       "file": "tests/test_semantic_search.py",
       "line": 30,
       "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "SentenceTransformersEmbeddingProvider": {
+      "file": "semantic_store.py",
+      "line": 146,
+      "direct": [
+        "provider_from_conventions"
+      ],
       "test": null,
       "template_refs": []
     },
@@ -1373,7 +1480,7 @@
     },
     "aggregate": {
       "file": "mcp/metrics.py",
-      "line": 413,
+      "line": 415,
       "direct": [
         "AggregateTests",
         "BaselineAggregationTests"
@@ -1441,6 +1548,18 @@
       },
       "template_refs": []
     },
+    "build_doc_store": {
+      "file": "semantic_store.py",
+      "line": 533,
+      "direct": [
+        "BuildDocStoreTests",
+        "ContextBuilder",
+        "QueryEngineSearchDocTextTests",
+        "ensure_doc_store"
+      ],
+      "test": null,
+      "template_refs": []
+    },
     "build_impact_graph": {
       "file": "impact_graph.py",
       "line": 85,
@@ -1457,6 +1576,7 @@
       "direct": [
         "BuildIndexTests",
         "ContextBuilder",
+        "QueryEngineSearchDocTextTests",
         "QueryHelperTests",
         "write_index"
       ],
@@ -1520,7 +1640,7 @@
     },
     "build_symbol_store": {
       "file": "semantic_store.py",
-      "line": 197,
+      "line": 418,
       "direct": [
         "ContextBuilder",
         "SemanticSearchTests",
@@ -1790,6 +1910,13 @@
       "test": null,
       "template_refs": []
     },
+    "cmd_status": {
+      "file": "cli_handlers.py",
+      "line": 820,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
     "cmd_test": {
       "file": "cli_handlers.py",
       "line": 573,
@@ -1909,11 +2036,13 @@
     },
     "db_path": {
       "file": "semantic_store.py",
-      "line": 152,
+      "line": 360,
       "direct": [
         "ExperienceStoreTests",
         "SemanticSearchTests",
+        "build_doc_store",
         "build_symbol_store",
+        "ensure_doc_store",
         "ensure_symbol_store"
       ],
       "test": null,
@@ -1935,7 +2064,7 @@
     },
     "detect_empty_streaks": {
       "file": "mcp/quality.py",
-      "line": 194,
+      "line": 181,
       "direct": [
         "EmptyStreaksTests",
         "quality_report"
@@ -1945,7 +2074,7 @@
     },
     "detect_hot_rereads": {
       "file": "mcp/quality.py",
-      "line": 146,
+      "line": 133,
       "direct": [
         "HotRereadsTests",
         "quality_report"
@@ -1959,6 +2088,15 @@
       "direct": [
         "WastefulPairsTests",
         "quality_report"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "ensure_doc_store": {
+      "file": "semantic_store.py",
+      "line": 594,
+      "direct": [
+        "BuildDocStoreTests"
       ],
       "test": null,
       "template_refs": []
@@ -1985,6 +2123,7 @@
       "file": "paths.py",
       "line": 100,
       "direct": [
+        "GetStatusEmbeddingsTests",
         "db_path"
       ],
       "test": null,
@@ -1992,7 +2131,7 @@
     },
     "ensure_symbol_store": {
       "file": "semantic_store.py",
-      "line": 256,
+      "line": 477,
       "direct": [
         "semantic_search"
       ],
@@ -2025,6 +2164,18 @@
       "direct": [
         "ContextBuilder",
         "SchedulerJobsScanTests"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "extract_section_bodies": {
+      "file": "markdown_index.py",
+      "line": 574,
+      "direct": [
+        "BuildDocStoreTests",
+        "ContextBuilder",
+        "ExtractSectionBodiesTests",
+        "QueryEngineSearchDocTextTests"
       ],
       "test": null,
       "template_refs": []
@@ -2161,17 +2312,24 @@
       "line": 122,
       "direct": [
         "BaseParser",
+        "BuildDocStoreTests",
         "BuilderWithCustomRolesTests",
         "ContextBuilder",
         "ContextBuilderRunTests",
         "Dispatcher",
         "ExperienceStoreTests",
+        "ExtractSectionBodiesTests",
         "GetPutTests",
         "GetSessionMetricsTests",
+        "GetStatusEmbeddingsTests",
+        "GetStatusErrorHandlingTests",
+        "GetStatusIndexTests",
         "InspectClassTsTests",
         "MethodDecoratorsTest",
         "MetricsWriter",
+        "OpenAIEmbeddingProvider",
         "QueryEngine",
+        "QueryEngineSearchDocTextTests",
         "RunCheckCacheTests",
         "SemanticSearchTests",
         "TestAttachAndQuery",
@@ -2184,6 +2342,7 @@
         "aggregate",
         "apply_custom_roles",
         "attach_python_callers",
+        "build_doc_store",
         "build_impact_graph",
         "build_locale_index",
         "build_symbol_store",
@@ -2204,6 +2363,7 @@
         "cmd_semantic",
         "cmd_slice",
         "cmd_stats",
+        "cmd_status",
         "cmd_test",
         "cmd_verify",
         "collect",
@@ -2211,6 +2371,7 @@
         "detect_empty_streaks",
         "detect_hot_rereads",
         "detect_wasteful_pairs",
+        "extract_section_bodies",
         "filter_test_records",
         "find_anti_patterns",
         "find_callback",
@@ -2238,6 +2399,7 @@
         "logline_to_symbol",
         "lookup_tests_by_category",
         "match_calls_to_routes",
+        "provider_from_conventions",
         "prune",
         "python_callers_for_route",
         "quality_report",
@@ -2303,6 +2465,19 @@
         "TsconfigJsonTests",
         "get_supported_extensions",
         "get_supported_filenames"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "get_status": {
+      "file": "status.py",
+      "line": 125,
+      "direct": [
+        "Dispatcher",
+        "GetStatusEmbeddingsTests",
+        "GetStatusErrorHandlingTests",
+        "GetStatusIndexTests",
+        "cmd_status"
       ],
       "test": null,
       "template_refs": []
@@ -2635,6 +2810,7 @@
         "BuilderWithCustomRolesTests",
         "ContextBuilder",
         "ContextBuilderRunTests",
+        "Dispatcher",
         "EpochInvalidationTests",
         "FindHandlersWithoutTestsTests",
         "GetPutTests",
@@ -2648,6 +2824,7 @@
         "load_custom_roles",
         "load_http_clients",
         "load_rules",
+        "provider_from_conventions",
         "should_skip_mypy",
         "should_skip_ruff"
       ],
@@ -2758,7 +2935,7 @@
     },
     "main": {
       "file": "cli.py",
-      "line": 374,
+      "line": 381,
       "direct": [],
       "test": null,
       "template_refs": []
@@ -2775,7 +2952,7 @@
     },
     "maybe_auto_reindex": {
       "file": "auto_reindex.py",
-      "line": 73,
+      "line": 105,
       "direct": [
         "AutoReindexTests",
         "serve"
@@ -2858,6 +3035,17 @@
       "test": null,
       "template_refs": []
     },
+    "provider_from_conventions": {
+      "file": "semantic_store.py",
+      "line": 280,
+      "direct": [
+        "ContextBuilder",
+        "ProviderFromConventionsOllamaTests",
+        "QueryEngine"
+      ],
+      "test": null,
+      "template_refs": []
+    },
     "prune": {
       "file": "parse_cache.py",
       "line": 169,
@@ -2895,7 +3083,7 @@
     },
     "quality_report": {
       "file": "mcp/quality.py",
-      "line": 245,
+      "line": 232,
       "direct": [
         "QualityReportTests"
       ],
@@ -2913,7 +3101,7 @@
     },
     "read_metrics": {
       "file": "mcp/metrics.py",
-      "line": 367,
+      "line": 369,
       "direct": [
         "DispatcherIntegrationTests",
         "ReadMetricsTests",
@@ -3084,11 +3272,22 @@
       },
       "template_refs": []
     },
+    "search_doc_sections": {
+      "file": "semantic_store.py",
+      "line": 626,
+      "direct": [
+        "BuildDocStoreTests",
+        "QueryEngine"
+      ],
+      "test": null,
+      "template_refs": []
+    },
     "search_doc_text": {
       "file": "markdown_index.py",
       "line": 439,
       "direct": [
         "Dispatcher",
+        "QueryEngineSearchDocTextTests",
         "QueryHelperTests"
       ],
       "test": {
@@ -3100,7 +3299,7 @@
     },
     "semantic_search": {
       "file": "semantic_store.py",
-      "line": 304,
+      "line": 714,
       "direct": [
         "Dispatcher",
         "QueryEngine",
@@ -3119,7 +3318,7 @@
     },
     "should_auto_reindex": {
       "file": "auto_reindex.py",
-      "line": 55,
+      "line": 87,
       "direct": [
         "AutoReindexTests",
         "maybe_auto_reindex"
@@ -3236,7 +3435,9 @@
     "write_index": {
       "file": "markdown_index.py",
       "line": 225,
-      "direct": [],
+      "direct": [
+        "QueryEngineSearchDocTextTests"
+      ],
       "test": null,
       "template_refs": []
     },

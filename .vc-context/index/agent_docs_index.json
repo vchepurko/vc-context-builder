@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generated_at": "2026-05-25T11:39:16+00:00",
+  "generated_at": "2026-05-28T08:22:55+00:00",
   "docs": {
     ".agents/skills/source-command-ng-overview/SKILL.md": {
       "size_bytes": 2049,
@@ -112,14 +112,14 @@
       "links": []
     },
     "AGENTS.md": {
-      "size_bytes": 2562,
+      "size_bytes": 5839,
       "top_header": "vc-context-builder — Agent Instructions",
       "sections": [
         {
           "level": 1,
           "text": "vc-context-builder — Agent Instructions",
           "line": 1,
-          "end_line": 52,
+          "end_line": 149,
           "anchor": "vc-context-builder-agent-instructions"
         },
         {
@@ -152,10 +152,59 @@
         },
         {
           "level": 2,
-          "text": "Angular-specific tools (for lms-client parent project)",
+          "text": "find_symbol vs semantic_search — when to use which",
           "line": 45,
-          "end_line": 52,
-          "anchor": "angular-specific-tools-for-lms-client-parent-project"
+          "end_line": 61,
+          "anchor": "find-symbol-vs-semantic-search-when-to-use-which"
+        },
+        {
+          "level": 2,
+          "text": "Submodule structure",
+          "line": 62,
+          "end_line": 73,
+          "anchor": "submodule-structure"
+        },
+        {
+          "level": 2,
+          "text": "Efficiency rules (from session quality analysis)",
+          "line": 74,
+          "end_line": 139,
+          "anchor": "efficiency-rules-from-session-quality-analysis"
+        },
+        {
+          "level": 3,
+          "text": "read_slice — read wide, not twice",
+          "line": 78,
+          "end_line": 92,
+          "anchor": "read-slice-read-wide-not-twice"
+        },
+        {
+          "level": 3,
+          "text": "find_in_file — regex alternation syntax",
+          "line": 93,
+          "end_line": 109,
+          "anchor": "find-in-file-regex-alternation-syntax"
+        },
+        {
+          "level": 3,
+          "text": "find_call_sites — TS limitation",
+          "line": 110,
+          "end_line": 123,
+          "anchor": "find-call-sites-ts-limitation"
+        },
+        {
+          "level": 3,
+          "text": "ng_eslint_violations — only for lint audits",
+          "line": 124,
+          "end_line": 139,
+          "anchor": "ng-eslint-violations-only-for-lint-audits"
+        },
+        {
+          "level": 2,
+          "text": "Angular tools (Angular projects only)",
+          "line": 140,
+          "end_line": 149,
+          "anchor": "angular-tools-angular-projects-only"
         }
       ],
       "links": []
@@ -500,7 +549,7 @@
       ]
     },
     "README.md": {
-      "size_bytes": 34579,
+      "size_bytes": 34583,
       "top_header": "🤖 vc-context-builder",
       "sections": [
         {
@@ -809,14 +858,14 @@
       ]
     },
     "ROADMAP.md": {
-      "size_bytes": 37329,
+      "size_bytes": 38321,
       "top_header": "🗺️ Roadmap",
       "sections": [
         {
           "level": 1,
           "text": "🗺️ Roadmap",
           "line": 1,
-          "end_line": 806,
+          "end_line": 829,
           "anchor": "roadmap"
         },
         {
@@ -907,7 +956,7 @@
           "level": 2,
           "text": "🔜 Planned (next 1–3 PRs)",
           "line": 259,
-          "end_line": 618,
+          "end_line": 641,
           "anchor": "planned-next-13-prs"
         },
         {
@@ -919,156 +968,163 @@
         },
         {
           "level": 3,
-          "text": "Telemetry & quality detectors — observations from real sessions",
+          "text": "Production-readiness gaps (audit 2026-05-27, base `b1f4d60`)",
           "line": 281,
-          "end_line": 329,
+          "end_line": 303,
+          "anchor": "production-readiness-gaps-audit-2026-05-27-base-b1f4d60"
+        },
+        {
+          "level": 3,
+          "text": "Telemetry & quality detectors — observations from real sessions",
+          "line": 304,
+          "end_line": 352,
           "anchor": "telemetry-quality-detectors-observations-from-real-sessions"
         },
         {
           "level": 3,
           "text": "Markdown / docs navigation — real gap",
-          "line": 330,
-          "end_line": 390,
+          "line": 353,
+          "end_line": 413,
           "anchor": "markdown-docs-navigation-real-gap"
         },
         {
           "level": 3,
           "text": "Markdown navigation Phase 2 — calibration after head-to-head trial",
-          "line": 391,
-          "end_line": 459,
+          "line": 414,
+          "end_line": 482,
           "anchor": "markdown-navigation-phase-2-calibration-after-head-to-head-trial"
         },
         {
           "level": 3,
           "text": "Anti-pattern detectors",
-          "line": 460,
-          "end_line": 461,
+          "line": 483,
+          "end_line": 484,
           "anchor": "anti-pattern-detectors"
         },
         {
           "level": 3,
           "text": "Anti-pattern detectors",
-          "line": 462,
-          "end_line": 480,
+          "line": 485,
+          "end_line": 503,
           "anchor": "anti-pattern-detectors"
         },
         {
           "level": 3,
           "text": "Per-folder agent rules convention",
-          "line": 481,
-          "end_line": 486,
+          "line": 504,
+          "end_line": 509,
           "anchor": "per-folder-agent-rules-convention"
         },
         {
           "level": 3,
           "text": "Angular / TypeScript gaps — from lms-client session (2026-05-12)",
-          "line": 487,
-          "end_line": 529,
+          "line": 510,
+          "end_line": 552,
           "anchor": "angular-typescript-gaps-from-lms-client-session-2026-05-12"
         },
         {
           "level": 3,
           "text": "Gap-closers from real session usage",
-          "line": 530,
-          "end_line": 618,
+          "line": 553,
+          "end_line": 641,
           "anchor": "gap-closers-from-real-session-usage"
         },
         {
           "level": 2,
           "text": "🌅 Phase 4 — Local-first + anti-redundancy (vision)",
-          "line": 619,
-          "end_line": 731,
+          "line": 642,
+          "end_line": 754,
           "anchor": "phase-4-local-first-anti-redundancy-vision"
         },
         {
           "level": 3,
           "text": "The pain we're solving",
-          "line": 624,
-          "end_line": 632,
+          "line": 647,
+          "end_line": 655,
           "anchor": "the-pain-were-solving"
         },
         {
           "level": 3,
           "text": "Three-layer artefact model",
-          "line": 633,
-          "end_line": 656,
+          "line": 656,
+          "end_line": 679,
           "anchor": "three-layer-artefact-model"
         },
         {
           "level": 3,
           "text": "Anti-redundancy mechanism",
-          "line": 657,
-          "end_line": 676,
+          "line": 680,
+          "end_line": 699,
           "anchor": "anti-redundancy-mechanism"
         },
         {
           "level": 3,
           "text": "Promotion path local → shared",
-          "line": 677,
-          "end_line": 688,
+          "line": 700,
+          "end_line": 711,
           "anchor": "promotion-path-local-shared"
         },
         {
           "level": 3,
           "text": "Cross-machine sharing (deferred sub-question)",
-          "line": 689,
-          "end_line": 699,
+          "line": 712,
+          "end_line": 722,
           "anchor": "cross-machine-sharing-deferred-sub-question"
         },
         {
           "level": 3,
           "text": "Phasing — small first PR",
-          "line": 700,
-          "end_line": 719,
+          "line": 723,
+          "end_line": 742,
           "anchor": "phasing-small-first-pr"
         },
         {
           "level": 3,
           "text": "Open questions before slicing PoC",
-          "line": 720,
-          "end_line": 731,
+          "line": 743,
+          "end_line": 754,
           "anchor": "open-questions-before-slicing-poc"
         },
         {
           "level": 2,
           "text": "💡 Ideas (not yet planned)",
-          "line": 732,
-          "end_line": 779,
+          "line": 755,
+          "end_line": 802,
           "anchor": "ideas-not-yet-planned"
         },
         {
           "level": 3,
           "text": "Post-analysis email digest",
-          "line": 734,
-          "end_line": 761,
+          "line": 757,
+          "end_line": 784,
           "anchor": "post-analysis-email-digest"
         },
         {
           "level": 3,
           "text": "Privacy verification tool",
-          "line": 762,
-          "end_line": 779,
+          "line": 785,
+          "end_line": 802,
           "anchor": "privacy-verification-tool"
         },
         {
           "level": 2,
           "text": "❌ Out of scope (won't build)",
-          "line": 780,
-          "end_line": 791,
+          "line": 803,
+          "end_line": 814,
           "anchor": "out-of-scope-wont-build"
         },
         {
           "level": 2,
           "text": "Compatibility",
-          "line": 792,
-          "end_line": 801,
+          "line": 815,
+          "end_line": 824,
           "anchor": "compatibility"
         },
         {
           "level": 2,
           "text": "Versioning",
-          "line": 802,
-          "end_line": 806,
+          "line": 825,
+          "end_line": 829,
           "anchor": "versioning"
         }
       ],
@@ -1076,13 +1132,13 @@
         {
           "text": "text",
           "target": "relative-path.md",
-          "line": 370,
+          "line": 393,
           "external": false
         },
         {
           "text": "#27",
           "target": "#27-...",
-          "line": 423,
+          "line": 446,
           "external": false
         }
       ]
