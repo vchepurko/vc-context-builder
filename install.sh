@@ -468,6 +468,18 @@ fi
 VC_SECTION_BEGIN="# >>> vc-context agent rules"
 VC_SECTION_END="# <<< vc-context agent rules"
 VC_AGENTS_BLOCK="$VC_SECTION_BEGIN
+## Submodule \`.ai-context/\`
+
+This project uses [vc-context-builder](https://github.com/vchepurko/vc-context-builder) as a git submodule at \`.ai-context/\`.
+It provides two MCP servers:
+
+| Server | Tools prefix | Indexes |
+|---|---|---|
+| \`vc-context\` | \`mcp__vc-context__*\` | this project |
+| \`vc-context-meta\` | \`mcp__vc-context-meta__*\` | the submodule itself (contributor mode) |
+
+Always prefer \`mcp__vc-context__*\` tools over \`grep\`/\`Read\` for code navigation.
+
 ## find_symbol vs semantic_search
 
 | Situation | Tool | Cost |
@@ -477,6 +489,25 @@ VC_AGENTS_BLOCK="$VC_SECTION_BEGIN
 | Guessing with find_symbol | 3–4 attempts | ~400 tokens (avoid) |
 
 Rule: know the name → \`find_symbol\`. Don't know → \`semantic_search\` first, then \`find_symbol\` for the body.
+
+## Efficiency rules
+
+**read_slice — read wide, not twice.**
+Two calls on the same file within 60 s = wasteful pair flagged in session quality metrics.
+Fetch the full range in one call: \`read_slice(file, 40, 110)\` not two narrow calls.
+Use \`find_symbol(..., fields=[\"file\",\"line\",\"end_line\"])\` to get the bounds first.
+
+**find_in_file — regex alternation syntax.**
+Use \`|\` (pipe), NOT \`\\\|\` (escaped pipe). In Python regex \`\\\|\` matches a literal \`|\` character, not OR.
+For simple substrings leave \`use_regex\` unset (default false — faster and always correct).
+
+**find_call_sites — TS limitation.**
+Fast path (O(1)) only covers Angular DI injections from the index.
+For plain TypeScript function calls use \`find_in_file\` with the call expression as pattern.
+
+**ng_eslint_violations — slow tool (40+ s).**
+Spawns the full ESLint subprocess. Only call when explicitly auditing lint issues.
+Pass a specific \`path\` to scope the run. Results are cached 5 min per session.
 $VC_SECTION_END"
 
 # Idempotent: strip old block, then re-append.
