@@ -266,7 +266,7 @@ FORCE_INIT=false
 for _a in "$@"; do
     [ "$_a" = "--force-init" ] && FORCE_INIT=true
 done
-_INIT_CMD="python3 $RELATIVE_DIR/cli.py init --root ."
+_INIT_CMD="python3 $RELATIVE_DIR/cli.py --root . init"
 if $FORCE_INIT; then
     _INIT_CMD="$_INIT_CMD --force"
 fi
