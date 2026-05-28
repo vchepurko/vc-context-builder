@@ -192,7 +192,7 @@ _BASELINE_BYTES_PER_TOOL: Dict[str, int] = {
     "ng_eslint_violations": 5000,
     "ng_find_module": 2500,
     # No Bash-equivalent — baseline is 0
-    "run_check": 0,
+    "run_checks": 0,
     "list_checks": 200,
     "lint_violations": 2000,
     "mypy_violations": 2000,

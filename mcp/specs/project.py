@@ -123,7 +123,10 @@ def specs() -> List[Dict[str, Any]]:
                 "linked tests at risk, and template refs when available. "
                 "Reads ``agent_impact.json`` built by ``agent_map.py``. "
                 "Use for 'what breaks if I change X?' instead of chaining "
-                "``who_calls`` / ``find_call_sites`` / test lookups."
+                "``who_calls`` / ``find_call_sites`` / test lookups.\n\n"
+                "Pass ``include_tests: true`` to merge the ``find_test`` "
+                "result for the symbol into the response as ``result.test`` "
+                "— saves a separate ``find_test`` call."
             ),
             "inputSchema": {
                 "type": "object",
@@ -136,6 +139,14 @@ def specs() -> List[Dict[str, Any]]:
                         "type": "integer",
                         "description": "Traversal depth, clamped to 1..5. Default 2.",
                         "default": 2,
+                    },
+                    "include_tests": {
+                        "type": "boolean",
+                        "description": (
+                            "Default false. When true, the find_test result "
+                            "for this symbol is merged into the response as "
+                            "result.test — avoids a separate find_test call."
+                        ),
                     },
                 },
                 "required": ["symbol"],
@@ -416,60 +427,55 @@ def specs() -> List[Dict[str, Any]]:
             "description": (
                 "Return the names of whitelisted commands declared "
                 "under .vc-context/conventions.json → 'checks'. Use "
-                "before run_check to discover what's safe to invoke "
+                "before run_checks to discover what's safe to invoke "
                 "(e.g. 'test-unit', 'lint', 'typecheck')."
             ),
             "inputSchema": {"type": "object", "properties": {}},
         },
         {
-            "name": "run_check",
+            "name": "run_checks",
             "description": (
-                "Execute a whitelisted check declared in "
-                ".vc-context/conventions.json. Returns "
-                "{returncode, duration_ms, stdout_tail, stderr_tail, "
-                "summary, error?, cached?}. Unknown name → "
-                "returncode -2; timeout → -1; spawn failure → -3; "
-                "refused extra args → -4. "
-                "Use to run tests / lint / typecheck without "
-                "exposing arbitrary shell.\n\n"
-                "Optional ``args`` are appended only when the check is "
-                "declared with an ``args_policy`` in conventions.json; "
-                "fixed list-style checks refuse extra args. This allows "
-                "safe targeted runs such as pytest on selected test files.\n\n"
-                "Results are memoised by ``(name, args, git_state_hash)`` "
-                "where the hash covers committed HEAD + staged + "
-                "unstaged + untracked files. A repeat call with no "
-                "source edits returns in ~ms with ``cached: true`` "
-                "(saves 10-20 s on test-unit). Pass ``nocache: true`` "
-                "to bypass the cache (e.g. when something outside "
-                "git changed — env vars, external services). "
+                "Execute one or more whitelisted checks in parallel. "
+                "Pass a single name for one check or multiple names to "
+                "run them concurrently (up to 4 at a time). "
+                "Returns a list of results in the same order as "
+                "``names``, each with "
+                "{name, returncode, duration_ms, stdout_tail, "
+                "stderr_tail, summary, cached?, error?}.\n\n"
+                "Return codes: unknown name → -2; timeout → -1; "
+                "spawn failure → -3.\n\n"
+                "Results are memoised by (name, git_state_hash): a "
+                "repeat call with no source edits returns in ~ms with "
+                "``cached: true``. Pass ``nocache: true`` to force a "
+                "fresh run (e.g. env vars changed). "
                 "Caching is skipped on spawn failures (-3) and on "
-                "non-git projects."
+                "non-git projects.\n\n"
+                "For multiple checks prefer one ``run_checks`` call "
+                "over several sequential calls — total wall time is "
+                "the slowest check, not the sum."
             ),
             "inputSchema": {
                 "type": "object",
                 "properties": {
-                    "name": {"type": "string"},
-                    "args": {
+                    "names": {
                         "type": "array",
                         "items": {"type": "string"},
-                        "description": (
-                            "Optional argv suffix. Accepted only for "
-                            "checks whose conventions.json entry declares "
-                            "an args_policy that allows every token."
-                        ),
+                        "description": "Check names to run. Pass one name to run a single check.",
                     },
-                    "timeout_sec": {"type": "integer", "minimum": 1},
+                    "timeout_sec": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "description": "Per-check timeout in seconds.",
+                    },
                     "nocache": {
                         "type": "boolean",
                         "description": (
                             "Default false. Set true to bypass the "
-                            "memoised-by-git-state cache and force a "
-                            "fresh run."
+                            "memoised-by-git-state cache for all checks."
                         ),
                     },
                 },
-                "required": ["name"],
+                "required": ["names"],
             },
         },
         {

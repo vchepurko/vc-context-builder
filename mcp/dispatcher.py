@@ -79,7 +79,7 @@ class Dispatcher:
             "find_call_sites": self._find_call_sites,
             "logline_to_symbol": self._logline_to_symbol,
             "list_checks": self._list_checks,
-            "run_check": self._run_check,
+            "run_checks": self._run_checks,
             "get_session_metrics": self._get_session_metrics,
             "remember_experience": self._remember_experience,
             "recall_experience": self._recall_experience,
@@ -252,7 +252,8 @@ class Dispatcher:
             depth = int(args.get("depth", 2))
         except (TypeError, ValueError):
             depth = 2
-        return self.engine.impact(symbol, depth=depth)
+        include_tests = bool(args.get("include_tests", False))
+        return self.engine.impact(symbol, depth=depth, include_tests=include_tests)
 
     def _read_slice(self, args: Dict[str, Any]) -> Any:
         path = str(args.get("file", "")).strip()
@@ -394,6 +395,19 @@ class Dispatcher:
         return self.engine.run_check(
             name, timeout_sec=timeout_sec, args=extra_args, nocache=nocache
         )
+
+    def _run_checks(self, args: Dict[str, Any]) -> Any:
+        names_raw = args.get("names", [])
+        if not isinstance(names_raw, list) or not all(isinstance(n, str) for n in names_raw):
+            return {"error": "names must be a list of strings", "results": []}
+        timeout_raw = args.get("timeout_sec")
+        timeout_sec = (
+            int(timeout_raw)
+            if isinstance(timeout_raw, (int, float)) and timeout_raw > 0
+            else None
+        )
+        nocache = bool(args.get("nocache", False))
+        return self.engine.run_checks(list(names_raw), timeout_sec=timeout_sec, nocache=nocache)
 
     def _get_session_metrics(self, args: Dict[str, Any]) -> Any:
         kw: Dict[str, Any] = {}

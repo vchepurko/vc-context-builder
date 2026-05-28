@@ -69,7 +69,7 @@
   "route_for_js_call",
   "ruff_format",
   "ruff_violations",
-  "run_check",
+  "run_checks",
   "search_doc_text",
   "semantic_search",
   "status",

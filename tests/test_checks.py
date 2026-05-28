@@ -222,12 +222,15 @@ class TestMcpToolWiring(unittest.TestCase):
     def test_tools_registered(self) -> None:
         names = {spec["name"] for spec in _tool_specs()}
         self.assertIn("list_checks", names)
-        self.assertIn("run_check", names)
+        self.assertIn("run_checks", names)
 
-    def test_run_check_requires_name(self) -> None:
-        spec = next(s for s in _tool_specs() if s["name"] == "run_check")
-        self.assertEqual(spec["inputSchema"].get("required", []), ["name"])
-        self.assertIn("args", spec["inputSchema"].get("properties", {}))
+    def test_run_checks_requires_names(self) -> None:
+        spec = next(s for s in _tool_specs() if s["name"] == "run_checks")
+        self.assertEqual(spec["inputSchema"].get("required", []), ["names"])
+        props = spec["inputSchema"].get("properties", {})
+        self.assertIn("names", props)
+        self.assertIn("timeout_sec", props)
+        self.assertIn("nocache", props)
 
     def test_list_checks_takes_no_args(self) -> None:
         spec = next(s for s in _tool_specs() if s["name"] == "list_checks")

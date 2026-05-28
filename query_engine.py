@@ -16,7 +16,7 @@ import json
 import os
 import re
 from collections.abc import Iterable
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, ClassVar, Dict, List, Optional, Tuple
 
 from _query_inspectors import _InspectorsMixin
 from _query_routes import _RoutesMixin
@@ -681,18 +681,27 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
             },
         }
 
-    def impact(self, symbol: str, *, depth: int = 2) -> Optional[Dict[str, Any]]:
+    def impact(
+        self, symbol: str, *, depth: int = 2, include_tests: bool = False
+    ) -> Optional[Dict[str, Any]]:
         """Return symbols/tests likely affected by changing ``symbol``.
 
         The result is read from ``agent_impact.json`` and bounded by
         ``depth`` (1..5) so callers can ask the refactor question in one
         round-trip without expanding the whole project graph.
+
+        Pass ``include_tests=True`` to merge the ``find_test`` result for
+        ``symbol`` into the response as ``result["test"]`` — saves a
+        separate ``find_test`` call.
         """
         if not symbol:
             return None
         from impact_graph import query_impact
 
-        return query_impact(self._load_impact(), symbol, depth=depth)
+        result = query_impact(self._load_impact(), symbol, depth=depth)
+        if include_tests and result is not None:
+            result["test"] = self.find_test(symbol)
+        return result
 
     def get_file_card(self, path: str) -> Optional[Dict[str, Any]]:
         """Return a single file's summary — exports, dependencies,
@@ -980,6 +989,48 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
             if state is not None:
                 self._check_cache[(name, extra_args, state)] = dict(result)
         return result
+
+    def run_checks(
+        self,
+        names: List[str],
+        timeout_sec: Optional[int] = None,
+        *,
+        nocache: bool = False,
+    ) -> List[Dict[str, Any]]:
+        """Run multiple whitelisted checks in parallel.
+
+        Returns results in the same order as ``names``, each identical in
+        shape to a single ``run_check`` result. Runs up to 4 checks
+        concurrently via ``ThreadPoolExecutor``. Caching, timeout, and
+        nocache semantics are the same as for ``run_check``.
+        """
+        from concurrent.futures import ThreadPoolExecutor, as_completed
+
+        if not names:
+            return []
+
+        results: List[Optional[Dict[str, Any]]] = [None] * len(names)
+        with ThreadPoolExecutor(max_workers=min(len(names), 4)) as pool:
+            future_to_idx = {
+                pool.submit(self.run_check, name, timeout_sec, None, nocache=nocache): i
+                for i, name in enumerate(names)
+            }
+            for future in as_completed(future_to_idx):
+                i = future_to_idx[future]
+                try:
+                    results[i] = future.result()
+                except Exception as exc:
+                    results[i] = {
+                        "name": names[i],
+                        "command": [],
+                        "returncode": -3,
+                        "duration_ms": 0,
+                        "stdout_tail": "",
+                        "stderr_tail": "",
+                        "summary": None,
+                        "error": str(exc),
+                    }
+        return [r for r in results if r is not None]
 
     def _git_state_hash(self) -> Optional[str]:
         """SHA-256 of ``git rev-parse HEAD`` + ``git status --porcelain``
@@ -1306,7 +1357,7 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
     # Avoids re-running the 40+ s subprocess for the same path twice in
     # one MCP session. TTL=300s — stale enough to avoid thrashing, fresh
     # enough that a re-lint within the same session picks up edits.
-    _eslint_cache: Dict[str, Any] = {}
+    _eslint_cache: ClassVar[Dict[str, Any]] = {}
     _ESLINT_CACHE_TTL = 300
 
     def ng_eslint_violations(
