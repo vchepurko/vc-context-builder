@@ -274,11 +274,16 @@ class _QuerySymbolsMixin:
                         seg = seg[: self.BODY_SNIPPET_MAX_BYTES] + "\n# … truncated …"
                     return seg
             return None
-        # JS / TS: agent_symbols.json doesn't carry a line for these
-        # yet, so locate the declaration via regex on the file body.
-        # Patterns cover the common shapes the TS parser already
-        # detects (class / function / const = ).  Cheap; the
-        # ``BODY_SNIPPET_LINES`` cap bounds the worst case.
+        # JS / TS: use indexed end_line when available, otherwise locate
+        # the declaration via regex and cap at BODY_SNIPPET_LINES.
+        lines = source.splitlines()
+        line_num = record.get("line")
+        end_line = record.get("end_line")
+        if isinstance(line_num, int) and isinstance(end_line, int) and end_line >= line_num:
+            snippet = "\n".join(lines[line_num - 1 : end_line])
+            if len(snippet.encode("utf-8")) > self.BODY_SNIPPET_MAX_BYTES:
+                snippet = snippet[: self.BODY_SNIPPET_MAX_BYTES] + "\n// … truncated …"
+            return snippet
         decl_re = re.compile(
             r"^\s*(?:export\s+(?:default\s+)?)?(?:async\s+)?"
             r"(?:abstract\s+)?(?:class|function|const|let|var|interface|type|enum)\s+"
@@ -289,10 +294,8 @@ class _QuerySymbolsMixin:
         m = decl_re.search(source)
         if m is None:
             return None
-        # Walk back to start of the line for stable formatting.
         start_offset = source.rfind("\n", 0, m.start()) + 1
         line_start = source[:start_offset].count("\n")
-        lines = source.splitlines()
         snippet = "\n".join(lines[line_start : line_start + self.BODY_SNIPPET_LINES])
         if len(snippet.encode("utf-8")) > self.BODY_SNIPPET_MAX_BYTES:
             snippet = snippet[: self.BODY_SNIPPET_MAX_BYTES] + "\n// … truncated …"

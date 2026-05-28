@@ -341,6 +341,112 @@ import y from '../sibling';
         # the behaviour rather than asserting a specific shape.
         self.assertIn("@scope", result["dependencies"])
 
+    # ------------------------------------------------------------------
+    # end_line tests
+    # ------------------------------------------------------------------
+
+    def test_function_carries_end_line(self):
+        path = self._write(
+            "a.js",
+            "export function foo() {\n  return 1;\n}\n",
+        )
+        result = self.parser.extract(path)
+        exp = next(e for e in result["exports"] if e["name"] == "foo")
+        self.assertEqual(exp["line"], 1)
+        self.assertEqual(exp["end_line"], 3)
+
+    def test_class_end_line_spans_full_class(self):
+        src = (
+            "export class MyService {\n"
+            "  constructor() {}\n"
+            "  doSomething() {\n"
+            "    return 42;\n"
+            "  }\n"
+            "}\n"
+        )
+        path = self._write("svc.ts", src)
+        result = self.parser.extract(path)
+        exp = next(e for e in result["exports"] if e["name"] == "MyService")
+        self.assertEqual(exp["line"], 1)
+        self.assertEqual(exp["end_line"], 6)
+
+    def test_const_arrow_end_line(self):
+        src = "export const transform = (x) => {\n  return x * 2;\n};\n"
+        path = self._write("util.ts", src)
+        result = self.parser.extract(path)
+        exp = next(e for e in result["exports"] if e["name"] == "transform")
+        self.assertEqual(exp["line"], 1)
+        self.assertGreaterEqual(exp["end_line"], exp["line"])
+
+    def test_multiline_function_end_line_correct(self):
+        src = (
+            "// header\n"
+            "export function process(\n"
+            "  a: number,\n"
+            "  b: number,\n"
+            ") {\n"
+            "  return a + b;\n"
+            "}\n"
+        )
+        path = self._write("proc.ts", src)
+        result = self.parser.extract(path)
+        exp = next(e for e in result["exports"] if e["name"] == "process")
+        self.assertEqual(exp["line"], 2)
+        self.assertEqual(exp["end_line"], 7)
+
+    def test_type_alias_end_line_on_same_or_next_line(self):
+        src = "type Foo = string;\ntype Bar = number;\n"
+        path = self._write("types.ts", src)
+        result = self.parser.extract(path)
+        by_name = {e["name"]: e for e in result["exports"]}
+        self.assertIn("end_line", by_name["Foo"])
+        self.assertLessEqual(by_name["Foo"]["end_line"], by_name["Bar"]["line"])
+
+
+class EndLineForExtractBodyTests(unittest.TestCase):
+    """Verify _query_symbols._extract_body uses end_line for JS/TS."""
+
+    def setUp(self) -> None:
+        import shutil
+        import tempfile
+
+        self.root = tempfile.mkdtemp(prefix="vc-endline-")
+        self.src_content = (
+            "export function add(a, b) {\n"
+            "  return a + b;\n"
+            "}\n"
+            "\n"
+            "export function subtract(a, b) {\n"
+            "  return a - b;\n"
+            "}\n"
+        )
+        js_path = os.path.join(self.root, "math.js")
+        with open(js_path, "w") as fh:
+            fh.write(self.src_content)
+
+    def tearDown(self) -> None:
+        import shutil
+        shutil.rmtree(self.root, ignore_errors=True)
+
+    def test_extract_body_bounded_by_end_line(self):
+        sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+        from _query_symbols import _QuerySymbolsMixin
+
+        class _Stub(_QuerySymbolsMixin):
+            project_root = self.root
+            BODY_SNIPPET_LINES = 200
+            BODY_SNIPPET_MAX_BYTES = 8000
+            SYMBOLS_FILENAME = ""
+
+        stub = _Stub()
+        record = {"file": "math.js", "line": 1, "end_line": 3}
+        body = stub._extract_body("add", record)
+        self.assertIsNotNone(body)
+        assert body is not None
+        self.assertIn("return a + b", body)
+        # subtract should NOT appear — end_line=3 stops before line 5
+        self.assertNotIn("subtract", body)
+
 
 if __name__ == "__main__":
     unittest.main()

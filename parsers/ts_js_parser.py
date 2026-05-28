@@ -247,6 +247,9 @@ class TsJsParser(BaseParser):
             if anchor is None:
                 continue
             exp["line"] = content.count("\n", 0, anchor) + 1
+            end_line = _end_line_for_anchor(scrubbed, anchor)
+            if end_line is not None:
+                exp["end_line"] = end_line
             doc = _jsdoc_for_offset(content, jsdoc_index, anchor)
             if doc:
                 exp["doc"] = doc
@@ -579,6 +582,33 @@ def _top_level_pkg(spec: str) -> Optional[str]:
 # ----------------------------------------------------------------------
 # Comments / JSDoc handling
 # ----------------------------------------------------------------------
+
+
+def _end_line_for_anchor(scrubbed: str, anchor: int) -> Optional[int]:
+    """Return the 1-indexed line where the block starting at ``anchor`` ends.
+
+    Uses brace-depth counting on ``scrubbed`` (comments stripped, offsets
+    preserved).  For brace-less declarations (``const X = 5;``,
+    ``type Foo = Bar;``) returns the line containing the semicolon.
+    Returns ``None`` when the block is malformed or unclosed.
+    """
+    n = len(scrubbed)
+    # If a semicolon comes before the first {, it's a brace-less statement.
+    brace = scrubbed.find('{', anchor)
+    semi = scrubbed.find(';', anchor)
+    if brace == -1 or (semi != -1 and semi < brace):
+        end = semi if semi != -1 else scrubbed.rfind('\n', 0, n)
+        return scrubbed.count('\n', 0, end) + 1 if end >= 0 else None
+    depth = 0
+    for i in range(brace, n):
+        c = scrubbed[i]
+        if c == '{':
+            depth += 1
+        elif c == '}':
+            depth -= 1
+            if depth == 0:
+                return scrubbed.count('\n', 0, i) + 1
+    return None
 
 
 def _strip_comments(text: str) -> str:
