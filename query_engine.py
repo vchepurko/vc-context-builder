@@ -394,6 +394,24 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
         case_sensitive: bool = False,
         max_results: int = 50,
     ) -> List[Dict[str, Any]]:
+        # Semantic search when the doc_sections table is built and no regex.
+        if not regex:
+            try:
+                from semantic_store import search_doc_sections, provider_from_conventions
+
+                provider = provider_from_conventions(self.project_root)
+                results = search_doc_sections(
+                    self.project_root,
+                    query,
+                    top_k=max_results,
+                    file_filter=file,
+                    provider=provider,
+                )
+                if results is not None:
+                    return results
+            except Exception:
+                pass
+
         from markdown_index import search_doc_text as _search
 
         return _search(

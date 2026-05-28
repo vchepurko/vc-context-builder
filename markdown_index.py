@@ -569,3 +569,70 @@ def link_graph(project_root: str, index: Dict[str, Any]) -> Dict[str, Any]:
         "broken": broken,
         "external_count": external_count,
     }
+
+
+def extract_section_bodies(
+    project_root: str,
+    docs_index: Dict[str, Any],
+    *,
+    max_body_chars: int = 600,
+) -> List[Dict[str, Any]]:
+    """Return a list of section dicts ready for embedding.
+
+    Each dict has: id, file, title, anchor, level, line_start, line_end,
+    search_text (heading + truncated body).
+
+    ``max_body_chars`` truncates the body so very long sections don't
+    produce oversized embedding inputs.
+    """
+    out: List[Dict[str, Any]] = []
+    docs = docs_index.get("docs") or {}
+    for rel, meta in docs.items():
+        sections = meta.get("sections") or []
+        if not sections:
+            continue
+        full_path = os.path.join(project_root, rel)
+        try:
+            with open(full_path, encoding="utf-8", errors="replace") as fh:
+                lines = fh.readlines()
+        except OSError:
+            continue
+        for sec in sections:
+            line_start = sec.get("line")
+            line_end = sec.get("end_line")
+            title = sec.get("text") or ""
+            anchor = sec.get("anchor") or ""
+            level = sec.get("level") or 1
+            if not title or not isinstance(line_start, int):
+                continue
+            # Body = lines after the heading until end_line (exclusive of
+            # the next heading line). Skip the heading line itself.
+            body_lines: List[str] = []
+            body_start = line_start  # 1-indexed → index line_start (0-indexed)
+            body_end = line_end if isinstance(line_end, int) else len(lines)
+            for raw in lines[body_start:body_end]:
+                stripped = raw.strip()
+                if stripped.startswith("#"):
+                    break  # hit next heading inside range
+                if stripped:
+                    body_lines.append(stripped)
+            body = " ".join(body_lines)
+            if len(body) > max_body_chars:
+                body = body[:max_body_chars] + "…"
+            search_text = f"{title}\n{body}".strip() if body else title
+            # Include line_start to guarantee uniqueness even when two
+            # sections share the same anchor (duplicate headings).
+            sec_id = f"{rel}#{anchor}@{line_start}" if anchor else f"{rel}#L{line_start}"
+            out.append(
+                {
+                    "id": sec_id,
+                    "file": rel,
+                    "title": title,
+                    "anchor": anchor or None,
+                    "level": level,
+                    "line_start": line_start,
+                    "line_end": line_end,
+                    "search_text": search_text,
+                }
+            )
+    return out

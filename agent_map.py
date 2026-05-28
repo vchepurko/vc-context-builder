@@ -42,7 +42,7 @@ from parsers import get_parser, get_supported_extensions, get_supported_filename
 from parsers.python_parser import PythonParser
 from paths import ensure_index_dir, index_path, index_read_path
 from route_bridge import ROUTES_FILENAME, build_route_index, write_route_index
-from semantic_store import build_symbol_store, provider_from_conventions
+from semantic_store import build_symbol_store, build_doc_store, provider_from_conventions
 from symbols import extract_scheduler_jobs_from_codebase
 from test_classifier import (
     TEST_CATEGORIES_FILENAME,
@@ -408,6 +408,7 @@ class ContextBuilder:
         self._build_test_categories_index()
         self._build_locale_index()
         self._build_docs_index()
+        self._build_doc_embeddings()
         self._build_di_index()
         self._generate_agent_sop()
         self._save_parse_cache()
@@ -895,6 +896,48 @@ class ContextBuilder:
             )
         except OSError as e:
             logging.error(f"Failed to write docs index: {e}")
+
+    def _build_doc_embeddings(self) -> None:
+        """Embed doc sections into the semantic store alongside symbols.
+
+        Runs after ``_build_docs_index()``. Skipped when there is no
+        docs index on disk or when ``VC_CONTEXT_SKIP_SEMANTIC`` is set.
+        Uses the same provider as symbol embeddings so both stores stay
+        in sync.
+        """
+        if os.environ.get("VC_CONTEXT_SKIP_SEMANTIC"):
+            return
+        from semantic_store import LocalHashEmbeddingProvider
+        from markdown_index import extract_section_bodies
+
+        docs_path = index_read_path(self.root_dir, self.docs_filename)
+        if not os.path.isfile(docs_path):
+            return
+        try:
+            with open(docs_path, encoding="utf-8") as fh:
+                docs_index = json.load(fh)
+            sections = extract_section_bodies(self.root_dir, docs_index)
+            if not sections:
+                return
+            provider = provider_from_conventions(self.root_dir)
+            try:
+                result = build_doc_store(self.root_dir, sections, provider=provider)
+            except RuntimeError as e:
+                logging.warning(
+                    "Doc embeddings: provider '%s' unavailable (%s). Falling back to local_hash.",
+                    provider.name,
+                    e,
+                )
+                result = build_doc_store(
+                    self.root_dir, sections, provider=LocalHashEmbeddingProvider()
+                )
+            logging.info(
+                "Wrote doc section store: %d sections, %s provider.",
+                result["sections"],
+                result["provider"],
+            )
+        except (OSError, json.JSONDecodeError) as e:
+            logging.error("Failed to build doc embeddings: %s", e)
 
     # ------------------------------------------------------------------
     # Feature: Angular DI injection index

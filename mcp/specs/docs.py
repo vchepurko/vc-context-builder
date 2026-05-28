@@ -160,18 +160,17 @@ def specs() -> List[Dict[str, Any]]:
         {
             "name": "search_doc_text",
             "description": (
-                "Markdown-aware grep across indexed docs. Returns "
-                "``[{file, line, snippet, section: {heading, anchor, "
-                "level}}]`` capped at ``max_results``. Each hit "
-                "carries its containing section so the agent sees "
-                "'this mention is inside Phase 2 of IDEAS #28' "
-                "without a follow-up ``read_slice``.\n\n"
-                "Closes the 'which docs mention X' free-text query "
-                "class that today drops to Bash ``grep -rln`` because "
-                "``find_doc_xref`` indexes only markdown-link syntax. "
-                "Optional ``file`` scopes to one doc; ``regex=true`` "
-                "treats ``query`` as a Python regex; "
-                "``case_sensitive`` defaults to false."
+                "Search indexed docs by meaning or exact text. "
+                "Returns ``[{file, title, anchor, level, line, score}]`` "
+                "ranked by relevance when doc section embeddings are "
+                "built (``agent_map.py --with-embeddings``); "
+                "falls back to substring/regex grep otherwise.\n\n"
+                "Semantic path understands paraphrases and concepts, "
+                "not just literal keywords — use for 'which docs explain "
+                "X' style questions. Pass ``regex=true`` to force "
+                "the grep path with a Python regex pattern. "
+                "Optional ``file`` scopes to one doc. "
+                "``case_sensitive`` defaults to false (grep path only)."
             ),
             "inputSchema": {
                 "type": "object",

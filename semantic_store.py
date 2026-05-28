@@ -29,6 +29,7 @@ from _test_filter import is_test_path
 from paths import ensure_local_state_dir
 
 SCHEMA_VERSION = 1
+DOC_SCHEMA_VERSION = 1  # independent of symbol schema
 DB_FILENAME = "symbols.sqlite"
 DEFAULT_DIM = 256
 
@@ -385,6 +386,18 @@ def _init_schema(conn: sqlite3.Connection) -> None:
           tokens_json TEXT NOT NULL,
           vector_json TEXT NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS doc_sections (
+          id TEXT PRIMARY KEY,
+          file TEXT NOT NULL,
+          title TEXT NOT NULL,
+          anchor TEXT,
+          level INTEGER,
+          line_start INTEGER,
+          line_end INTEGER,
+          search_text TEXT NOT NULL,
+          tokens_json TEXT NOT NULL,
+          vector_json TEXT NOT NULL
+        );
         """
     )
 
@@ -507,6 +520,195 @@ def _why(query_tokens: set[str], row_tokens: set[str], name: str, file: str, doc
     if query_tokens & row_tokens and not why:
         why.append("metadata")
     return why
+
+
+def _doc_sections_hash(sections: List[Dict[str, Any]]) -> str:
+    h = hashlib.sha256()
+    for s in sorted(sections, key=lambda x: x.get("id", "")):
+        h.update(s.get("id", "").encode())
+        h.update(s.get("search_text", "").encode())
+    return h.hexdigest()[:16]
+
+
+def build_doc_store(
+    project_root: str,
+    sections: List[Dict[str, Any]],
+    *,
+    provider: Optional[EmbeddingProvider] = None,
+) -> Dict[str, Any]:
+    """Embed doc sections and store them in the doc_sections table.
+
+    Each entry in ``sections`` must have keys: id, file, title, anchor,
+    level, line_start, line_end, search_text.
+    """
+    provider = provider or LocalHashEmbeddingProvider()
+    source_hash = _doc_sections_hash(sections)
+    path = db_path(project_root)
+    started = time.monotonic()
+    with _connect(project_root) as conn:
+        _init_schema(conn)
+        conn.execute("DELETE FROM doc_sections")
+        rows = []
+        for s in sections:
+            text = s.get("search_text") or s.get("title") or ""
+            if not text:
+                continue
+            toks = sorted(set(_tokens(text)))
+            rows.append(
+                (
+                    s["id"],
+                    str(s.get("file") or ""),
+                    str(s.get("title") or ""),
+                    s.get("anchor"),
+                    s.get("level"),
+                    s.get("line_start"),
+                    s.get("line_end"),
+                    text,
+                    json.dumps(toks, separators=(",", ":")),
+                    _pack_vector(provider.embed(text)),
+                )
+            )
+        conn.executemany(
+            """
+            INSERT INTO doc_sections(
+              id, file, title, anchor, level, line_start, line_end,
+              search_text, tokens_json, vector_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            rows,
+        )
+        _set_meta(conn, "doc_schema_version", str(DOC_SCHEMA_VERSION))
+        _set_meta(conn, "doc_provider", provider.name)
+        _set_meta(conn, "doc_dim", str(provider.dim))
+        _set_meta(conn, "doc_source_hash", source_hash)
+        _set_meta(conn, "doc_section_count", str(len(rows)))
+    return {
+        "path": path,
+        "sections": len(rows),
+        "provider": provider.name,
+        "dim": provider.dim,
+        "duration_ms": int((time.monotonic() - started) * 1000),
+    }
+
+
+def ensure_doc_store(
+    project_root: str,
+    sections: List[Dict[str, Any]],
+    *,
+    provider: Optional[EmbeddingProvider] = None,
+) -> Dict[str, Any]:
+    """Build the doc section store only when missing or stale."""
+    provider = provider or LocalHashEmbeddingProvider()
+    source_hash = _doc_sections_hash(sections)
+    try:
+        with _connect(project_root) as conn:
+            _init_schema(conn)
+            if (
+                _meta(conn, "doc_schema_version") == str(DOC_SCHEMA_VERSION)
+                and _meta(conn, "doc_provider") == provider.name
+                and _meta(conn, "doc_dim") == str(provider.dim)
+                and _meta(conn, "doc_source_hash") == source_hash
+            ):
+                return {
+                    "path": db_path(project_root),
+                    "sections": int(_meta(conn, "doc_section_count") or 0),
+                    "provider": provider.name,
+                    "dim": provider.dim,
+                    "rebuilt": False,
+                }
+    except sqlite3.Error:
+        pass
+    result = build_doc_store(project_root, sections, provider=provider)
+    result["rebuilt"] = True
+    return result
+
+
+def search_doc_sections(
+    project_root: str,
+    query: str,
+    *,
+    top_k: int = 10,
+    file_filter: Optional[str] = None,
+    provider: Optional[EmbeddingProvider] = None,
+) -> Optional[List[Dict[str, Any]]]:
+    """Semantic search over indexed doc sections.
+
+    Returns a ranked list of ``{file, title, anchor, level, line_start,
+    score, provider}`` hits. Returns ``None`` when the doc_sections table
+    has not been built yet (signals the caller to fall back to substring
+    search). Returns ``[]`` when the table exists but the query has no
+    matches.
+    """
+    query = query.strip()
+    if not query:
+        return []
+    provider = provider or LocalHashEmbeddingProvider()
+    try:
+        with _connect(project_root) as conn:
+            _init_schema(conn)
+            count = conn.execute("SELECT COUNT(*) FROM doc_sections").fetchone()[0]
+            if count == 0:
+                return None
+            rows = conn.execute(
+                "SELECT id, file, title, anchor, level, line_start, line_end, "
+                "tokens_json, vector_json FROM doc_sections"
+            ).fetchall()
+    except sqlite3.Error:
+        return None
+
+    qvec = provider.embed(query)
+    qtokens = set(_tokens(query))
+
+    @dataclass
+    class _Hit:
+        id: str
+        file: str
+        title: str
+        anchor: Optional[str]
+        level: Optional[int]
+        line_start: Optional[int]
+        score: float
+
+    hits: List[_Hit] = []
+    for row in rows:
+        file = str(row["file"] or "")
+        if file_filter and file != file_filter:
+            continue
+        try:
+            row_tokens = set(json.loads(row["tokens_json"]))
+            vec = _unpack_vector(row["vector_json"])
+        except (TypeError, ValueError, json.JSONDecodeError):
+            continue
+        cosine = _cosine(qvec, vec)
+        overlap = len(qtokens & row_tokens) / max(1, len(qtokens))
+        title_overlap = len(qtokens & set(_tokens(str(row["title"])))) / max(1, len(qtokens))
+        score = (0.72 * cosine) + (0.2 * overlap) + (0.08 * title_overlap)
+        if score <= 0:
+            continue
+        hits.append(
+            _Hit(
+                id=str(row["id"]),
+                file=file,
+                title=str(row["title"]),
+                anchor=row["anchor"],
+                level=row["level"],
+                line_start=row["line_start"],
+                score=score,
+            )
+        )
+    hits.sort(key=lambda h: (-h.score, h.file, h.line_start or 0))
+    return [
+        {
+            "file": h.file,
+            "title": h.title,
+            "anchor": h.anchor,
+            "level": h.level,
+            "line": h.line_start,
+            "score": round(h.score, 4),
+            "provider": provider.name,
+        }
+        for h in hits[: max(1, min(50, top_k))]
+    ]
 
 
 def semantic_search(
