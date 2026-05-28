@@ -29,8 +29,8 @@ from typing import Any, Dict, Optional
 
 def _index_info(project_root: str) -> Dict[str, Any]:
     """Return information about agent_root.json (the primary index file)."""
+    from auto_reindex import _interval_seconds, _load_config, should_auto_reindex
     from paths import index_read_path
-    from auto_reindex import _load_config, _interval_seconds, should_auto_reindex
 
     root_path = index_read_path(project_root, "agent_root.json")
     exists = os.path.isfile(root_path)
@@ -76,13 +76,15 @@ def _index_info(project_root: str) -> Dict[str, Any]:
 
 def _embeddings_info(project_root: str) -> Dict[str, Any]:
     """Return information about the semantic embedding layer."""
-    from semantic_store import provider_from_conventions, db_path
+    from semantic_store import db_path, provider_from_conventions
 
     # Provider
     try:
         provider = provider_from_conventions(project_root)
         provider_name: str = provider.name
-        model: Optional[str] = getattr(provider, "model_name", None) or getattr(provider, "model", None)
+        model: Optional[str] = (
+            getattr(provider, "model_name", None) or getattr(provider, "model", None)
+        )
     except Exception:
         provider_name = "unknown"
         model = None

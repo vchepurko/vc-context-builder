@@ -82,6 +82,36 @@ class FindInFileTests(unittest.TestCase):
     def test_empty_pattern_returns_empty(self) -> None:
         self.assertEqual(self.engine.find_in_file("Checkout.js", ""), [])
 
+    # --- \| unescaping fix (regression tests) ---
+
+    def test_backslash_pipe_alternation(self) -> None:
+        """\\| should behave as | (alternation), not match literal pipe."""
+        # fetchPrice appears in 2 lines (call + declaration), fetchTotal in 1 → 3 total
+        hits = self.engine.find_in_file("Checkout.js", r"fetchPrice\|fetchTotal")
+        self.assertGreaterEqual(len(hits), 2)
+        texts = [h["text"] for h in hits]
+        self.assertTrue(any("fetchPrice" in t for t in texts))
+        self.assertTrue(any("fetchTotal" in t for t in texts))
+
+    def test_backslash_pipe_equals_plain_pipe(self) -> None:
+        """\\| and | should return the same results."""
+        hits_escaped = self.engine.find_in_file("Checkout.js", r"fetchPrice\|fetchTotal")
+        hits_plain = self.engine.find_in_file("Checkout.js", "fetchPrice|fetchTotal")
+        self.assertEqual(
+            [h["line"] for h in hits_escaped],
+            [h["line"] for h in hits_plain],
+        )
+
+    def test_literal_pipe_in_content_still_findable(self) -> None:
+        """A literal | in file content is still findable with use_regex=False."""
+        import os, textwrap
+        path = os.path.join(self.root, "pipes.txt")
+        with open(path, "w") as fh:
+            fh.write("a|b|c\n")
+        # Literal substring search for | character
+        hits = self.engine.find_in_file("pipes.txt", "|", use_regex=False)
+        self.assertEqual(len(hits), 1)
+
 
 if __name__ == "__main__":
     unittest.main()

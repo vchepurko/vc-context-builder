@@ -23,7 +23,7 @@ import re
 import sqlite3
 import time
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, ClassVar, Dict, List, Optional, Sequence
 
 from _test_filter import is_test_path
 from paths import ensure_local_state_dir
@@ -177,7 +177,7 @@ class SentenceTransformersEmbeddingProvider(EmbeddingProvider):
 
     def embed(self, text: str) -> List[float]:
         self._load()
-        vec = self._model.encode(text, normalize_embeddings=True)  # type: ignore[union-attr]
+        vec = self._model.encode(text, normalize_embeddings=True)  # type: ignore[union-attr,attr-defined]
         return [float(v) for v in vec]
 
 
@@ -210,7 +210,7 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
             )
         client = OpenAI(api_key=self._api_key)
         response = client.embeddings.create(input=text, model=self.model)
-        return response.data[0].embedding
+        return [float(v) for v in response.data[0].embedding]
 
 
 class OllamaEmbeddingProvider(EmbeddingProvider):
@@ -234,7 +234,7 @@ class OllamaEmbeddingProvider(EmbeddingProvider):
     DEFAULT_HOST = "http://localhost:11434"
 
     # Known output dimensions for common Ollama embedding models.
-    _KNOWN_DIMS: Dict[str, int] = {
+    _KNOWN_DIMS: ClassVar[Dict[str, int]] = {
         "nomic-embed-text": 768,
         "mxbai-embed-large": 1024,
         "all-minilm": 384,
