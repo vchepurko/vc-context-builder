@@ -21,7 +21,7 @@ import os
 import subprocess
 import sys
 
-from cli_renderers import (
+from cli.cli_renderers import (
     _emit_json,
     _print_callers,
     _print_module,

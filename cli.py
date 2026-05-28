@@ -33,7 +33,7 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 if _HERE not in sys.path:
     sys.path.insert(0, _HERE)
 
-from cli_handlers import (
+from cli.cli_handlers import (
     cmd_backup,
     cmd_backup_inspect,
     cmd_build,

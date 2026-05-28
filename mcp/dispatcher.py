@@ -848,7 +848,7 @@ class Dispatcher:
         return backup(root, out_path=out)
 
     def _configure_tools(self, args: Dict[str, Any]) -> Any:
-        from cli_handlers import _detect_stack, _STACK_DISABLED
+        from cli.cli_handlers import _detect_stack, _STACK_DISABLED
         import json, os
 
         root = self.engine.project_root
