@@ -338,7 +338,7 @@ def build_route_index(project_root: str) -> Dict[str, Dict[str, Any]]:
     # HTTP wrapper (e.g. bot.api_client.get_client). Configured via
     # ``.vc-context/conventions.json`` → ``http_clients``. Empty config
     # = no augmentation, no error.
-    from http_callers import (  # type: ignore[import-not-found]
+    from indexers.http_callers import (
         attach_python_callers,
         collect_python_calls,
         load_http_clients,

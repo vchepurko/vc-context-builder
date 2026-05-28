@@ -22,7 +22,7 @@ _SUBMODULE = os.path.dirname(_HERE)
 if _SUBMODULE not in sys.path:
     sys.path.insert(0, _SUBMODULE)
 
-from markdown_index import extract_section_bodies, build_index
+from indexers.markdown_index import extract_section_bodies, build_index
 from stores.semantic_store import (
     build_doc_store,
     ensure_doc_store,
@@ -236,7 +236,7 @@ class QueryEngineSearchDocTextTests(unittest.TestCase):
             """,
         )
         # Build docs index (no embeddings yet)
-        from markdown_index import write_index
+        from indexers.markdown_index import write_index
         from paths import index_path
 
         os.makedirs(os.path.join(self.root, ".vc-context", "index"), exist_ok=True)
@@ -261,9 +261,9 @@ class QueryEngineSearchDocTextTests(unittest.TestCase):
 
     def test_semantic_path_when_store_built(self) -> None:
         from query_engine import QueryEngine
-        from markdown_index import build_index
+        from indexers.markdown_index import build_index
         from stores.semantic_store import build_doc_store, LocalHashEmbeddingProvider
-        from markdown_index import extract_section_bodies
+        from indexers.markdown_index import extract_section_bodies
 
         idx = build_index(self.root)
         sections = extract_section_bodies(self.root, idx)
@@ -278,9 +278,9 @@ class QueryEngineSearchDocTextTests(unittest.TestCase):
 
     def test_regex_forces_grep_path(self) -> None:
         from query_engine import QueryEngine
-        from markdown_index import build_index
+        from indexers.markdown_index import build_index
         from stores.semantic_store import build_doc_store, LocalHashEmbeddingProvider
-        from markdown_index import extract_section_bodies
+        from indexers.markdown_index import extract_section_bodies
 
         idx = build_index(self.root)
         sections = extract_section_bodies(self.root, idx)

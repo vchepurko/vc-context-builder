@@ -48,19 +48,19 @@ class _RoutesMixin:
         Accepts either the bare URL path (``/api/foo``) or a
         method-prefixed key (``GET /api/foo``).
         """
-        from route_bridge import find_route_for_path  # type: ignore[import-not-found]
+        from indexers.route_bridge import find_route_for_path
 
         return find_route_for_path(self._load_routes(), path)
 
     def route_callers(self, path: str) -> List[Dict[str, Any]]:
         """JS/TS call-sites for the given route path. Empty when none/missing."""
-        from route_bridge import callers_for_route  # type: ignore[import-not-found]
+        from indexers.route_bridge import callers_for_route
 
         return callers_for_route(self._load_routes(), path)
 
     def route_for_js_call(self, file_path: str) -> List[Dict[str, Any]]:
         """Routes whose ``callers_js`` list mentions ``file_path``."""
-        from route_bridge import route_for_js_file  # type: ignore[import-not-found]
+        from indexers.route_bridge import route_for_js_file
 
         return route_for_js_file(self._load_routes(), file_path)
 
@@ -80,7 +80,7 @@ class _RoutesMixin:
         for ``users`` finds ``users/:id`` and ``admin/users``. Strips a
         leading slash before matching so callers can use either form.
         """
-        from ng_route_bridge import route_for_path as _rp  # type: ignore[import-not-found]
+        from indexers.ng_route_bridge import route_for_path as _rp
 
         if path is None:
             return []
@@ -89,7 +89,7 @@ class _RoutesMixin:
 
     def ng_routes_for_component(self, name: str) -> List[Dict[str, Any]]:
         """Reverse lookup — every route whose ``component`` is *name*."""
-        from ng_route_bridge import routes_for_component as _rfc  # type: ignore[import-not-found]
+        from indexers.ng_route_bridge import routes_for_component as _rfc
 
         return _rfc(self._load_ng_routes(), name)
 
@@ -114,7 +114,7 @@ class _RoutesMixin:
         bind handlers to throwaway data strings are filtered out.
         """
         from test_analysis._test_filter import filter_test_records
-        from callback_index import find_callback as _find  # type: ignore[import-not-found]
+        from indexers.callback_index import find_callback as _find
 
         hits = _find(self._load_callbacks(), data)
         return filter_test_records(hits, include_tests=include_tests)
@@ -190,7 +190,7 @@ class _RoutesMixin:
         Each record: ``{data, file, line}``, sorted by
         ``(file, line)``.
         """
-        from callback_index import find_orphans as _orphans  # type: ignore[import-not-found]
+        from indexers.callback_index import find_orphans as _orphans
 
         return _orphans(
             self.project_root,

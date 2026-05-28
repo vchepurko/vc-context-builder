@@ -17,7 +17,7 @@ import unittest
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(_HERE))
 
-from configs_scanner import ALL_KINDS, list_kinds, scan
+from indexers.configs_scanner import ALL_KINDS, list_kinds, scan
 
 
 def _write(path: str, content: str) -> None:

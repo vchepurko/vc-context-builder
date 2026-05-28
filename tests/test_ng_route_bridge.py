@@ -21,7 +21,7 @@ import unittest
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(_HERE))
 
-from ng_route_bridge import (
+from indexers.ng_route_bridge import (
     _balance_array,
     _extract_route_record,
     _routes_in_file,

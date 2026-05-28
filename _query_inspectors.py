@@ -47,14 +47,14 @@ class _InspectorsMixin:
         namespace. Empty list when the locale index is missing —
         graceful degradation for projects without a ``locales/`` tree.
         """
-        from locale_index import list_keys as _list  # type: ignore[import-not-found]
+        from indexers.locale_index import list_keys as _list
 
         return _list(self._load_locale_keys(), namespace=namespace)
 
     def find_locale_key(self, pattern: str) -> List[str]:
         """Substring (case-insensitive) match across keys. For "every
         key starting with ``staff_``" pass ``"staff_"``."""
-        from locale_index import find_keys as _find  # type: ignore[import-not-found]
+        from indexers.locale_index import find_keys as _find
 
         return _find(self._load_locale_keys(), pattern)
 
@@ -63,7 +63,7 @@ class _InspectorsMixin:
         per-language values, and the ``missing`` list (languages whose
         namespace file exists but doesn't carry this key — handy for
         parity audits)."""
-        from locale_index import get_key as _get  # type: ignore[import-not-found]
+        from indexers.locale_index import get_key as _get
 
         return _get(self._load_locale_keys(), key)
 
@@ -172,7 +172,7 @@ class _InspectorsMixin:
 
         Drives translation review without a dedicated diff tool.
         """
-        from locale_index import find_drift as _drift  # type: ignore[import-not-found]
+        from indexers.locale_index import find_drift as _drift
 
         return _drift(self._load_locale_keys(), namespace=namespace)
 
@@ -197,7 +197,7 @@ class _InspectorsMixin:
         Returns a list of ``{file, line, kind, text}`` dicts, bounded by
         ``limit`` (default 200).
         """
-        from configs_scanner import scan  # type: ignore[import-not-found]
+        from indexers.configs_scanner import scan
 
         return scan(
             self.project_root,
@@ -210,7 +210,7 @@ class _InspectorsMixin:
 
     def list_config_kinds(self) -> List[str]:
         """All known config kinds usable with ``find_pattern_in_configs``."""
-        from configs_scanner import list_kinds as _kinds  # type: ignore[import-not-found]
+        from indexers.configs_scanner import list_kinds as _kinds
 
         return _kinds()
 
@@ -258,7 +258,7 @@ class _InspectorsMixin:
         a field.
         """
         from test_analysis._test_filter import filter_test_records
-        from orm_field_usage import find_usage  # type: ignore[import-not-found]
+        from indexers.orm_field_usage import find_usage
 
         hits = find_usage(self.project_root, model, column, limit=limit)
         return filter_test_records(hits, include_tests=include_tests)

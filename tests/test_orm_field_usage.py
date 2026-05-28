@@ -17,7 +17,7 @@ import unittest
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(_HERE))
 
-from orm_field_usage import find_usage
+from indexers.orm_field_usage import find_usage
 
 
 def _write(path: str, content: str) -> None:

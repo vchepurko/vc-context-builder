@@ -354,7 +354,7 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
     def get_doc_toc(
         self, file: str, *, max_level: Optional[int] = None
     ) -> Optional[List[Dict[str, Any]]]:
-        from markdown_index import get_toc
+        from indexers.markdown_index import get_toc
 
         return get_toc(self._load_docs_index(), file, max_level=max_level)
 
@@ -368,7 +368,7 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
         heading: Optional[str] = None,
         anchor: Optional[str] = None,
     ) -> Optional[Dict[str, Any]]:
-        from markdown_index import find_section
+        from indexers.markdown_index import find_section
 
         return find_section(
             self._load_docs_index(),
@@ -381,7 +381,7 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
         )
 
     def list_docs(self, *, path_prefix: Optional[str] = None) -> List[Dict[str, Any]]:
-        from markdown_index import list_docs as _list
+        from indexers.markdown_index import list_docs as _list
 
         return _list(self._load_docs_index(), path_prefix=path_prefix)
 
@@ -412,7 +412,7 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
             except Exception:
                 pass
 
-        from markdown_index import search_doc_text as _search
+        from indexers.markdown_index import search_doc_text as _search
 
         return _search(
             self.project_root,
@@ -431,7 +431,7 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
         case_sensitive: bool = False,
         max_results: int = 50,
     ) -> List[Dict[str, Any]]:
-        from markdown_index import find_xref
+        from indexers.markdown_index import find_xref
 
         return find_xref(
             self.project_root,
@@ -442,7 +442,7 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
         )
 
     def docs_link_graph(self) -> Dict[str, Any]:
-        from markdown_index import link_graph
+        from indexers.markdown_index import link_graph
 
         return link_graph(self.project_root, self._load_docs_index())
 
@@ -772,7 +772,7 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
         """
         if not symbol:
             return None
-        from impact_graph import query_impact
+        from indexers.impact_graph import query_impact
 
         result = query_impact(self._load_impact(), symbol, depth=depth)
         if include_tests and result is not None:

@@ -18,7 +18,7 @@ import unittest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from callback_index import (
+from indexers.callback_index import (
     CALLBACKS_FILENAME,
     collect_callbacks,
     find_callback,

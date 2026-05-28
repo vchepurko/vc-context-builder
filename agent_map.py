@@ -12,7 +12,7 @@ if _HERE not in sys.path:
 
 # Import our custom heuristic parser
 import parse_cache
-from callback_index import (
+from indexers.callback_index import (
     CALLBACKS_FILENAME,
     collect_callbacks,
     write_callback_index,
@@ -27,13 +27,13 @@ from fsm_flow import (
     collect_fsm_flow,
     write_fsm_flow,
 )
-from impact_graph import IMPACT_FILENAME, build_impact_graph, write_impact_graph
-from locale_index import (
+from indexers.impact_graph import IMPACT_FILENAME, build_impact_graph, write_impact_graph
+from indexers.locale_index import (
     LOCALES_FILENAME,
     build_locale_index,
     write_locale_index,
 )
-from ng_route_bridge import (
+from indexers.ng_route_bridge import (
     NG_ROUTES_FILENAME,
     build_ng_route_index,
     write_ng_route_index,
@@ -41,7 +41,7 @@ from ng_route_bridge import (
 from parsers import get_parser, get_supported_extensions, get_supported_filenames
 from parsers.python_parser import PythonParser
 from paths import ensure_index_dir, index_path, index_read_path
-from route_bridge import ROUTES_FILENAME, build_route_index, write_route_index
+from indexers.route_bridge import ROUTES_FILENAME, build_route_index, write_route_index
 from stores.semantic_store import build_symbol_store, build_doc_store, provider_from_conventions
 from symbols import extract_scheduler_jobs_from_codebase
 from test_analysis.test_classifier import (
@@ -875,7 +875,7 @@ class ContextBuilder:
         for every ``.md`` file in the project. Surfaces the markdown
         navigation gap noted in the submodule ROADMAP."""
         try:
-            from markdown_index import build_index
+            from indexers.markdown_index import build_index
 
             index = build_index(self.root_dir)
             doc_count = len(index.get("docs") or {})
@@ -908,7 +908,7 @@ class ContextBuilder:
         if os.environ.get("VC_CONTEXT_SKIP_SEMANTIC"):
             return
         from stores.semantic_store import LocalHashEmbeddingProvider
-        from markdown_index import extract_section_bodies
+        from indexers.markdown_index import extract_section_bodies
 
         docs_path = index_read_path(self.root_dir, self.docs_filename)
         if not os.path.isfile(docs_path):

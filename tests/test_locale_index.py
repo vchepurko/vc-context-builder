@@ -14,7 +14,7 @@ _SUBMODULE = os.path.dirname(_HERE)
 if _SUBMODULE not in sys.path:
     sys.path.insert(0, _SUBMODULE)
 
-import locale_index
+import indexers.locale_index as locale_index
 from query_engine import QueryEngine
 
 

@@ -16,13 +16,13 @@ import unittest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from http_callers import (
+from indexers.http_callers import (
     attach_python_callers,
     collect_python_calls,
     load_http_clients,
 )
 from query_engine import QueryEngine
-from route_bridge import build_route_index, write_route_index
+from indexers.route_bridge import build_route_index, write_route_index
 
 
 def _write(path: str, body: str) -> None:
@@ -228,7 +228,7 @@ class TestAttachAndQuery(unittest.TestCase):
         index = build_route_index(self.fx.root)
         before = len(index["/api/admin/staff/admins"].get("callers_python") or [])
         # Re-attach — simulate a manual second pass.
-        from http_callers import collect_python_calls as _collect
+        from indexers.http_callers import collect_python_calls as _collect
 
         attach_python_callers(index, _collect(self.fx.root, load_http_clients(self.fx.root)))
         after = len(index["/api/admin/staff/admins"].get("callers_python") or [])

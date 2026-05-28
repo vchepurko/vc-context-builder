@@ -24,7 +24,7 @@ import unittest
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(_HERE))
 
-from impact_graph import build_impact_graph
+from indexers.impact_graph import build_impact_graph
 from query_engine import QueryEngine
 
 

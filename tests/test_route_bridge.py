@@ -15,7 +15,7 @@ _SUBMODULE = os.path.dirname(_HERE)
 if _SUBMODULE not in sys.path:
     sys.path.insert(0, _SUBMODULE)
 
-import route_bridge
+import indexers.route_bridge as route_bridge
 from query_engine import QueryEngine
 
 

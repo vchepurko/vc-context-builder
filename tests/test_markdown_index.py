@@ -25,7 +25,7 @@ _SUBMODULE = os.path.dirname(_HERE)
 if _SUBMODULE not in sys.path:
     sys.path.insert(0, _SUBMODULE)
 
-import markdown_index
+import indexers.markdown_index as markdown_index
 from query_engine import QueryEngine
 
 

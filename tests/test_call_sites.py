@@ -10,7 +10,7 @@ import unittest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from call_sites import find_call_sites
+from indexers.call_sites import find_call_sites
 from mcp_server import _tool_specs
 
 

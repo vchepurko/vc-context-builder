@@ -727,7 +727,7 @@ class _QuerySymbolsMixin:
             return sorted(sites, key=lambda r: (r["file"], r["line"]))
 
         # --- live scan fallback ---
-        from call_sites import find_call_sites as _find  # type: ignore[import-not-found]
+        from indexers.call_sites import find_call_sites as _find
 
         sites_live = _find(self.project_root, callable_name, match_path)
         return filter_test_records(sites_live, include_tests=include_tests)

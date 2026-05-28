@@ -343,7 +343,7 @@ def attach_python_callers(
     # (route_bridge imports us when assembling its index).
     import re
 
-    from route_bridge import _route_to_pattern  # type: ignore[import-not-found]
+    from indexers.route_bridge import _route_to_pattern
 
     compiled = []
     for key, entry in route_table.items():
@@ -390,7 +390,7 @@ def python_callers_for_route(
     path: str,
 ) -> List[Dict[str, Any]]:
     """``[{file, line, raw, function}, ...]`` for ``path`` (or empty)."""
-    from route_bridge import find_route_for_path  # type: ignore[import-not-found]
+    from indexers.route_bridge import find_route_for_path
 
     entry = find_route_for_path(index, path)
     if entry is None:
