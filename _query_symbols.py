@@ -26,7 +26,7 @@ import os
 import re
 from typing import Any, ClassVar, Dict, Iterable, List, Optional, Tuple
 
-from _test_filter import filter_test_records, is_test_path
+from test_analysis._test_filter import filter_test_records, is_test_path
 from paths import index_read_path as _index_read
 
 _DI_INDEX_FILENAME = "agent_di_index.json"

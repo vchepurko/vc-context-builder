@@ -26,7 +26,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any, ClassVar, Dict, Generator, List, Optional, Sequence
 
-from _test_filter import is_test_path
+from test_analysis._test_filter import is_test_path
 from paths import ensure_local_state_dir
 
 SCHEMA_VERSION = 1

@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from mcp_server import _tool_specs
 from query_engine import QueryEngine
-from test_classifier import (
+from test_analysis.test_classifier import (
     TEST_CATEGORIES_FILENAME,
     category_summary,
     classify_test_file,

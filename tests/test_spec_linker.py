@@ -21,7 +21,7 @@ import unittest
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.dirname(_HERE))
 
-from test_linking import (
+from test_analysis.test_linking import (
     _candidate_spec_files,
     _imported_names_from_spec,
     _spec_blocks,

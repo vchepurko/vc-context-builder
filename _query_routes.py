@@ -113,7 +113,7 @@ class _RoutesMixin:
         handlers are what callers usually want. Test fixtures that
         bind handlers to throwaway data strings are filtered out.
         """
-        from _test_filter import filter_test_records  # type: ignore[import-not-found]
+        from test_analysis._test_filter import filter_test_records
         from callback_index import find_callback as _find  # type: ignore[import-not-found]
 
         hits = _find(self._load_callbacks(), data)

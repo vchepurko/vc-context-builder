@@ -44,14 +44,14 @@ from paths import ensure_index_dir, index_path, index_read_path
 from route_bridge import ROUTES_FILENAME, build_route_index, write_route_index
 from semantic_store import build_symbol_store, build_doc_store, provider_from_conventions
 from symbols import extract_scheduler_jobs_from_codebase
-from test_classifier import (
+from test_analysis.test_classifier import (
     TEST_CATEGORIES_FILENAME,
     collect_test_categories,
     write_test_categories,
 )
 
 # Feature artifacts — built after the symbol index in `run()`.
-from test_linking import TESTS_FILENAME, build_test_index, write_test_index
+from test_analysis.test_linking import TESTS_FILENAME, build_test_index, write_test_index
 
 
 class ContextBuilder:
@@ -815,7 +815,7 @@ class ContextBuilder:
             write_test_categories(self.root_dir, index)
             # Inline summary so the build log shows the unit/integration
             # split without requiring a follow-up CLI call.
-            from test_classifier import category_summary  # type: ignore[import-not-found]
+            from test_analysis.test_classifier import category_summary
 
             summary = category_summary(index)
             summary_text = ", ".join(f"{k}={v}" for k, v in sorted(summary.items()))

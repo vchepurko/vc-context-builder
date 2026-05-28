@@ -70,7 +70,7 @@ class _TestsMixin:
         symbol_entry = self._symbols_get(symbol)
         if symbol_entry is None:
             return None
-        from test_linking import find_test_for_symbol  # type: ignore[import-not-found]
+        from test_analysis.test_linking import find_test_for_symbol
 
         return find_test_for_symbol(self.project_root, symbol, symbol_entry.get("file") or "")
 
@@ -232,7 +232,7 @@ class _TestsMixin:
         ``{rel_path → {category, signals}}`` map. Empty containers when
         the artifact is missing.
         """
-        from test_classifier import category_summary  # type: ignore[import-not-found]
+        from test_analysis.test_classifier import category_summary
 
         index = self._load_test_categories()
         return {
@@ -243,8 +243,8 @@ class _TestsMixin:
     def tests_by_category(self, category: str) -> List[str]:
         """File paths for ``category`` (``"unit"`` / ``"integration"`` /
         ``"unknown"``). Sorted, deduped, empty list on miss."""
-        from test_classifier import (
-            lookup_tests_by_category as _by,  # type: ignore[import-not-found]
+        from test_analysis.test_classifier import (
+            lookup_tests_by_category as _by,
         )
 
         return _by(self._load_test_categories(), category)
