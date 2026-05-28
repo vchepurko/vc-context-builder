@@ -202,10 +202,35 @@ PY
 
     elif [ "$EMBEDDING_PROVIDER" = "ollama" ]; then
         echo "   ℹ️  Ollama uses stdlib urllib — no extra Python packages needed."
+        _OLLAMA_MISSING=false
+        _OLLAMA_OS="$(uname -s)"
         if ! command -v ollama >/dev/null 2>&1; then
-            echo "   ⚠️  ollama not found. Install from https://ollama.com then run:"
-            echo "       ollama pull $OLLAMA_MODEL"
-            echo "       ollama serve   (or configure as a LaunchAgent/systemd service)"
+            _OLLAMA_MISSING=true
+            echo "   ⚠️  ollama binary not found."
+            echo ""
+            if [ "$_OLLAMA_OS" = "Darwin" ] && command -v brew >/dev/null 2>&1; then
+                echo "   💡 macOS + Homebrew detected. Run:"
+                echo "       brew install ollama"
+                echo "       brew services start ollama   # auto-start on login"
+                echo "       ollama pull $OLLAMA_MODEL"
+            elif [ "$_OLLAMA_OS" = "Darwin" ]; then
+                echo "   💡 macOS — install options:"
+                echo "       brew install ollama && brew services start ollama"
+                echo "       # or download the app from https://ollama.com/download/mac"
+                echo "       ollama pull $OLLAMA_MODEL"
+            elif [ "$_OLLAMA_OS" = "Linux" ]; then
+                echo "   💡 Linux:"
+                echo "       curl -fsSL https://ollama.com/install.sh | sh"
+                echo "       sudo systemctl enable --now ollama   # auto-start (systemd)"
+                echo "       ollama pull $OLLAMA_MODEL"
+            else
+                echo "   💡 Install from https://ollama.com, then:"
+                echo "       ollama pull $OLLAMA_MODEL"
+                echo "       ollama serve"
+            fi
+            echo ""
+            echo "   After installing, re-run:"
+            echo "       bash $RELATIVE_DIR/install.sh --embedding-provider=ollama"
         else
             echo "   ✅ ollama found: $(ollama --version 2>/dev/null | head -1)"
             # Check if model is already pulled.
@@ -217,21 +242,43 @@ PY
                     echo "   ✅ Model '$OLLAMA_MODEL' ready." || \
                     echo "   ⚠️  Pull failed — run manually: ollama pull $OLLAMA_MODEL"
             fi
-            # Check if server is running.
-            if python3 -c "
+            # Check if server is running; try to start it automatically if not.
+            _ollama_up() {
+                python3 -c "
 import urllib.request, sys
 try:
     urllib.request.urlopen('$OLLAMA_HOST', timeout=3)
 except Exception as e:
-    # A 404 still means server is up
     if 'HTTP Error' in str(type(e).__name__) or '404' in str(e):
         sys.exit(0)
     sys.exit(1)
-" 2>/dev/null; then
+" 2>/dev/null
+            }
+            if _ollama_up; then
                 echo "   ✅ ollama serve is running at $OLLAMA_HOST."
             else
-                echo "   ⚠️  ollama serve is not running. Start it with: ollama serve"
-                echo "      To auto-start on login (macOS): brew services start ollama"
+                echo "   ℹ️  ollama serve is not running — attempting to start..."
+                if [ "$_OLLAMA_OS" = "Darwin" ] && command -v brew >/dev/null 2>&1; then
+                    brew services start ollama >/dev/null 2>&1 && sleep 2
+                else
+                    # Start in background; detach from this shell
+                    nohup ollama serve >/dev/null 2>&1 &
+                    sleep 3
+                fi
+                if _ollama_up; then
+                    echo "   ✅ ollama serve started successfully."
+                else
+                    echo "   ⚠️  Could not start ollama serve automatically."
+                    if [ "$_OLLAMA_OS" = "Darwin" ]; then
+                        echo "      Run: brew services start ollama"
+                        echo "      Or:  ollama serve &"
+                    elif [ "$_OLLAMA_OS" = "Linux" ]; then
+                        echo "      Run: sudo systemctl enable --now ollama"
+                        echo "      Or:  ollama serve &"
+                    else
+                        echo "      Run: ollama serve"
+                    fi
+                fi
             fi
         fi
     fi
@@ -620,4 +667,11 @@ else
 fi
 if ! $SHARED; then
     echo "   • Switch to shared mode (commit artifacts): ./$RELATIVE_DIR/install.sh --shared"
+fi
+if [ "${_OLLAMA_MISSING:-false}" = "true" ]; then
+    echo ""
+    echo "   ⚠️  ACTION REQUIRED: Ollama was not installed."
+    echo "      semantic_search will NOT work until you install + start ollama."
+    echo "      After installing, run:"
+    echo "         bash $RELATIVE_DIR/install.sh --embedding-provider=ollama"
 fi
