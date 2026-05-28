@@ -128,20 +128,50 @@ class _RoutesMixin:
         unknown rule names (cross-check with :meth:`list_anti_patterns`)
         or when the project is clean.
 
-        Available rules:
-
+        Static rules (fast, AST-only):
         * ``aiogram-state-check-in-body`` — ``@router.message(F.<...>)``
           without a state filter. CLAUDE.md silent-dispatch killer.
-        """
-        from anti_patterns import find_anti_patterns as _find  # type: ignore[import-not-found]
 
-        return _find(self.project_root, rule)
+        LLM-based custom rules defined in ``.vc-context/conventions.json``
+        ``anti_patterns`` array are also checked; requires ``chat_provider``
+        to be configured.
+        """
+        from anti_patterns import (  # type: ignore[import-not-found]
+            detect_with_llm,
+            find_anti_patterns as _find,
+            has_static_rule,
+            load_llm_rules,
+        )
+
+        if has_static_rule(rule):
+            return _find(self.project_root, rule)
+
+        llm_rules = load_llm_rules(self.project_root)
+        rule_def = next((r for r in llm_rules if r["name"] == rule), None)
+        if rule_def is None:
+            return []
+
+        try:
+            from ollama_chat import chat_provider_from_conventions  # type: ignore[import-not-found]
+
+            chat = chat_provider_from_conventions(self.project_root)
+            if chat is None:
+                return []
+            return detect_with_llm(
+                self.project_root, rule_def, chat, self._llm_antipattern_cache
+            )
+        except Exception:
+            return []
 
     def list_anti_patterns(self) -> List[str]:
-        """All registered anti-pattern rule names, sorted."""
-        from anti_patterns import list_anti_patterns as _list  # type: ignore[import-not-found]
+        """All registered anti-pattern rule names (static + custom LLM
+        rules from ``.vc-context/conventions.json``), sorted.
+        """
+        from anti_patterns import list_anti_patterns as _list, load_llm_rules  # type: ignore[import-not-found]
 
-        return _list()
+        static = _list()
+        llm = [r["name"] for r in load_llm_rules(self.project_root)]
+        return sorted(set(static) | set(llm))
 
     def find_orphan_callbacks(
         self,

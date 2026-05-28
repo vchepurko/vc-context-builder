@@ -1435,6 +1435,7 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
     # enough that a re-lint within the same session picks up edits.
     _eslint_cache: ClassVar[Dict[str, Any]] = {}
     _summary_cache: ClassVar[Dict[str, str]] = {}  # sha256(prompt) → LLM text
+    _llm_antipattern_cache: ClassVar[Dict[Any, Any]] = {}  # (rule, path, mtime) → hits
     _ESLINT_CACHE_TTL = 300
 
     def ng_eslint_violations(

@@ -280,12 +280,17 @@ def specs() -> List[Dict[str, Any]]:
                 "by ``(file, line)``. Empty list for unknown rule "
                 "names (use ``list_anti_patterns`` to enumerate) or "
                 "when the project is clean.\n\n"
-                "Detectors are AST-based, stdlib-only, no LLM. The "
-                "registry currently ships with:\n"
-                "  * ``aiogram-state-check-in-body`` — "
-                "``@router.message(F.<...>)`` without a state filter. "
-                "Silent-dispatch killer pinned in CLAUDE.md "
-                "(aiogram pitfalls)."
+                "Two kinds of rules:\n"
+                "  * **Static** (AST, fast, no LLM): "
+                "``aiogram-state-check-in-body`` — "
+                "``@router.message(F.<...>)`` without a state filter.\n"
+                "  * **LLM-based** (natural-language, requires "
+                "``chat_provider`` in ``.vc-context/conventions.json``): "
+                "custom rules defined in the ``anti_patterns`` array, "
+                "e.g. ``{\"name\": \"raw-sql-in-view\", \"description\": "
+                "\"Direct SQL in view functions\", \"scope\": "
+                "\"web_services/**/*.py\"}``. Results are cached per-session "
+                "by file mtime so unchanged files are not re-scanned."
             ),
             "inputSchema": {
                 "type": "object",
@@ -301,9 +306,11 @@ def specs() -> List[Dict[str, Any]]:
         {
             "name": "list_anti_patterns",
             "description": (
-                "Enumerate registered anti-pattern detector names. "
-                "Use before ``find_anti_patterns(rule=...)`` to see "
-                "what rules are available without hard-coding names."
+                "Enumerate all anti-pattern rule names — both built-in "
+                "static detectors and custom LLM-based rules defined in "
+                "``.vc-context/conventions.json`` ``anti_patterns`` array. "
+                "Use before ``find_anti_patterns(rule=...)`` to see what "
+                "rules are available without hard-coding names."
             ),
             "inputSchema": {"type": "object", "properties": {}},
         },
