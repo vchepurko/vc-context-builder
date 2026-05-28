@@ -14,7 +14,8 @@ import os
 import sqlite3
 import time
 import uuid
-from typing import Any, Dict, List, Optional, Sequence
+from contextlib import contextmanager
+from typing import Any, Dict, Generator, List, Optional, Sequence
 
 from paths import ensure_local_state_dir
 from semantic_store import LocalHashEmbeddingProvider, _tokens
@@ -30,10 +31,18 @@ def db_path(project_root: str) -> str:
     return os.path.join(ensure_local_state_dir(project_root, "learned"), DB_FILENAME)
 
 
-def _connect(project_root: str) -> sqlite3.Connection:
+@contextmanager
+def _connect(project_root: str) -> Generator[sqlite3.Connection, None, None]:
     conn = sqlite3.connect(db_path(project_root))
     conn.row_factory = sqlite3.Row
-    return conn
+    try:
+        yield conn
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 
 def _init_schema(conn: sqlite3.Connection) -> None:

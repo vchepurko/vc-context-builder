@@ -22,8 +22,9 @@ import os
 import re
 import sqlite3
 import time
+from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any, ClassVar, Dict, List, Optional, Sequence
+from typing import Any, ClassVar, Dict, Generator, List, Optional, Sequence
 
 from _test_filter import is_test_path
 from paths import ensure_local_state_dir
@@ -361,11 +362,19 @@ def db_path(project_root: str) -> str:
     return os.path.join(ensure_local_state_dir(project_root, "embeddings"), DB_FILENAME)
 
 
-def _connect(project_root: str) -> sqlite3.Connection:
+@contextmanager
+def _connect(project_root: str) -> Generator[sqlite3.Connection, None, None]:
     conn = sqlite3.connect(db_path(project_root), timeout=30)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
-    return conn
+    try:
+        yield conn
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 
 def _init_schema(conn: sqlite3.Connection) -> None:
