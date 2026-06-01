@@ -158,6 +158,7 @@ _BASELINE_BYTES_PER_TOOL: Dict[str, int] = {
     "tests_by_category": 4000,
     "classify_tests": 4000,
     "coverage_for_role": 3500,
+    "coverage_stats": 3500,
     # Locales
     "list_locale_keys": 4000,
     "find_locale_key": 2500,
@@ -165,6 +166,7 @@ _BASELINE_BYTES_PER_TOOL: Dict[str, int] = {
     # Routes / aiogram
     "route_callers": 3500,
     "route_for_js_call": 3000,
+    "find_route": 2000,
     "find_callback": 2500,
     "trace_fsm_flow": 5000,
     # Templates / Angular

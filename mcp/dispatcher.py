@@ -65,6 +65,8 @@ class Dispatcher:
             "list_modules": self._list_modules,
             "lint_violations": self._lint_violations,
             "find_test": self._find_test,
+            "coverage_stats": self._coverage_stats,
+            "find_route": self._find_route,
             "route_callers": self._route_callers,
             "route_for_js_call": self._route_for_js_call,
             "find_callback": self._find_callback,
@@ -300,6 +302,12 @@ class Dispatcher:
 
     def _find_test(self, args: Dict[str, Any]) -> Any:
         return self.engine.find_test(str(args.get("symbol", "")))
+
+    def _coverage_stats(self, args: Dict[str, Any]) -> Any:
+        return self.engine.coverage_stats()
+
+    def _find_route(self, args: Dict[str, Any]) -> Any:
+        return self.engine.find_route(str(args.get("path", "")))
 
     def _route_callers(self, args: Dict[str, Any]) -> Any:
         return self.engine.route_callers(str(args.get("path", "")))

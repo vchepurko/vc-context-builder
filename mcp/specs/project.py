@@ -235,6 +235,18 @@ def specs() -> List[Dict[str, Any]]:
             },
         },
         {
+            "name": "find_route",
+            "description": (
+                "Return one backend route record by URL path "
+                "(or null when absent)."
+            ),
+            "inputSchema": {
+                "type": "object",
+                "properties": {"path": {"type": "string"}},
+                "required": ["path"],
+            },
+        },
+        {
             "name": "route_for_js_call",
             "description": (
                 "Return every backend route whose callers_js list "
@@ -379,6 +391,14 @@ def specs() -> List[Dict[str, Any]]:
                     },
                 },
             },
+        },
+        {
+            "name": "coverage_stats",
+            "description": (
+                "Return project-wide and per-role test coverage summary "
+                "as produced by coverage_stats()."
+            ),
+            "inputSchema": {"type": "object", "properties": {}},
         },
         {
             "name": "find_handlers_without_tests",

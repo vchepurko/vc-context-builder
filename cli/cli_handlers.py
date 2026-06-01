@@ -20,6 +20,7 @@ import json
 import os
 import subprocess
 import sys
+from typing import Any, Dict
 
 from cli.cli_renderers import (
     _emit_json,
@@ -32,6 +33,8 @@ from cli.cli_renderers import (
     _print_symbol,
     _print_violations,
 )
+from mcp.dispatcher import Dispatcher
+from mcp.metrics import MetricsWriter
 from query_engine import QueryEngine
 
 # Re-exported so cli.py can resolve `python3 cli.py build` to the
@@ -43,22 +46,35 @@ def _engine(args: argparse.Namespace) -> QueryEngine:
     return QueryEngine(args.root)
 
 
+def _dispatcher(args: argparse.Namespace) -> Dispatcher:
+    writer = MetricsWriter(args.root)
+    writer.set_client_info("vc-context-cli")
+    return Dispatcher(_engine(args), metrics_writer=writer)
+
+
+def _call_tool(args: argparse.Namespace, name: str, payload: Dict[str, Any]) -> Any:
+    return _dispatcher(args).call(name, payload)
+
+
 # ----------------------------------------------------------------------
 # Symbol-centric subcommands
 # ----------------------------------------------------------------------
 
 
 def cmd_find(args: argparse.Namespace) -> int:
-    engine = _engine(args)
     fields = (
         [f.strip() for f in args.fields.split(",") if f.strip()]
         if getattr(args, "fields", None)
         else None
     )
-    entry = engine.find_symbol(
-        args.symbol,
-        fields=fields,
-        include_body=bool(getattr(args, "body", False)),
+    entry = _call_tool(
+        args,
+        "find_symbol",
+        {
+            "name": args.symbol,
+            "fields": fields,
+            "include_body": bool(getattr(args, "body", False)),
+        },
     )
     if entry is None:
         if args.json:
@@ -74,13 +90,16 @@ def cmd_find(args: argparse.Namespace) -> int:
 
 
 def cmd_semantic(args: argparse.Namespace) -> int:
-    engine = _engine(args)
-    out = engine.semantic_search(
-        args.query,
-        top_k=int(getattr(args, "top_k", 5)),
-        kind=getattr(args, "kind", None),
-        role=getattr(args, "role", None),
-        include_tests=bool(getattr(args, "include_tests", False)),
+    out = _call_tool(
+        args,
+        "semantic_search",
+        {
+            "query": args.query,
+            "top_k": int(getattr(args, "top_k", 5)),
+            "kind": getattr(args, "kind", None),
+            "role": getattr(args, "role", None),
+            "include_tests": bool(getattr(args, "include_tests", False)),
+        },
     )
     if args.json:
         _emit_json(out)
@@ -106,15 +125,18 @@ def cmd_semantic(args: argparse.Namespace) -> int:
 
 
 def cmd_remember_experience(args: argparse.Namespace) -> int:
-    engine = _engine(args)
     try:
-        out = engine.remember_experience(
-            context_text=args.context,
-            content=args.content,
-            type=getattr(args, "type", "decision"),
-            source=getattr(args, "source", "user"),
-            source_file=getattr(args, "source_file", None),
-            confidence=getattr(args, "confidence", None),
+        out = _call_tool(
+            args,
+            "remember_experience",
+            {
+                "context": args.context,
+                "content": args.content,
+                "type": getattr(args, "type", "decision"),
+                "source": getattr(args, "source", "user"),
+                "source_file": getattr(args, "source_file", None),
+                "confidence": getattr(args, "confidence", None),
+            },
         )
     except ValueError as e:
         if args.json:
@@ -133,12 +155,15 @@ def cmd_remember_experience(args: argparse.Namespace) -> int:
 
 
 def cmd_recall_experience(args: argparse.Namespace) -> int:
-    engine = _engine(args)
-    out = engine.recall_experience(
-        args.context,
-        top_k=int(getattr(args, "top_k", 3)),
-        type=getattr(args, "type", None),
-        min_score=float(getattr(args, "min_score", 0.05)),
+    out = _call_tool(
+        args,
+        "recall_experience",
+        {
+            "context": args.context,
+            "top_k": int(getattr(args, "top_k", 3)),
+            "type": getattr(args, "type", None),
+            "min_score": float(getattr(args, "min_score", 0.05)),
+        },
     )
     if args.json:
         _emit_json(out)
@@ -161,8 +186,7 @@ def cmd_recall_experience(args: argparse.Namespace) -> int:
 
 
 def cmd_callees(args: argparse.Namespace) -> int:
-    engine = _engine(args)
-    callees = engine.get_callees(args.symbol)
+    callees = _call_tool(args, "get_callees", {"symbol": args.symbol})
     if args.json:
         _emit_json(callees)
         return 0 if callees else 1
@@ -176,8 +200,7 @@ def cmd_callees(args: argparse.Namespace) -> int:
 
 
 def cmd_raises(args: argparse.Namespace) -> int:
-    engine = _engine(args)
-    raises = engine.get_raised_exceptions(args.symbol)
+    raises = _call_tool(args, "get_raised_exceptions", {"symbol": args.symbol})
     if args.json:
         _emit_json(raises)
         return 0 if raises else 1
@@ -191,8 +214,7 @@ def cmd_raises(args: argparse.Namespace) -> int:
 
 
 def cmd_card(args: argparse.Namespace) -> int:
-    engine = _engine(args)
-    card = engine.get_symbol_card(args.symbol)
+    card = _call_tool(args, "get_symbol_card", {"symbol": args.symbol})
     if card is None:
         if args.json:
             _emit_json(None)
@@ -243,8 +265,11 @@ def cmd_card(args: argparse.Namespace) -> int:
 
 
 def cmd_verify(args: argparse.Namespace) -> int:
-    engine = _engine(args)
-    out = engine.verify(args.kind, args.subject, target=args.target)
+    out = _call_tool(
+        args,
+        "verify",
+        {"kind": args.kind, "subject": args.subject, "target": args.target},
+    )
     if args.json:
         _emit_json(out)
         return 0 if out.get("result") else 1
@@ -256,8 +281,7 @@ def cmd_verify(args: argparse.Namespace) -> int:
 
 
 def cmd_decorated(args: argparse.Namespace) -> int:
-    engine = _engine(args)
-    out = engine.get_decorated_with(args.decorator)
+    out = _call_tool(args, "get_decorated_with", {"decorator": args.decorator})
     if args.json:
         _emit_json(out)
         return 0 if out else 1
@@ -274,8 +298,7 @@ def cmd_decorated(args: argparse.Namespace) -> int:
 
 
 def cmd_calls(args: argparse.Namespace) -> int:
-    engine = _engine(args)
-    callers = engine.who_calls(args.symbol)
+    callers = _call_tool(args, "who_calls", {"symbol": args.symbol})
     if args.json:
         _emit_json(callers)
         return 0 if callers else 1
@@ -289,8 +312,7 @@ def cmd_calls(args: argparse.Namespace) -> int:
 
 
 def cmd_file_card(args: argparse.Namespace) -> int:
-    engine = _engine(args)
-    card = engine.get_file_card(args.path)
+    card = _call_tool(args, "get_file_card", {"path": args.path})
     if card is None:
         if args.json:
             _emit_json(None)
@@ -322,8 +344,7 @@ def cmd_file_card(args: argparse.Namespace) -> int:
 
 
 def cmd_changed(args: argparse.Namespace) -> int:
-    engine = _engine(args)
-    out = engine.get_changed_symbols(base=args.base)
+    out = _call_tool(args, "get_changed_symbols", {"base": args.base})
     if args.json:
         _emit_json(out)
         return 0 if out else 1
@@ -343,8 +364,7 @@ def cmd_changed(args: argparse.Namespace) -> int:
 
 
 def cmd_repo_map(args: argparse.Namespace) -> int:
-    engine = _engine(args)
-    out = engine.repo_map()
+    out = _call_tool(args, "repo_map", {})
     if args.json:
         _emit_json(out)
         return 0
@@ -365,8 +385,11 @@ def cmd_repo_map(args: argparse.Namespace) -> int:
 
 
 def cmd_slice(args: argparse.Namespace) -> int:
-    engine = _engine(args)
-    out = engine.read_slice(args.file, args.start, args.end)
+    out = _call_tool(
+        args,
+        "read_slice",
+        {"file": args.file, "start": args.start, "end": args.end},
+    )
     if out is None:
         if args.json:
             _emit_json(None)
@@ -387,8 +410,7 @@ def cmd_slice(args: argparse.Namespace) -> int:
 
 
 def cmd_role(args: argparse.Namespace) -> int:
-    engine = _engine(args)
-    names = engine.find_by_role(args.role)
+    names = _call_tool(args, "find_by_role", {"role": args.role})
     if args.json:
         _emit_json(names)
         return 0 if names else 1
@@ -397,8 +419,7 @@ def cmd_role(args: argparse.Namespace) -> int:
 
 
 def cmd_module(args: argparse.Namespace) -> int:
-    engine = _engine(args)
-    summary = engine.summarise_module(args.path)
+    summary = _call_tool(args, "summarise_module", {"path": args.path})
     if summary is None:
         if args.json:
             _emit_json(None)
@@ -413,8 +434,7 @@ def cmd_module(args: argparse.Namespace) -> int:
 
 
 def cmd_roles(args: argparse.Namespace) -> int:
-    engine = _engine(args)
-    counts = engine.list_roles()
+    counts = _call_tool(args, "list_roles", {})
     if args.json:
         _emit_json(counts)
     else:
@@ -423,8 +443,7 @@ def cmd_roles(args: argparse.Namespace) -> int:
 
 
 def cmd_modules(args: argparse.Namespace) -> int:
-    engine = _engine(args)
-    modules = engine.list_modules()
+    modules = _call_tool(args, "list_modules", {})
     if args.json:
         _emit_json(modules)
     else:
@@ -557,8 +576,7 @@ def cmd_init(args: argparse.Namespace) -> int:
 
 
 def cmd_lint(args: argparse.Namespace) -> int:
-    engine = _engine(args)
-    violations = engine.lint_violations()
+    violations = _call_tool(args, "lint_violations", {})
     if args.json:
         _emit_json(violations)
     else:
@@ -571,8 +589,7 @@ def cmd_lint(args: argparse.Namespace) -> int:
 
 
 def cmd_test(args: argparse.Namespace) -> int:
-    engine = _engine(args)
-    entry = engine.find_test(args.symbol)
+    entry = _call_tool(args, "find_test", {"symbol": args.symbol})
     if entry is None:
         if args.json:
             _emit_json(None)
@@ -591,8 +608,7 @@ def cmd_test(args: argparse.Namespace) -> int:
 
 
 def cmd_coverage(args: argparse.Namespace) -> int:
-    engine = _engine(args)
-    stats = engine.coverage_stats()
+    stats = _call_tool(args, "coverage_stats", {})
     if args.json:
         _emit_json(stats)
         return 0
@@ -646,8 +662,7 @@ def cmd_ng_module_members(args: argparse.Namespace) -> int:
 
 
 def cmd_route(args: argparse.Namespace) -> int:
-    engine = _engine(args)
-    entry = engine.find_route(args.path)
+    entry = _call_tool(args, "find_route", {"path": args.path})
     if entry is None:
         if args.json:
             _emit_json(None)
@@ -662,8 +677,7 @@ def cmd_route(args: argparse.Namespace) -> int:
 
 
 def cmd_route_callers(args: argparse.Namespace) -> int:
-    engine = _engine(args)
-    callers = engine.route_callers(args.path)
+    callers = _call_tool(args, "route_callers", {"path": args.path})
     if args.json:
         _emit_json(callers)
         return 0 if callers else 1
@@ -759,11 +773,14 @@ def cmd_backup_inspect(args: argparse.Namespace) -> int:
 
 
 def cmd_stats(args: argparse.Namespace) -> int:
-    engine = _engine(args)
-    out = engine.get_session_metrics(
-        since=args.since,
-        group_by=args.by,
-        quality=bool(getattr(args, "quality", False)),
+    out = _call_tool(
+        args,
+        "get_session_metrics",
+        {
+            "since": args.since,
+            "group_by": args.by,
+            "quality": bool(getattr(args, "quality", False)),
+        },
     )
     if args.json:
         _emit_json(out)
@@ -818,9 +835,7 @@ def cmd_stats(args: argparse.Namespace) -> int:
 
 
 def cmd_status(args: argparse.Namespace) -> int:
-    from status import get_status
-
-    out = get_status(args.root)
+    out = _call_tool(args, "status", {})
     if args.json:
         _emit_json(out)
         return 0

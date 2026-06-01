@@ -52,7 +52,7 @@ _TOOL_GROUPS: Dict[str, List[str]] = {
     "locale": ["list_locale_keys", "find_locale_key", "get_locale_key"],
     "fsm": ["trace_fsm_flow"],
     "notify_log": ["notify_log_search", "notify_log_stats"],
-    "route": ["route_callers", "route_for_js_call"],
+    "route": ["route_callers", "route_for_js_call", "find_route"],
     "docs": [
         "get_doc_toc",
         "find_doc_section",
