@@ -26,8 +26,8 @@ import os
 import re
 from typing import Any, ClassVar, Dict, Iterable, List, Optional, Tuple
 
-from test_analysis._test_filter import filter_test_records, is_test_path
 from paths import index_read_path as _index_read
+from test_analysis._test_filter import filter_test_records, is_test_path
 
 _DI_INDEX_FILENAME = "agent_di_index.json"
 
@@ -663,8 +663,24 @@ class _QuerySymbolsMixin:
                         continue
                     seen.setdefault(hit["file"], hit)
 
-        callers = sorted(seen.values(), key=lambda r: r["file"])
-        return filter_test_records(callers, include_tests=include_tests)
+        callers = filter_test_records(
+            sorted(seen.values(), key=lambda r: r["file"]),
+            include_tests=include_tests,
+        )
+        # Bound the payload: who_calls over-reports (any package importer looks
+        # like a caller), so a hot symbol can return 80+ rows of mostly-noise.
+        # Cap and flag the truncation explicitly rather than dumping all of it.
+        cap = 60
+        if len(callers) > cap:
+            kept = callers[:cap]
+            kept.append(
+                {
+                    "file": f"… {len(callers) - cap} more callers truncated",
+                    "kind": "truncated",
+                }
+            )
+            return kept
+        return callers
 
     # ------------------------------------------------------------------
     # Live-scan: call sites + class shape
@@ -729,8 +745,34 @@ class _QuerySymbolsMixin:
         # --- live scan fallback ---
         from indexers.call_sites import find_call_sites as _find
 
-        sites_live = _find(self.project_root, callable_name, match_path)
-        return filter_test_records(sites_live, include_tests=include_tests)
+        sites_live = filter_test_records(
+            _find(self.project_root, callable_name, match_path),
+            include_tests=include_tests,
+        )
+        if sites_live:
+            return sites_live
+
+        # Empty live scan. On TS/JS the regex walk does not reliably catch plain
+        # function calls (the fast path only covers Angular DI), so a bare [] reads
+        # as "no callers" when really the tool can't see them. Return an actionable
+        # note instead — mirrors ng_ajs_find's not-found contract and stops this
+        # counting as a wasted empty call. A Python symbol with genuinely no callers
+        # still returns [].
+        sym = self.find_symbol(callable_name, include_tests=True)
+        is_ts = bool(sym and str(sym.get("file", "")).endswith((".ts", ".tsx", ".js", ".jsx")))
+        if is_ts or sym is None:
+            return [
+                {
+                    "note": (
+                        "find_call_sites' fast path only covers Angular DI injections; the "
+                        "live scan does not reliably catch plain TypeScript/JS calls. Use "
+                        "find_in_file with the call expression as the pattern."
+                    ),
+                    "hint_tool": "find_in_file",
+                    "hint_pattern": f"{callable_name}(",
+                }
+            ]
+        return sites_live  # [] — Python symbol with genuinely no call sites
 
     def inspect_class(self, name: str) -> Optional[Dict[str, Any]]:
         """Resolve a class by name and return its structured summary

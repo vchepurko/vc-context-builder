@@ -136,7 +136,9 @@ _BASELINE_BYTES_PER_TOOL: Dict[str, int] = {
     "get_symbol_card": 3000,
     # Reverse / forward
     "find_call_sites": 4000,
-    "who_calls": 3500,
+    # Reverse-import grep (`grep -rn "import .* Symbol"`) across the repo
+    # returns many hit lines — 3.5 KB understated it.
+    "who_calls": 4500,
     "get_callees": 2500,
     "get_decorated_with": 3000,
     "get_raised_exceptions": 2500,
@@ -166,7 +168,10 @@ _BASELINE_BYTES_PER_TOOL: Dict[str, int] = {
     "find_callback": 2500,
     "trace_fsm_flow": 5000,
     # Templates / Angular
-    "find_in_templates": 3000,
+    # Whole-tree HTML grep returns far more than a single-symbol lookup —
+    # `grep -rn pattern src/**/*.html` across a real Angular app is full-file-read
+    # tier, not 3 KB. Calibrated up so the tool isn't mislabelled net-negative.
+    "find_in_templates": 8000,
     "ng_ajs_find": 3000,
     "ng_audit_component": 4000,
     "ng_inject_graph": 5000,
@@ -214,6 +219,69 @@ def _baseline_bytes(tool: str, empty: bool) -> int:
     if empty:
         return 0
     return _BASELINE_BYTES_PER_TOOL.get(tool, 0)
+
+
+# ---------------------------------------------------------------------------
+# Tool classes — a single grep+Read baseline mislabels tools that aren't
+# "find/read code". Split into buckets so profit is measured against the
+# *right* alternative for each kind:
+#   * navigation — "find/read code"; Bash equiv = grep + Read (token profit).
+#   * knowledge  — "reuse derived knowledge" (experience store, AGENTS.md,
+#                  cards/overviews); Bash equiv = re-derive from scratch.
+#   * work       — "run a command" (checks/lint/format/reindex); token-neutral
+#                  by design — judged on reliability, not token savings.
+# Everything else (telemetry, config, remember) is housekeeping → "meta",
+# excluded from the profit math entirely.
+# ---------------------------------------------------------------------------
+_WORK_TOOLS = frozenset(
+    {
+        "run_check",
+        "run_checks",
+        "ruff_format",
+        "rebuild_index",
+        "lint_violations",
+        "mypy_violations",
+        "ruff_violations",
+        "ng_eslint_violations",
+        "check_health",
+    }
+)
+_KNOWLEDGE_TOOLS = frozenset(
+    {
+        "recall_experience",
+        "find_local_agents_md",
+        "get_symbol_card",
+        "get_file_card",
+        "summarise_module",
+        "repo_map",
+        "devops_card",
+        "ng_overview",
+        "impact",
+    }
+)
+_META_TOOLS = frozenset(
+    {
+        "get_session_metrics",
+        "status",
+        "configure_tools",
+        "remember_experience",
+        "record_bash_usage",
+        "list_checks",
+        "export_config",
+    }
+)
+
+
+def _tool_class(tool: str) -> str:
+    """Bucket a tool into navigation / knowledge / work / meta. Unknown
+    tools default to ``navigation`` (their Bash equivalent is grep+Read)."""
+    if tool in _WORK_TOOLS:
+        return "work"
+    if tool in _KNOWLEDGE_TOOLS:
+        return "knowledge"
+    if tool in _META_TOOLS:
+        return "meta"
+    return "navigation"
 
 
 def _args_summary(args: Optional[Dict[str, Any]]) -> Dict[str, str]:
@@ -529,6 +597,68 @@ def aggregate(
                 "saved_tokens": _approx_tokens(max(0, bbytes - actual_bytes)),
             }
 
+        # Per-class profit: navigation & knowledge are measured against a
+        # token baseline; work tools are token-neutral by design (judged on
+        # reliability below); meta/housekeeping is excluded entirely. This
+        # avoids the single grep+Read baseline mislabelling run_check etc.
+        class_acc: Dict[str, Dict[str, int]] = {}
+        work_entries: List[Dict[str, Any]] = []
+        for e in entries:
+            cls = _tool_class(str(e.get("tool") or ""))
+            if cls == "work":
+                work_entries.append(e)
+                continue
+            if cls == "meta":
+                continue
+            acc = class_acc.setdefault(cls, {"calls": 0, "baseline_bytes": 0, "actual_bytes": 0})
+            acc["calls"] += 1
+            acc["baseline_bytes"] += _entry_baseline(e)
+            acc["actual_bytes"] += int(e.get("result_bytes", 0))
+
+        by_class: Dict[str, Dict[str, Any]] = {}
+        for cls, acc in class_acc.items():
+            saved_b = max(0, acc["baseline_bytes"] - acc["actual_bytes"])
+            by_class[cls] = {
+                "calls": acc["calls"],
+                "baseline_tokens": _approx_tokens(acc["baseline_bytes"]),
+                "actual_tokens": _approx_tokens(acc["actual_bytes"]),
+                "saved_tokens": _approx_tokens(saved_b),
+                "savings_ratio": (
+                    round(saved_b / acc["baseline_bytes"], 3) if acc["baseline_bytes"] else 0.0
+                ),
+            }
+
+        # Reliability axis for work tools: token-neutral, so report how they
+        # behaved instead. clean_ratio = fraction of runs that passed with
+        # nothing to report; non-empty runs surfaced (bounded) violations.
+        reliability: Dict[str, Any] = {}
+        if work_entries:
+            wn = len(work_entries)
+            wbuckets: Dict[str, List[Dict[str, Any]]] = {}
+            for e in work_entries:
+                wbuckets.setdefault(str(e.get("tool") or "?"), []).append(e)
+            by_work: Dict[str, Dict[str, Any]] = {}
+            for tname, grp in wbuckets.items():
+                gn = len(grp)
+                by_work[tname] = {
+                    "calls": gn,
+                    "clean_ratio": round(sum(1 for e in grp if e.get("empty")) / gn, 3),
+                    "ok_ratio": round(sum(1 for e in grp if e.get("ok")) / gn, 3),
+                    "avg_bytes": round(sum(int(e.get("result_bytes", 0)) for e in grp) / gn, 1),
+                }
+            reliability = {
+                "calls": wn,
+                "clean_ratio": round(sum(1 for e in work_entries if e.get("empty")) / wn, 3),
+                "ok_ratio": round(sum(1 for e in work_entries if e.get("ok")) / wn, 3),
+                "by_tool": by_work,
+                "note": (
+                    "Work tools (checks/lint/format/reindex) are token-neutral by "
+                    "design — judged on reliability, not savings. clean_ratio = "
+                    "fraction of runs that passed clean; non-empty runs surfaced "
+                    "bounded violations."
+                ),
+            }
+
         result["baseline"] = {
             "total_baseline_tokens": total_baseline_tokens,
             "total_baseline_bytes": total_baseline_bytes,
@@ -536,11 +666,15 @@ def aggregate(
             "saved_bytes": saved_bytes,
             "savings_ratio": savings_ratio,
             "by_tool": by_tool_savings,
+            "by_class": by_class,
             "note": (
                 "Heuristic: per-tool estimate of grep+Read equivalent. "
                 "Tools without a Bash-fallback (read_slice, run_check, "
                 "rebuild_index, get_session_metrics) contribute 0. "
-                "Empty results also contribute 0."
+                "Empty results also contribute 0. See by_class for the "
+                "navigation/knowledge/work split."
             ),
         }
+        if reliability:
+            result["baseline"]["reliability"] = reliability
     return result

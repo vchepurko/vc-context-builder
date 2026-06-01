@@ -182,7 +182,7 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
         ``~/.vc-context/<repo-hash>/embeddings/``. The store is rebuilt
         lazily if ``agent_symbols.json`` changed since the last build.
         """
-        from stores.semantic_store import semantic_search, provider_from_conventions
+        from stores.semantic_store import provider_from_conventions, semantic_search
 
         return semantic_search(
             self.project_root,
@@ -397,7 +397,7 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
         # Semantic search when the doc_sections table is built and no regex.
         if not regex:
             try:
-                from stores.semantic_store import search_doc_sections, provider_from_conventions
+                from stores.semantic_store import provider_from_conventions, search_doc_sections
 
                 provider = provider_from_conventions(self.project_root)
                 results = search_doc_sections(
@@ -1158,9 +1158,11 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
         """Search Angular HTML templates for *pattern* (case-insensitive).
 
         Walks every ``.html`` file under ``project_root``, skipping
-        ``IGNORE_DIRS``.  Returns a list of
-        ``{file, line, text}`` dicts, one per matching line, capped at
-        100 results so the context window stays manageable.
+        ``IGNORE_DIRS``.  Returns a list of ``{file, line, text}`` dicts,
+        one per matching line, capped at ``_MAX_RESULTS`` (50). Each
+        ``text`` is right-trimmed and truncated to ``_TEXT_MAX`` (200)
+        chars — Angular template lines (long ``tw:`` class strings) would
+        otherwise dominate the payload. Mirrors ``find_in_file``'s bounds.
 
         Parameters
         ----------
@@ -1173,6 +1175,9 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
             path matches are searched.
         """
         import fnmatch
+
+        max_results = 50
+        text_max = 200
 
         needle = pattern.lower()
         results: List[Dict[str, Any]] = []
@@ -1195,10 +1200,11 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
                                     {
                                         "file": rel_path,
                                         "line": lineno,
-                                        "text": line.rstrip(),
+                                        "text": line.rstrip()[:text_max],
                                     }
                                 )
-                                if len(results) >= 100:
+                                if len(results) >= max_results:
+                                    results.sort(key=lambda r: (r["file"], r["line"]))
                                     return results
                 except OSError:
                     continue

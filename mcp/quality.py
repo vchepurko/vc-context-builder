@@ -226,6 +226,70 @@ def detect_empty_streaks(
     return findings
 
 
+# Tools that serve *derived knowledge* rather than read code. A non-empty
+# hit here replaces a from-scratch re-derivation (re-read + re-reason).
+KNOWLEDGE_TOOLS = ("recall_experience", "find_local_agents_md")
+# A code-read this soon after a recall means the agent verified/re-derived
+# rather than trusting the recalled knowledge outright.
+KNOWLEDGE_REUSE_WINDOW_SEC = 120
+_NAV_AFTER_RECALL = ("read_slice", "find_symbol", "find_symbols", "find_in_file")
+
+
+def detect_knowledge_reuse(
+    entries: List[Dict[str, Any]],
+    window_sec: int = KNOWLEDGE_REUSE_WINDOW_SEC,
+) -> Dict[str, Any]:
+    """Quantify how often the knowledge store replaced fresh code reading.
+
+    Positive signal (most metrics here flag *waste* — this one flags *value*):
+
+      - ``hits``            — non-empty ``recall_experience`` / ``find_local_agents_md``
+                              calls (knowledge was available and used).
+      - ``prevented_reread``— hits NOT followed by a code read within
+                              ``window_sec`` — the agent trusted recalled
+                              knowledge instead of re-deriving it.
+      - ``verified_then_read`` — hits followed by a code read (recall + confirm;
+                              still useful, just didn't fully replace the read).
+      - ``misses``          — empty recalls (nothing learned yet — candidates
+                              for ``remember_experience``).
+    """
+    hits = misses = prevented = verified = 0
+    n = len(entries)
+    for i, e in enumerate(entries):
+        if e.get("tool") not in KNOWLEDGE_TOOLS or not e.get("ok"):
+            continue
+        if e.get("empty"):
+            misses += 1
+            continue
+        hits += 1
+        t0 = _ts(e)
+        followed = False
+        for j in range(i + 1, n):
+            f = entries[j]
+            tf = _ts(f)
+            if t0 and tf and (tf - t0).total_seconds() > window_sec:
+                break
+            if f.get("tool") in _NAV_AFTER_RECALL:
+                followed = True
+                break
+        if followed:
+            verified += 1
+        else:
+            prevented += 1
+    return {
+        "hits": hits,
+        "misses": misses,
+        "prevented_reread": prevented,
+        "verified_then_read": verified,
+        "note": (
+            f"Knowledge-store reuse. hits = non-empty {' / '.join(KNOWLEDGE_TOOLS)} "
+            f"calls; prevented_reread = hits not followed by a code read within "
+            f"{window_sec}s (recalled knowledge trusted outright); misses = empty "
+            f"recalls (candidates for remember_experience)."
+        ),
+    }
+
+
 # --- Aggregator -------------------------------------------------------------
 
 
@@ -249,10 +313,13 @@ def quality_report(entries: List[Dict[str, Any]]) -> Dict[str, Any]:
     by_sev: Dict[str, int] = {"info": 0, "warn": 0}
     for f in all_findings:
         by_sev[f.get("severity", "info")] = by_sev.get(f.get("severity", "info"), 0) + 1
+    # knowledge_reuse is a positive (value) signal, not a waste finding, so it
+    # lives alongside the findings rather than inside total_findings/by_severity.
     return {
         "total_findings": len(all_findings),
         "by_severity": by_sev,
         "wasteful_pairs": pairs,
         "hot_rereads": rereads,
         "empty_streaks": streaks,
+        "knowledge_reuse": detect_knowledge_reuse(entries),
     }
