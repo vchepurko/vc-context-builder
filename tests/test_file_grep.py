@@ -104,7 +104,8 @@ class FindInFileTests(unittest.TestCase):
 
     def test_literal_pipe_in_content_still_findable(self) -> None:
         """A literal | in file content is still findable with use_regex=False."""
-        import os, textwrap
+        import os
+
         path = os.path.join(self.root, "pipes.txt")
         with open(path, "w") as fh:
             fh.write("a|b|c\n")

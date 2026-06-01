@@ -257,8 +257,8 @@ class _InspectorsMixin:
         touched?". Pass True when explicitly auditing test coverage of
         a field.
         """
-        from test_analysis._test_filter import filter_test_records
         from indexers.orm_field_usage import find_usage
+        from test_analysis._test_filter import filter_test_records
 
         hits = find_usage(self.project_root, model, column, limit=limit)
         return filter_test_records(hits, include_tests=include_tests)

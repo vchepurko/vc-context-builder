@@ -68,8 +68,7 @@ class OllamaChatProvider:
                 return str(body.get("response", "")).strip()
         except urllib.error.URLError as exc:
             raise RuntimeError(
-                f"ollama serve is not running at {self.host} — "
-                f"start it with: ollama serve\n({exc})"
+                f"ollama serve is not running at {self.host} — start it with: ollama serve\n({exc})"
             ) from exc
         except Exception as exc:
             raise RuntimeError(f"Ollama generate failed for model '{self.model}': {exc}") from exc

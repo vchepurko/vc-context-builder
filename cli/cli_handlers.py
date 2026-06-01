@@ -847,7 +847,9 @@ def cmd_status(args: argparse.Namespace) -> int:
             print(f"  stale        : {idx.get('stale')}")
             print(f"  symbols      : {idx.get('symbols_count', 0)}")
         ar = idx.get("auto_reindex", {})
-        print(f"  auto_reindex : enabled={ar.get('enabled')}  interval={ar.get('interval_seconds')}s")
+        print(
+            f"  auto_reindex : enabled={ar.get('enabled')}  interval={ar.get('interval_seconds')}s"
+        )
 
     print()
 
@@ -877,7 +879,7 @@ def cmd_status(args: argparse.Namespace) -> int:
         print(f"  error: {chat['error']}")
     elif not chat.get("configured"):
         print("  configured   : False")
-        print("  hint         : add \"chat_provider\" to .vc-context/conventions.json")
+        print('  hint         : add "chat_provider" to .vc-context/conventions.json')
     else:
         print(f"  provider     : {chat.get('provider')}")
         print(f"  model        : {chat.get('model')}")

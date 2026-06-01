@@ -407,7 +407,6 @@ class EndLineForExtractBodyTests(unittest.TestCase):
     """Verify _query_symbols._extract_body uses end_line for JS/TS."""
 
     def setUp(self) -> None:
-        import shutil
         import tempfile
 
         self.root = tempfile.mkdtemp(prefix="vc-endline-")
@@ -426,6 +425,7 @@ class EndLineForExtractBodyTests(unittest.TestCase):
 
     def tearDown(self) -> None:
         import shutil
+
         shutil.rmtree(self.root, ignore_errors=True)
 
     def test_extract_body_bounded_by_end_line(self):

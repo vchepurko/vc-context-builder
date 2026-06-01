@@ -17,11 +17,11 @@ if _SUBMODULE not in sys.path:
     sys.path.insert(0, _SUBMODULE)
 
 from anti_patterns import (
+    _extract_chunks,
+    _files_for_scope,
     detect_with_llm,
     has_static_rule,
     load_llm_rules,
-    _extract_chunks,
-    _files_for_scope,
 )
 from query_engine import QueryEngine
 
@@ -58,7 +58,11 @@ class LoadLlmRulesTests(unittest.TestCase):
             self.root,
             {
                 "anti_patterns": [
-                    {"name": "raw-sql-in-view", "description": "SQL in views", "scope": "views/**/*.py"},
+                    {
+                        "name": "raw-sql-in-view",
+                        "description": "SQL in views",
+                        "scope": "views/**/*.py",
+                    },
                     {"name": "logic-in-serializer", "description": "Business logic in serializers"},
                 ]
             },
@@ -66,7 +70,7 @@ class LoadLlmRulesTests(unittest.TestCase):
         rules = load_llm_rules(self.root)
         self.assertEqual(len(rules), 2)
         self.assertEqual(rules[0]["name"], "raw-sql-in-view")
-        self.assertEqual(rules[1]["scope"] if "scope" in rules[1] else "default", "default")
+        self.assertEqual(rules[1].get("scope", "default"), "default")
 
     def test_filters_rules_without_name_or_description(self) -> None:
         _write_conventions(
@@ -110,6 +114,7 @@ class ExtractChunksTests(unittest.TestCase):
                 return 1
         """)
         import ast
+
         tree = ast.parse(source)
         chunks = _extract_chunks(source, tree)
         names = [c[0] for c in chunks]
@@ -126,6 +131,7 @@ class ExtractChunksTests(unittest.TestCase):
                     pass
         """)
         import ast
+
         tree = ast.parse(source)
         chunks = _extract_chunks(source, tree)
         names = [c[0] for c in chunks]
@@ -136,6 +142,7 @@ class ExtractChunksTests(unittest.TestCase):
         many_lines = "\n".join(f"    x = {i}" for i in range(150))
         source = f"def big():\n{many_lines}\n"
         import ast
+
         tree = ast.parse(source)
         chunks = _extract_chunks(source, tree)
         self.assertEqual(len(chunks), 1)
@@ -151,6 +158,7 @@ class ExtractChunksTests(unittest.TestCase):
                 pass
         """)
         import ast
+
         tree = ast.parse(source)
         chunks = _extract_chunks(source, tree)
         self.assertEqual(len(chunks), 1)
@@ -297,10 +305,7 @@ class DetectWithLlmTests(unittest.TestCase):
         cache: dict = {}
         detect_with_llm(self.root, self.rule_def, chat, cache, max_chunks_per_file=5)
         # big_module.py has 30 funcs but only 5 should be scanned
-        calls_for_big = sum(
-            1 for call in chat.generate.call_args_list
-            if "func_" in str(call)
-        )
+        calls_for_big = sum(1 for call in chat.generate.call_args_list if "func_" in str(call))
         self.assertLessEqual(calls_for_big, 5)
 
 
@@ -360,11 +365,7 @@ class QueryEngineLlmAntiPatternsTests(unittest.TestCase):
         # Remove chat_provider from conventions
         _write_conventions(
             self.root,
-            {
-                "anti_patterns": [
-                    {"name": "raw-sql-in-view", "description": "SQL in views"}
-                ]
-            },
+            {"anti_patterns": [{"name": "raw-sql-in-view", "description": "SQL in views"}]},
         )
         engine = QueryEngine(self.root)
         engine._llm_antipattern_cache.clear()

@@ -135,36 +135,42 @@ class ProviderFromConventionsOllamaTests(unittest.TestCase):
         self.assertEqual(p.host, OllamaEmbeddingProvider.DEFAULT_HOST)
 
     def test_dict_form_with_model(self) -> None:
-        self._write_conventions({
-            "embedding_provider": {
-                "name": "ollama",
-                "model": "mxbai-embed-large",
+        self._write_conventions(
+            {
+                "embedding_provider": {
+                    "name": "ollama",
+                    "model": "mxbai-embed-large",
+                }
             }
-        })
+        )
         p = provider_from_conventions(self.root)
         self.assertIsInstance(p, OllamaEmbeddingProvider)
         self.assertEqual(p.model, "mxbai-embed-large")
         self.assertEqual(p.dim, 1024)
 
     def test_dict_form_with_host(self) -> None:
-        self._write_conventions({
-            "embedding_provider": {
-                "name": "ollama",
-                "host": "http://gpu-server:11434",
+        self._write_conventions(
+            {
+                "embedding_provider": {
+                    "name": "ollama",
+                    "host": "http://gpu-server:11434",
+                }
             }
-        })
+        )
         p = provider_from_conventions(self.root)
         self.assertIsInstance(p, OllamaEmbeddingProvider)
         self.assertEqual(p.host, "http://gpu-server:11434")
 
     def test_dict_form_model_and_host(self) -> None:
-        self._write_conventions({
-            "embedding_provider": {
-                "name": "ollama",
-                "model": "bge-m3",
-                "host": "http://remote:11434",
+        self._write_conventions(
+            {
+                "embedding_provider": {
+                    "name": "ollama",
+                    "model": "bge-m3",
+                    "host": "http://remote:11434",
+                }
             }
-        })
+        )
         p = provider_from_conventions(self.root)
         self.assertIsInstance(p, OllamaEmbeddingProvider)
         self.assertEqual(p.model, "bge-m3")

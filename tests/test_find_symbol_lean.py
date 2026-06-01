@@ -151,6 +151,7 @@ class FieldsWhitelistTests(_FixtureMixin, unittest.TestCase):
 class IncludeBodyInternalTests(_FixtureMixin, unittest.TestCase):
     """Internal implementation tests — include_body is NOT exposed via MCP spec.
     The find_symbol + read_slice two-step pattern is the correct agent pattern."""
+
     def setUp(self) -> None:
         self.root = self._make_root()
         self.engine = QueryEngine(self.root)

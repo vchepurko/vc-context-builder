@@ -10,7 +10,6 @@ import sys
 import tempfile
 import time
 import unittest
-from unittest import mock
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _SUBMODULE = os.path.dirname(_HERE)
@@ -122,9 +121,9 @@ class GetStatusEmbeddingsTests(unittest.TestCase):
         self.assertIsNone(emb["model"])
 
     def test_ollama_provider_shows_model(self) -> None:
-        self._write_conventions({
-            "embedding_provider": {"name": "ollama", "model": "mxbai-embed-large"}
-        })
+        self._write_conventions(
+            {"embedding_provider": {"name": "ollama", "model": "mxbai-embed-large"}}
+        )
         result = get_status(self.root)
         emb = result["embeddings"]
         self.assertEqual(emb["provider"], "ollama")
@@ -166,7 +165,14 @@ class GetStatusEmbeddingsTests(unittest.TestCase):
         self.assertIn("project_root", result)
         self.assertIn("index", result)
         self.assertIn("embeddings", result)
-        for key in ("exists", "last_built", "age_seconds", "stale", "symbols_count", "auto_reindex"):
+        for key in (
+            "exists",
+            "last_built",
+            "age_seconds",
+            "stale",
+            "symbols_count",
+            "auto_reindex",
+        ):
             self.assertIn(key, result["index"], f"missing index.{key}")
         for key in ("provider", "model", "sqlite_exists", "sqlite_size_bytes", "symbols_indexed"):
             self.assertIn(key, result["embeddings"], f"missing embeddings.{key}")

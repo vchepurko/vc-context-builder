@@ -20,7 +20,7 @@ import ast
 import glob as _glob
 import json
 import os
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Tuple
 
 # Directories the convention linter / callback indexer also skip — keep
 # the surface in sync so a detector doesn't trip on venv'd stdlib.
@@ -260,7 +260,7 @@ def _add_chunk(
     end = getattr(node, "end_lineno", start + 1)
     chunk_lines = lines[start:end]
     if len(chunk_lines) > 100:
-        chunk_lines = chunk_lines[:80] + ["    # ... (truncated)"] + chunk_lines[-10:]
+        chunk_lines = [*chunk_lines[:80], "    # ... (truncated)", *chunk_lines[-10:]]
     chunks.append((name, "\n".join(chunk_lines), node.lineno))  # type: ignore[attr-defined]
 
 

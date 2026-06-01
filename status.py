@@ -49,6 +49,7 @@ def _index_info(project_root: str) -> Dict[str, Any]:
 
         # Count symbols from agent_symbols.json
         from paths import index_read_path as irp
+
         sym_path = irp(project_root, "agent_symbols.json")
         if os.path.isfile(sym_path):
             try:
@@ -83,8 +84,8 @@ def _embeddings_info(project_root: str) -> Dict[str, Any]:
     try:
         provider = provider_from_conventions(project_root)
         provider_name: str = provider.name
-        model: Optional[str] = (
-            getattr(provider, "model_name", None) or getattr(provider, "model", None)
+        model: Optional[str] = getattr(provider, "model_name", None) or getattr(
+            provider, "model", None
         )
     except Exception:
         provider_name = "unknown"
@@ -143,6 +144,7 @@ def _chat_info(project_root: str) -> Dict[str, Any]:
     }
     try:
         import urllib.request
+
         req = urllib.request.Request(
             f"{provider.host}/api/tags",
             headers={"Content-Type": "application/json"},
@@ -152,8 +154,7 @@ def _chat_info(project_root: str) -> Dict[str, Any]:
         names = [m.get("name", "") for m in tags.get("models", [])]
         info["reachable"] = True
         info["model_available"] = any(
-            n == provider.model or n.startswith(provider.model.split(":")[0])
-            for n in names
+            n == provider.model or n.startswith(provider.model.split(":")[0]) for n in names
         )
     except Exception:
         pass

@@ -287,9 +287,9 @@ def specs() -> List[Dict[str, Any]]:
                 "  * **LLM-based** (natural-language, requires "
                 "``chat_provider`` in ``.vc-context/conventions.json``): "
                 "custom rules defined in the ``anti_patterns`` array, "
-                "e.g. ``{\"name\": \"raw-sql-in-view\", \"description\": "
-                "\"Direct SQL in view functions\", \"scope\": "
-                "\"web_services/**/*.py\"}``. Results are cached per-session "
+                'e.g. ``{"name": "raw-sql-in-view", "description": '
+                '"Direct SQL in view functions", "scope": '
+                '"web_services/**/*.py"}``. Results are cached per-session '
                 "by file mtime so unchanged files are not re-scanned."
             ),
             "inputSchema": {

@@ -594,20 +594,20 @@ def _end_line_for_anchor(scrubbed: str, anchor: int) -> Optional[int]:
     """
     n = len(scrubbed)
     # If a semicolon comes before the first {, it's a brace-less statement.
-    brace = scrubbed.find('{', anchor)
-    semi = scrubbed.find(';', anchor)
+    brace = scrubbed.find("{", anchor)
+    semi = scrubbed.find(";", anchor)
     if brace == -1 or (semi != -1 and semi < brace):
-        end = semi if semi != -1 else scrubbed.rfind('\n', 0, n)
-        return scrubbed.count('\n', 0, end) + 1 if end >= 0 else None
+        end = semi if semi != -1 else scrubbed.rfind("\n", 0, n)
+        return scrubbed.count("\n", 0, end) + 1 if end >= 0 else None
     depth = 0
     for i in range(brace, n):
         c = scrubbed[i]
-        if c == '{':
+        if c == "{":
             depth += 1
-        elif c == '}':
+        elif c == "}":
             depth -= 1
             if depth == 0:
-                return scrubbed.count('\n', 0, i) + 1
+                return scrubbed.count("\n", 0, i) + 1
     return None
 
 

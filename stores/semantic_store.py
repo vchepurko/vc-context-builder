@@ -26,8 +26,8 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any, ClassVar, Dict, Generator, List, Optional, Sequence
 
-from test_analysis._test_filter import is_test_path
 from paths import ensure_local_state_dir
+from test_analysis._test_filter import is_test_path
 
 SCHEMA_VERSION = 1
 DOC_SCHEMA_VERSION = 1  # independent of symbol schema
@@ -168,8 +168,7 @@ class SentenceTransformersEmbeddingProvider(EmbeddingProvider):
             from sentence_transformers import SentenceTransformer  # type: ignore
         except ImportError as exc:
             raise RuntimeError(
-                "sentence-transformers is not installed. "
-                "Run: pip install sentence-transformers"
+                "sentence-transformers is not installed. Run: pip install sentence-transformers"
             ) from exc
         # Skip HuggingFace Hub version-check HEAD request when model is cached.
         # local_files_only=True tells the Hub library not to reach out to the
@@ -203,13 +202,9 @@ class OpenAIEmbeddingProvider(EmbeddingProvider):
         try:
             from openai import OpenAI  # type: ignore
         except ImportError as exc:
-            raise RuntimeError(
-                "openai package is not installed. Run: pip install openai"
-            ) from exc
+            raise RuntimeError("openai package is not installed. Run: pip install openai") from exc
         if not self._api_key:
-            raise RuntimeError(
-                "OPENAI_API_KEY environment variable is not set."
-            )
+            raise RuntimeError("OPENAI_API_KEY environment variable is not set.")
         client = OpenAI(api_key=self._api_key)
         response = client.embeddings.create(input=text, model=self.model)
         return [float(v) for v in response.data[0].embedding]

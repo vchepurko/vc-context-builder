@@ -113,8 +113,8 @@ class _RoutesMixin:
         handlers are what callers usually want. Test fixtures that
         bind handlers to throwaway data strings are filtered out.
         """
-        from test_analysis._test_filter import filter_test_records
         from indexers.callback_index import find_callback as _find
+        from test_analysis._test_filter import filter_test_records
 
         hits = _find(self._load_callbacks(), data)
         return filter_test_records(hits, include_tests=include_tests)
@@ -138,9 +138,11 @@ class _RoutesMixin:
         """
         from anti_patterns import (  # type: ignore[import-not-found]
             detect_with_llm,
-            find_anti_patterns as _find,
             has_static_rule,
             load_llm_rules,
+        )
+        from anti_patterns import (
+            find_anti_patterns as _find,
         )
 
         if has_static_rule(rule):
@@ -157,9 +159,7 @@ class _RoutesMixin:
             chat = chat_provider_from_conventions(self.project_root)
             if chat is None:
                 return []
-            return detect_with_llm(
-                self.project_root, rule_def, chat, self._llm_antipattern_cache
-            )
+            return detect_with_llm(self.project_root, rule_def, chat, self._llm_antipattern_cache)
         except Exception:
             return []
 
@@ -167,7 +167,8 @@ class _RoutesMixin:
         """All registered anti-pattern rule names (static + custom LLM
         rules from ``.vc-context/conventions.json``), sorted.
         """
-        from anti_patterns import list_anti_patterns as _list, load_llm_rules  # type: ignore[import-not-found]
+        from anti_patterns import list_anti_patterns as _list  # type: ignore[import-not-found]
+        from anti_patterns import load_llm_rules
 
         static = _list()
         llm = [r["name"] for r in load_llm_rules(self.project_root)]

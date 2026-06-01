@@ -44,17 +44,13 @@ class OllamaChatProviderInitTests(unittest.TestCase):
 
 class OllamaChatGenerateTests(unittest.TestCase):
     def test_returns_response_text(self) -> None:
-        with mock.patch(
-            "urllib.request.urlopen", return_value=_mock_response("Hello world")
-        ):
+        with mock.patch("urllib.request.urlopen", return_value=_mock_response("Hello world")):
             p = OllamaChatProvider()
             result = p.generate("say hello")
         self.assertEqual(result, "Hello world")
 
     def test_strips_whitespace(self) -> None:
-        with mock.patch(
-            "urllib.request.urlopen", return_value=_mock_response("  trimmed  \n")
-        ):
+        with mock.patch("urllib.request.urlopen", return_value=_mock_response("  trimmed  \n")):
             result = OllamaChatProvider().generate("prompt")
         self.assertEqual(result, "trimmed")
 
@@ -91,12 +87,14 @@ class OllamaChatGenerateTests(unittest.TestCase):
     def test_server_down_raises_runtime_error(self) -> None:
         import urllib.error
 
-        with mock.patch(
-            "urllib.request.urlopen",
-            side_effect=urllib.error.URLError("Connection refused"),
+        with (
+            mock.patch(
+                "urllib.request.urlopen",
+                side_effect=urllib.error.URLError("Connection refused"),
+            ),
+            self.assertRaises(RuntimeError) as ctx,
         ):
-            with self.assertRaises(RuntimeError) as ctx:
-                OllamaChatProvider().generate("test")
+            OllamaChatProvider().generate("test")
         self.assertIn("ollama serve", str(ctx.exception))
 
     def test_unknown_model_raises_runtime_error(self) -> None:
@@ -200,10 +198,18 @@ class SummariseModuleWithChatTests(unittest.TestCase):
             "files": {
                 "services.py": {
                     "exports": [
-                        {"name": "get_user", "kind": "func", "role": "service",
-                         "doc": "Return a user by ID."},
-                        {"name": "create_user", "kind": "func", "role": "service",
-                         "doc": "Create a new user record."},
+                        {
+                            "name": "get_user",
+                            "kind": "func",
+                            "role": "service",
+                            "doc": "Return a user by ID.",
+                        },
+                        {
+                            "name": "create_user",
+                            "kind": "func",
+                            "role": "service",
+                            "doc": "Create a new user record.",
+                        },
                     ],
                     "dependencies": ["business_logic/core/"],
                 }
@@ -239,7 +245,6 @@ class SummariseModuleWithChatTests(unittest.TestCase):
         from query_engine import QueryEngine
 
         call_count = {"n": 0}
-        orig = OllamaChatProvider.generate
 
         def counting_generate(self, prompt, **kw):
             call_count["n"] += 1
@@ -255,6 +260,7 @@ class SummariseModuleWithChatTests(unittest.TestCase):
 
     def test_server_down_returns_result_without_summary(self) -> None:
         import urllib.error
+
         from query_engine import QueryEngine
 
         with mock.patch(

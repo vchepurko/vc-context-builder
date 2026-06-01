@@ -55,9 +55,10 @@ def _build_cmd(builder: str, project_root: str) -> list:
         provider = "local_hash"
 
     pkg = _PROVIDER_PACKAGES.get(str(provider))
-    if pkg and subprocess.run(
-        ["uv", "--version"], capture_output=True, check=False
-    ).returncode == 0:
+    if (
+        pkg
+        and subprocess.run(["uv", "--version"], capture_output=True, check=False).returncode == 0
+    ):
         return ["uv", "run", "--with", pkg, sys.executable, builder, "--root", project_root]
     return base
 

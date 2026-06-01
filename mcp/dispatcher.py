@@ -402,9 +402,7 @@ class Dispatcher:
             return {"error": "names must be a list of strings", "results": []}
         timeout_raw = args.get("timeout_sec")
         timeout_sec = (
-            int(timeout_raw)
-            if isinstance(timeout_raw, (int, float)) and timeout_raw > 0
-            else None
+            int(timeout_raw) if isinstance(timeout_raw, (int, float)) and timeout_raw > 0 else None
         )
         nocache = bool(args.get("nocache", False))
         return self.engine.run_checks(list(names_raw), timeout_sec=timeout_sec, nocache=nocache)
@@ -848,8 +846,10 @@ class Dispatcher:
         return backup(root, out_path=out)
 
     def _configure_tools(self, args: Dict[str, Any]) -> Any:
-        from cli.cli_handlers import _detect_stack, _STACK_DISABLED
-        import json, os
+        import json
+        import os
+
+        from cli.cli_handlers import _STACK_DISABLED, _detect_stack
 
         root = self.engine.project_root
         vc_dir = os.path.join(root, ".vc-context")

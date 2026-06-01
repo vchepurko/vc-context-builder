@@ -9,7 +9,6 @@ Covers:
 
 from __future__ import annotations
 
-import json
 import os
 import shutil
 import sys
@@ -22,12 +21,12 @@ _SUBMODULE = os.path.dirname(_HERE)
 if _SUBMODULE not in sys.path:
     sys.path.insert(0, _SUBMODULE)
 
-from indexers.markdown_index import extract_section_bodies, build_index
+from indexers.markdown_index import build_index, extract_section_bodies
 from stores.semantic_store import (
+    LocalHashEmbeddingProvider,
     build_doc_store,
     ensure_doc_store,
     search_doc_sections,
-    LocalHashEmbeddingProvider,
 )
 
 
@@ -116,7 +115,9 @@ class ExtractSectionBodiesTests(unittest.TestCase):
         idx = {
             "docs": {
                 "nonexistent.md": {
-                    "sections": [{"level": 1, "text": "Title", "line": 1, "end_line": 5, "anchor": "title"}]
+                    "sections": [
+                        {"level": 1, "text": "Title", "line": 1, "end_line": 5, "anchor": "title"}
+                    ]
                 }
             }
         }
@@ -179,9 +180,7 @@ class BuildDocStoreTests(unittest.TestCase):
 
     def test_search_result_has_required_keys(self) -> None:
         build_doc_store(self.root, self.sections, provider=LocalHashEmbeddingProvider())
-        hits = search_doc_sections(
-            self.root, "session", provider=LocalHashEmbeddingProvider()
-        )
+        hits = search_doc_sections(self.root, "session", provider=LocalHashEmbeddingProvider())
         self.assertIsNotNone(hits)
         for h in hits:  # type: ignore[union-attr]
             self.assertIn("file", h)
@@ -193,7 +192,9 @@ class BuildDocStoreTests(unittest.TestCase):
         # Fresh root with no store built
         fresh_root = tempfile.mkdtemp(prefix="vc-docstore-fresh-")
         try:
-            hits = search_doc_sections(fresh_root, "anything", provider=LocalHashEmbeddingProvider())
+            hits = search_doc_sections(
+                fresh_root, "anything", provider=LocalHashEmbeddingProvider()
+            )
             self.assertIsNone(hits)
         finally:
             shutil.rmtree(fresh_root, ignore_errors=True)
@@ -237,10 +238,11 @@ class QueryEngineSearchDocTextTests(unittest.TestCase):
         )
         # Build docs index (no embeddings yet)
         from indexers.markdown_index import write_index
-        from paths import index_path
 
         os.makedirs(os.path.join(self.root, ".vc-context", "index"), exist_ok=True)
-        write_index(self.root, os.path.join(self.root, ".vc-context", "index", "agent_docs_index.json"))
+        write_index(
+            self.root, os.path.join(self.root, ".vc-context", "index", "agent_docs_index.json")
+        )
 
     def tearDown(self) -> None:
         if self._old_home is None:
@@ -260,10 +262,9 @@ class QueryEngineSearchDocTextTests(unittest.TestCase):
         self.assertGreater(len(hits), 0)
 
     def test_semantic_path_when_store_built(self) -> None:
+        from indexers.markdown_index import build_index, extract_section_bodies
         from query_engine import QueryEngine
-        from indexers.markdown_index import build_index
-        from stores.semantic_store import build_doc_store, LocalHashEmbeddingProvider
-        from indexers.markdown_index import extract_section_bodies
+        from stores.semantic_store import LocalHashEmbeddingProvider, build_doc_store
 
         idx = build_index(self.root)
         sections = extract_section_bodies(self.root, idx)
@@ -277,10 +278,9 @@ class QueryEngineSearchDocTextTests(unittest.TestCase):
         self.assertIn("score", hits[0])
 
     def test_regex_forces_grep_path(self) -> None:
+        from indexers.markdown_index import build_index, extract_section_bodies
         from query_engine import QueryEngine
-        from indexers.markdown_index import build_index
-        from stores.semantic_store import build_doc_store, LocalHashEmbeddingProvider
-        from indexers.markdown_index import extract_section_bodies
+        from stores.semantic_store import LocalHashEmbeddingProvider, build_doc_store
 
         idx = build_index(self.root)
         sections = extract_section_bodies(self.root, idx)

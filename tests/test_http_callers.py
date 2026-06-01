@@ -21,8 +21,8 @@ from indexers.http_callers import (
     collect_python_calls,
     load_http_clients,
 )
-from query_engine import QueryEngine
 from indexers.route_bridge import build_route_index, write_route_index
+from query_engine import QueryEngine
 
 
 def _write(path: str, body: str) -> None:

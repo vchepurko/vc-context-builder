@@ -14,8 +14,8 @@ import unittest
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from test_analysis._test_filter import filter_test_records, is_test_path
 from query_engine import QueryEngine
+from test_analysis._test_filter import filter_test_records, is_test_path
 
 
 def _write(path: str, body: str) -> None:
