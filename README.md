@@ -877,8 +877,9 @@ can fire lint + tests in one call instead of two sequential round-trips:
 Each value is an **argv list** (no shell, no string-splitting). The
 runner executes with `subprocess.run(args, cwd=project_root,
 timeout=300)` and returns `{returncode, duration_ms, stdout_tail,
-stderr_tail, summary}` — last 50 lines of each stream, plus a pytest-
-style summary line when one is recognisable. Unknown name → `-2`,
+stderr_tail, summary}` — last 50 lines of each stream, plus a `summary`
+(a pytest-style one-liner by default, or a structured object when the
+check declares a `parser` — see below). Unknown name → `-2`,
 timeout → `-1`, spawn failure → `-3`. No `checks` block → `list_checks`
 returns `[]`.
 
@@ -903,6 +904,42 @@ append `run_check(args=[...])` only after every token passes
   }
 }
 ```
+
+For test runners whose output is too noisy to read from `stdout_tail`
+(karma, jest), add a **`parser`** to the object form. The runner feeds the
+**full** output to the named parser and puts a structured result in
+`summary` instead of the pytest one-liner — so an agent reads
+`summary.failures` directly instead of grepping the tail:
+
+```json
+{
+  "checks": {
+    "ng-test": {
+      "cmd": ["npm", "run", "test", "--", "--include=src/app/**/*.spec.ts"],
+      "parser": "karma-jasmine"
+    }
+  }
+}
+```
+
+`run_checks(["ng-test"])` then returns:
+
+```jsonc
+"summary": {
+  "framework": "karma-jasmine",
+  "failed": 2,
+  "failures": [
+    { "suite": "MyComponent — vm$", "test": "maps name to row" },
+    { "suite": "MyService",         "test": "throws on null" }
+  ]
+}
+```
+
+Built-in parsers: **`karma-jasmine`** (one `{suite, test}` per failed
+spec, nearest `describe` wins; adds `executed`/`total` when the runner
+prints them). Omit `parser` to keep the default pytest summary line. Add
+new parsers in `checks.py` → `_SUMMARY_PARSERS` (one function, registered
+by name). The `parser` field is ignored on array-form checks.
 
 Example MCP calls:
 

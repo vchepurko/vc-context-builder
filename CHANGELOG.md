@@ -10,6 +10,16 @@ bump the minor; fixes bump the patch.
 ## [Unreleased]
 
 ### Added
+- **`run_checks` structured summaries via per-check `parser`** — a check
+  in `.vc-context/conventions.json` (object form) may declare a
+  `"parser"`. When set, `run_check` feeds the **full** command output to
+  that parser and returns a structured object in `summary` instead of the
+  pytest one-liner, so agents read `summary.failures` directly rather than
+  grepping a truncated `stdout_tail`. Ships the `karma-jasmine` parser
+  (`{suite, test}` per failed spec, nearest `describe` wins; plus
+  `executed`/`total` when printed). Backward compatible: array-form checks
+  and the pytest summary path are unchanged. Register new parsers in
+  `checks.py` → `_SUMMARY_PARSERS`.
 - **`semantic_search(query, top_k=5)`** — Phase 5 semantic symbol
   search backed by a per-repo local SQLite store at
   ``~/.vc-context/<repo-hash>/embeddings/symbols.sqlite``. The first
