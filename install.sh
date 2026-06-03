@@ -662,6 +662,31 @@ For plain TypeScript function calls use \`find_in_file\` with the call expressio
 Spawns the full ESLint subprocess. Only call when explicitly auditing lint issues.
 Pass a specific \`path\` to scope the run. Results are cached 5 min per session.
 
+**Don't re-read a file already in context.**
+A file fetched earlier this session is still in context — re-fetching is the single biggest token waste
+(\`read_slice\` is typically ~60% of MCP tokens, and hot files get pulled 10–25× in real sessions).
+Scroll back instead of calling \`read_slice\` on the same file again.
+
+**find_symbol on TypeScript can miss.**
+TS symbol bodies aren't always indexed (high empty rate). If \`find_symbol\` returns empty for a name you
+know exists, skip the retry — go straight to \`read_slice\` on the known file.
+
+**find_in_templates can cost more than grep.**
+It returns full matching template blocks, so a broad query can be heavier than a plain grep. For
+\"which templates use selector X\" prefer \`ng_uses_selector\`; otherwise scope the query tightly.
+
+**semantic_search is slow (~12 s/call).**
+Latency, not just tokens. Use it only as a fallback when you don't know the name — one call, then
+\`find_symbol\`/\`read_slice\` for the body. Don't use it for strings you could grep with \`find_in_file\`.
+
+**Stop after two empties.**
+Two consecutive empty results = wrong query, not \"nothing exists\". Change strategy (fix spelling,
+widen the range, switch tool) instead of repeating the same call.
+
+**ng_* navigation tools — verify inputs.**
+\`ng_find_module\`, \`ng_route_for_path\`, \`ng_audit_component\` return empty on a guessed module name
+or path. Confirm the name from \`ng_overview\`/\`list_modules\` before calling.
+
 ## Diagnostics
 
 Run \`vc-context status\` (CLI) or the \`status\` MCP tool to check:

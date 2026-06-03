@@ -137,6 +137,39 @@ ng_eslint_violations(path="src/app/my-feature/")
 
 Results are cached for 5 min within a session — calling it twice for the same path is free.
 
+### Don't re-read a file already in context
+
+A file fetched earlier this session is still in context. Re-fetching it is the **single biggest token
+waste** measured in real sessions — `read_slice` is ~60% of all MCP tokens, and hot files were pulled
+10–25× in a single 2-day window. Scroll back instead of calling `read_slice` on the same file again.
+This is the session-wide cousin of the "read wide, not twice" rule above (which only flags pairs <60 s apart).
+
+### find_symbol on TypeScript can miss
+
+TS symbol bodies aren't always indexed (`find_symbol` empty-rate ~28% on a TS-heavy session). If it
+returns empty for a name you know exists, **don't retry** — go straight to `read_slice` on the known file.
+
+### find_in_templates can cost more than grep
+
+It returns full matching template blocks, so a broad query can pull more bytes than a plain grep would.
+For "which templates use selector X" prefer `ng_uses_selector` / `ng-find-selector`; otherwise scope tightly.
+
+### semantic_search is slow (~12 s/call)
+
+This is a **latency** cost, not just tokens (it dominates wall-clock in mixed sessions). Use it only as a
+fallback when you don't know the name — one call, then `find_symbol`/`read_slice`. Never use it for a
+literal string you could find with `find_in_file`.
+
+### Stop after two empties
+
+Two consecutive empty results = wrong query, not "nothing exists" (one session hit a 6-in-a-row empty
+streak on `find_in_file`). Change strategy — fix spelling, widen the range, switch tool — don't repeat.
+
+### ng_* navigation tools — verify inputs
+
+`ng_find_module`, `ng_route_for_path`, `ng_audit_component` return empty (40–100% in one session) when
+the module name or path is guessed. Confirm it from `ng_overview` / `list_modules` first.
+
 ## Angular tools (Angular projects only)
 
 For projects with Angular/AngularJS — full details in `.claude/commands/ng-*.md`:
