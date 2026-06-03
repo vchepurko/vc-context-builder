@@ -247,6 +247,7 @@ class TestKarmaJasmineParser(unittest.TestCase):
         "    iconClass\n"
         "      FAILED: returns passed modifier for status 2\n"
         "\tExpected undefined to contain 'x'.\n"
+        "ERROR in src/app/foo.spec.ts:12:3 - error TS2741: Property 'x' is missing.\n"
         "Executed 3 of 120 (2 FAILED)\n"
     )
 
@@ -266,13 +267,21 @@ class TestKarmaJasmineParser(unittest.TestCase):
         self.assertEqual(summary["failures"][1]["suite"], "iconClass")
         self.assertEqual(summary["failures"][1]["test"], "returns passed modifier for status 2")
 
-    def test_clean_run_has_no_failures(self) -> None:
+    def test_captures_compile_errors(self) -> None:
+        from checks import _parse_karma_jasmine
+
+        summary = _parse_karma_jasmine(self.SAMPLE, "")
+        self.assertEqual(len(summary["compileErrors"]), 1)
+        self.assertIn("src/app/foo.spec.ts:12:3", summary["compileErrors"][0])
+
+    def test_clean_run_has_no_failures_or_compile_errors(self) -> None:
         from checks import _parse_karma_jasmine
 
         summary = _parse_karma_jasmine("Executed 120 of 120 SUCCESS\n", "")
         self.assertEqual(summary["failed"], 0)
         self.assertEqual(summary["failures"], [])
         self.assertEqual(summary["total"], 120)
+        self.assertNotIn("compileErrors", summary)
 
     def test_parser_field_carried_in_spec(self) -> None:
         fx = _Fixture(

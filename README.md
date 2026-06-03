@@ -937,7 +937,9 @@ For test runners whose output is too noisy to read from `stdout_tail`
 
 Built-in parsers: **`karma-jasmine`** (one `{suite, test}` per failed
 spec, nearest `describe` wins; adds `executed`/`total` when the runner
-prints them). Omit `parser` to keep the default pytest summary line. Add
+prints them, and a `compileErrors` list of any `ERROR in …` webpack/
+ts-loader lines — a green `failed: 0` would otherwise hide type errors
+since ts-loader still emits). Omit `parser` to keep the default pytest summary line. Add
 new parsers in `checks.py` → `_SUMMARY_PARSERS` (one function, registered
 by name). The `parser` field is ignored on array-form checks.
 

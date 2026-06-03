@@ -253,10 +253,20 @@ def _parse_karma_jasmine(stdout: str, stderr: str) -> Dict[str, Any]:
     text = _ANSI_RE.sub("", (stdout or "") + "\n" + (stderr or ""))
     suite = ""
     failures: List[Dict[str, str]] = []
+    compile_errors: List[str] = []
+    seen_compile: set = set()
     for raw in text.splitlines():
         line = raw.rstrip()
         stripped = line.strip()
         if not stripped:
+            continue
+        # webpack / ts-loader compile errors ("ERROR in src/foo.ts:1:2 - error TS1234: ...") — a green
+        # `failed: 0` would otherwise hide them, since ts-loader still emits and the specs run.
+        if stripped.startswith("ERROR in "):
+            msg = stripped[len("ERROR in ") :].strip()[:300]
+            if msg not in seen_compile:
+                seen_compile.add(msg)
+                compile_errors.append(msg)
             continue
         match = _re.search(r"FAILED:\s*(.+)$", stripped)
         if match:
@@ -274,6 +284,8 @@ def _parse_karma_jasmine(stdout: str, stderr: str) -> Dict[str, Any]:
         "failed": len(failures),
         "failures": failures[:200],
     }
+    if compile_errors:
+        result["compileErrors"] = compile_errors[:100]
     executed = _re.search(r"Executed (\d+) of (\d+)", text)
     if executed:
         result["executed"] = int(executed.group(1))

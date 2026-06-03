@@ -17,7 +17,9 @@ bump the minor; fixes bump the patch.
   pytest one-liner, so agents read `summary.failures` directly rather than
   grepping a truncated `stdout_tail`. Ships the `karma-jasmine` parser
   (`{suite, test}` per failed spec, nearest `describe` wins; plus
-  `executed`/`total` when printed). Backward compatible: array-form checks
+  `executed`/`total` when printed, and a `compileErrors` list of
+  `ERROR in …` webpack/ts-loader lines so a green `failed: 0` can't hide
+  type errors). Backward compatible: array-form checks
   and the pytest summary path are unchanged. Register new parsers in
   `checks.py` → `_SUMMARY_PARSERS`.
 - **`semantic_search(query, top_k=5)`** — Phase 5 semantic symbol
