@@ -101,7 +101,11 @@ def load_check_specs(project_root: str) -> Dict[str, CheckSpec]:
         policy = spec.get("args_policy", {})
         if not isinstance(policy, dict):
             policy = {}
-        out[name] = {"cmd": list(cmd_tokens), "args_policy": dict(policy)}
+        entry: CheckSpec = {"cmd": list(cmd_tokens), "args_policy": dict(policy)}
+        parser = spec.get("parser")
+        if isinstance(parser, str) and parser:
+            entry["parser"] = parser
+        out[name] = entry
     return out
 
 
@@ -229,6 +233,59 @@ def _summarise_pytest(stdout: str, stderr: str) -> Optional[str]:
     return None
 
 
+import re as _re
+
+_ANSI_RE = _re.compile(r"\x1b\[[0-9;]*m")
+# Lines that are NOT describe headers even though they are indented: stack frames,
+# expectation diffs, error dumps, coverage banners, console logs.
+_KARMA_NON_SUITE = ("FAILED:", "Error", "Expected ", "NullInjector", "error properties",
+                    "TypeError", "Uncaught", "Coverage summary", "===", "ERROR LOG")
+
+
+def _parse_karma_jasmine(stdout: str, stderr: str) -> Dict[str, Any]:
+    """Parse karma + jasmine spec-reporter output into a structured summary.
+
+    Returns ``{framework, failed, failures: [{suite, test}], executed?, total?}``.
+    ``suite`` is the nearest preceding describe header (the most specific block).
+    This keeps the MCP response compact and machine-usable instead of dumping the
+    raw karma tail (stack traces + coverage banners) the caller would have to grep.
+    """
+    text = _ANSI_RE.sub("", (stdout or "") + "\n" + (stderr or ""))
+    suite = ""
+    failures: List[Dict[str, str]] = []
+    for raw in text.splitlines():
+        line = raw.rstrip()
+        stripped = line.strip()
+        if not stripped:
+            continue
+        match = _re.search(r"FAILED:\s*(.+)$", stripped)
+        if match:
+            failures.append({"suite": suite, "test": match.group(1).strip()})
+            continue
+        # A describe header is indented >= 2 spaces and is not a stack/expectation/log line.
+        if (
+            _re.match(r"^ {2,}\S", line)
+            and not stripped.startswith("at ")
+            and not any(tok in stripped for tok in _KARMA_NON_SUITE)
+        ):
+            suite = stripped
+    result: Dict[str, Any] = {
+        "framework": "karma-jasmine",
+        "failed": len(failures),
+        "failures": failures[:200],
+    }
+    executed = _re.search(r"Executed (\d+) of (\d+)", text)
+    if executed:
+        result["executed"] = int(executed.group(1))
+        result["total"] = int(executed.group(2))
+    return result
+
+
+# name → parser(stdout, stderr) -> structured summary dict. Declared per-check via
+# the "parser" field in conventions.json; falls back to the pytest one-liner otherwise.
+_SUMMARY_PARSERS = {"karma-jasmine": _parse_karma_jasmine}
+
+
 def run_check(
     project_root: str,
     name: str,
@@ -303,6 +360,12 @@ def run_check(
         duration_ms = int((time.monotonic() - started) * 1000)
         stdout_tail = _tail(proc.stdout or "", _TAIL_LINES)
         stderr_tail = _tail(proc.stderr or "", _TAIL_LINES)
+        parser_name = spec.get("parser")
+        if isinstance(parser_name, str) and parser_name in _SUMMARY_PARSERS:
+            # Parser sees the FULL output (not the tail) so it never misses failures.
+            summary: Any = _SUMMARY_PARSERS[parser_name](proc.stdout or "", proc.stderr or "")
+        else:
+            summary = _summarise_pytest(stdout_tail, stderr_tail)
         return {
             "name": name,
             "command": cmd,
@@ -310,7 +373,7 @@ def run_check(
             "duration_ms": duration_ms,
             "stdout_tail": stdout_tail,
             "stderr_tail": stderr_tail,
-            "summary": _summarise_pytest(stdout_tail, stderr_tail),
+            "summary": summary,
         }
     except subprocess.TimeoutExpired as exc:
         duration_ms = int((time.monotonic() - started) * 1000)

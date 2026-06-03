@@ -237,5 +237,62 @@ class TestMcpToolWiring(unittest.TestCase):
         self.assertEqual(spec["inputSchema"].get("required", []), [])
 
 
+class TestKarmaJasmineParser(unittest.TestCase):
+    SAMPLE = (
+        "\x1b[32m  CollectionGateService — loadGateState()\x1b[39m\n"
+        "    \x1b[31mFAILED: \x1b[39m\x1b[31mreturns 'none' when no gates\x1b[39m\n"
+        "\tTypeError: this.http.get is not a function\n"
+        "\t    at new CollectionGateService (commons.js:1:1)\n"
+        "  StatusDotComponent\n"
+        "    iconClass\n"
+        "      FAILED: returns passed modifier for status 2\n"
+        "\tExpected undefined to contain 'x'.\n"
+        "Executed 3 of 120 (2 FAILED)\n"
+    )
+
+    def test_extracts_failures_with_nearest_suite(self) -> None:
+        from checks import _parse_karma_jasmine
+
+        summary = _parse_karma_jasmine(self.SAMPLE, "")
+        self.assertEqual(summary["framework"], "karma-jasmine")
+        self.assertEqual(summary["failed"], 2)
+        self.assertEqual(summary["executed"], 3)
+        self.assertEqual(summary["total"], 120)
+        self.assertEqual(
+            summary["failures"][0],
+            {"suite": "CollectionGateService — loadGateState()", "test": "returns 'none' when no gates"},
+        )
+        # Nearest describe header wins (the leaf "iconClass", not the parent component).
+        self.assertEqual(summary["failures"][1]["suite"], "iconClass")
+        self.assertEqual(summary["failures"][1]["test"], "returns passed modifier for status 2")
+
+    def test_clean_run_has_no_failures(self) -> None:
+        from checks import _parse_karma_jasmine
+
+        summary = _parse_karma_jasmine("Executed 120 of 120 SUCCESS\n", "")
+        self.assertEqual(summary["failed"], 0)
+        self.assertEqual(summary["failures"], [])
+        self.assertEqual(summary["total"], 120)
+
+    def test_parser_field_carried_in_spec(self) -> None:
+        fx = _Fixture(
+            {
+                "checks": {
+                    "ng-test": {
+                        "cmd": ["npm", "run", "test"],
+                        "parser": "karma-jasmine",
+                    }
+                }
+            }
+        )
+        try:
+            from checks import load_check_specs
+
+            specs = load_check_specs(fx.root)
+            self.assertEqual(specs["ng-test"]["parser"], "karma-jasmine")
+        finally:
+            fx.cleanup()
+
+
 if __name__ == "__main__":
     unittest.main()
