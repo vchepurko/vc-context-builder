@@ -15,8 +15,8 @@ ROOT="${PWD}"
 case "${1:-}" in
     build|--help|-h|help|"") ;;
     *)
-        if [ ! -f "${ROOT}/agent_root.json" ]; then
-            echo "vc-context: no agent_root.json in $(pwd)" >&2
+        if [ ! -f "${ROOT}/.vc-context/index/agent_root.json" ] && [ ! -f "${ROOT}/agent_root.json" ]; then
+            echo "vc-context: no .vc-context/index/agent_root.json in $(pwd)" >&2
             echo "  run \`vc-context build\` (or \`python3 ${SUBMODULE}/agent_map.py\`) first." >&2
             exit 2
         fi

@@ -236,10 +236,7 @@ def specs() -> List[Dict[str, Any]]:
         },
         {
             "name": "find_route",
-            "description": (
-                "Return one backend route record by URL path "
-                "(or null when absent)."
-            ),
+            "description": ("Return one backend route record by URL path (or null when absent)."),
             "inputSchema": {
                 "type": "object",
                 "properties": {"path": {"type": "string"}},
