@@ -31,7 +31,7 @@
     },
     "AutoReindexOllamaTests": {
       "file": "tests/test_ollama_provider.py",
-      "line": 184,
+      "line": 190,
       "direct": [],
       "test": null,
       "template_refs": []
@@ -73,7 +73,7 @@
     },
     "BuildDocStoreTests": {
       "file": "tests/test_doc_search.py",
-      "line": 127,
+      "line": 128,
       "direct": [],
       "test": null,
       "template_refs": []
@@ -116,6 +116,13 @@
     "CandidateLookupTests": {
       "file": "tests/test_spec_linker.py",
       "line": 144,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "ChatProviderFromConventionsTests": {
+      "file": "tests/test_ollama_chat.py",
+      "line": 112,
       "direct": [],
       "test": null,
       "template_refs": []
@@ -233,6 +240,13 @@
       "test": null,
       "template_refs": []
     },
+    "DetectWithLlmTests": {
+      "file": "tests/test_llm_anti_patterns.py",
+      "line": 202,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
     "DevOpsParser": {
       "file": "parsers/devops_parser.py",
       "line": 7,
@@ -263,8 +277,8 @@
       "template_refs": []
     },
     "EmbeddingProvider": {
-      "file": "semantic_store.py",
-      "line": 87,
+      "file": "stores/semantic_store.py",
+      "line": 88,
       "direct": [],
       "test": null,
       "template_refs": []
@@ -272,6 +286,13 @@
     "EmptyStreaksTests": {
       "file": "tests/test_quality.py",
       "line": 161,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "EndLineForExtractBodyTests": {
+      "file": "tests/test_ts_js_parser.py",
+      "line": 406,
       "direct": [],
       "test": null,
       "template_refs": []
@@ -293,6 +314,13 @@
     "ExperienceStoreTests": {
       "file": "tests/test_experience_store.py",
       "line": 23,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "ExtractChunksTests": {
+      "file": "tests/test_llm_anti_patterns.py",
+      "line": 107,
       "direct": [],
       "test": null,
       "template_refs": []
@@ -320,7 +348,7 @@
     },
     "ExtractSectionBodiesTests": {
       "file": "tests/test_doc_search.py",
-      "line": 45,
+      "line": 44,
       "direct": [],
       "test": null,
       "template_refs": []
@@ -356,6 +384,13 @@
     "FilenameRegistrationTests": {
       "file": "tests/test_json_parser.py",
       "line": 157,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "FilesForScopeTests": {
+      "file": "tests/test_llm_anti_patterns.py",
+      "line": 168,
       "direct": [],
       "test": null,
       "template_refs": []
@@ -418,7 +453,7 @@
     },
     "FindSymbolsBatchTests": {
       "file": "tests/test_find_symbol_lean.py",
-      "line": 193,
+      "line": 194,
       "direct": [],
       "test": null,
       "template_refs": []
@@ -474,21 +509,21 @@
     },
     "GetStatusEmbeddingsTests": {
       "file": "tests/test_status.py",
-      "line": 98,
+      "line": 97,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "GetStatusErrorHandlingTests": {
       "file": "tests/test_status.py",
-      "line": 175,
+      "line": 181,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "GetStatusIndexTests": {
       "file": "tests/test_status.py",
-      "line": 29,
+      "line": 28,
       "direct": [],
       "test": null,
       "template_refs": []
@@ -496,6 +531,13 @@
     "GetSymbolCardTests": {
       "file": "tests/test_phase_b_tools.py",
       "line": 155,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "HasStaticRuleTests": {
+      "file": "tests/test_llm_anti_patterns.py",
+      "line": 99,
       "direct": [],
       "test": null,
       "template_refs": []
@@ -524,7 +566,7 @@
       "template_refs": []
     },
     "HttpClientSpec": {
-      "file": "http_callers.py",
+      "file": "indexers/http_callers.py",
       "line": 72,
       "direct": [
         "load_http_clients"
@@ -653,6 +695,13 @@
       "test": null,
       "template_refs": []
     },
+    "LoadLlmRulesTests": {
+      "file": "tests/test_llm_anti_patterns.py",
+      "line": 42,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
     "LoadRulesTests": {
       "file": "tests/test_conventions.py",
       "line": 46,
@@ -668,8 +717,8 @@
       "template_refs": []
     },
     "LocalHashEmbeddingProvider": {
-      "file": "semantic_store.py",
-      "line": 97,
+      "file": "stores/semantic_store.py",
+      "line": 98,
       "direct": [
         "BuildDocStoreTests",
         "ContextBuilder",
@@ -710,7 +759,7 @@
     },
     "MetricsWriter": {
       "file": "mcp/metrics.py",
-      "line": 234,
+      "line": 304,
       "direct": [
         "DispatcherIntegrationTests",
         "GetSessionMetricsTests",
@@ -777,9 +826,34 @@
       "test": null,
       "template_refs": []
     },
+    "OllamaChatGenerateTests": {
+      "file": "tests/test_ollama_chat.py",
+      "line": 45,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "OllamaChatProvider": {
+      "file": "ollama_chat.py",
+      "line": 32,
+      "direct": [
+        "OllamaChatGenerateTests",
+        "OllamaChatProviderInitTests",
+        "chat_provider_from_conventions"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "OllamaChatProviderInitTests": {
+      "file": "tests/test_ollama_chat.py",
+      "line": 29,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
     "OllamaEmbeddingProvider": {
-      "file": "semantic_store.py",
-      "line": 217,
+      "file": "stores/semantic_store.py",
+      "line": 213,
       "direct": [
         "OllamaProviderEmbedTests",
         "OllamaProviderInitTests",
@@ -803,7 +877,7 @@
       "template_refs": []
     },
     "OpenAIEmbeddingProvider": {
-      "file": "semantic_store.py",
+      "file": "stores/semantic_store.py",
       "line": 185,
       "direct": [
         "provider_from_conventions"
@@ -932,6 +1006,7 @@
         "NotifyLogQueryEngineTests",
         "QueryEngineIntegrationTests",
         "QueryEngineLintTests",
+        "QueryEngineLlmAntiPatternsTests",
         "QueryEngineLocaleTests",
         "QueryEngineRouteTests",
         "QueryEngineRuffTests",
@@ -943,6 +1018,7 @@
         "RepoMapTests",
         "RunCheckCacheTests",
         "SemanticSearchTests",
+        "SummariseModuleWithChatTests",
         "TestAttachAndQuery",
         "TestProjectWide",
         "TestQueryEngineFindCallback",
@@ -973,6 +1049,13 @@
       "test": null,
       "template_refs": []
     },
+    "QueryEngineLlmAntiPatternsTests": {
+      "file": "tests/test_llm_anti_patterns.py",
+      "line": 312,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
     "QueryEngineLocaleTests": {
       "file": "tests/test_locale_index.py",
       "line": 143,
@@ -996,7 +1079,7 @@
     },
     "QueryEngineSearchDocTextTests": {
       "file": "tests/test_doc_search.py",
-      "line": 218,
+      "line": 219,
       "direct": [],
       "test": null,
       "template_refs": []
@@ -1093,8 +1176,8 @@
       "template_refs": []
     },
     "SearchHit": {
-      "file": "semantic_store.py",
-      "line": 334,
+      "file": "stores/semantic_store.py",
+      "line": 330,
       "direct": [
         "semantic_search"
       ],
@@ -1109,8 +1192,8 @@
       "template_refs": []
     },
     "SentenceTransformersEmbeddingProvider": {
-      "file": "semantic_store.py",
-      "line": 146,
+      "file": "stores/semantic_store.py",
+      "line": 147,
       "direct": [
         "provider_from_conventions"
       ],
@@ -1120,6 +1203,13 @@
     "SpecFixtureMixin": {
       "file": "tests/test_spec_linker.py",
       "line": 41,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "SummariseModuleWithChatTests": {
+      "file": "tests/test_ollama_chat.py",
+      "line": 180,
       "direct": [],
       "test": null,
       "template_refs": []
@@ -1232,7 +1322,7 @@
       "template_refs": []
     },
     "TestFileParser": {
-      "file": "test_parser.py",
+      "file": "test_analysis/test_parser.py",
       "line": 7,
       "direct": [],
       "test": null,
@@ -1269,6 +1359,13 @@
     "TestIntegration": {
       "file": "tests/test_devops_card.py",
       "line": 212,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
+    "TestKarmaJasmineParser": {
+      "file": "tests/test_checks.py",
+      "line": 240,
       "direct": [],
       "test": null,
       "template_refs": []
@@ -1480,7 +1577,7 @@
     },
     "aggregate": {
       "file": "mcp/metrics.py",
-      "line": 415,
+      "line": 485,
       "direct": [
         "AggregateTests",
         "BaselineAggregationTests"
@@ -1506,7 +1603,7 @@
       "template_refs": []
     },
     "attach_python_callers": {
-      "file": "http_callers.py",
+      "file": "indexers/http_callers.py",
       "line": 330,
       "direct": [
         "TestAttachAndQuery",
@@ -1549,8 +1646,8 @@
       "template_refs": []
     },
     "build_doc_store": {
-      "file": "semantic_store.py",
-      "line": 533,
+      "file": "stores/semantic_store.py",
+      "line": 547,
       "direct": [
         "BuildDocStoreTests",
         "ContextBuilder",
@@ -1561,7 +1658,7 @@
       "template_refs": []
     },
     "build_impact_graph": {
-      "file": "impact_graph.py",
+      "file": "indexers/impact_graph.py",
       "line": 85,
       "direct": [
         "ContextBuilder",
@@ -1571,7 +1668,7 @@
       "template_refs": []
     },
     "build_index": {
-      "file": "markdown_index.py",
+      "file": "indexers/markdown_index.py",
       "line": 197,
       "direct": [
         "BuildIndexTests",
@@ -1584,7 +1681,7 @@
       "template_refs": []
     },
     "build_locale_index": {
-      "file": "locale_index.py",
+      "file": "indexers/locale_index.py",
       "line": 92,
       "direct": [
         "BuildLocaleIndexTests",
@@ -1595,7 +1692,7 @@
       "template_refs": []
     },
     "build_ng_route_index": {
-      "file": "ng_route_bridge.py",
+      "file": "indexers/ng_route_bridge.py",
       "line": 263,
       "direct": [
         "ContextBuilder"
@@ -1604,7 +1701,7 @@
       "template_refs": []
     },
     "build_reference_index": {
-      "file": "test_linking.py",
+      "file": "test_analysis/test_linking.py",
       "line": 472,
       "direct": [
         "ReferenceBasedLinkingTests",
@@ -1614,7 +1711,7 @@
       "template_refs": []
     },
     "build_route_index": {
-      "file": "route_bridge.py",
+      "file": "indexers/route_bridge.py",
       "line": 332,
       "direct": [
         "ContextBuilder",
@@ -1629,7 +1726,7 @@
       "template_refs": []
     },
     "build_spec_reference_index": {
-      "file": "test_linking.py",
+      "file": "test_analysis/test_linking.py",
       "line": 447,
       "direct": [
         "IndexAndResolveTests",
@@ -1639,8 +1736,8 @@
       "template_refs": []
     },
     "build_symbol_store": {
-      "file": "semantic_store.py",
-      "line": 418,
+      "file": "stores/semantic_store.py",
+      "line": 422,
       "direct": [
         "ContextBuilder",
         "SemanticSearchTests",
@@ -1657,7 +1754,7 @@
       "template_refs": []
     },
     "build_test_index": {
-      "file": "test_linking.py",
+      "file": "test_analysis/test_linking.py",
       "line": 597,
       "direct": [
         "BuildTestIndexTests",
@@ -1673,14 +1770,14 @@
       "template_refs": []
     },
     "callers_for_route": {
-      "file": "route_bridge.py",
+      "file": "indexers/route_bridge.py",
       "line": 396,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "category_summary": {
-      "file": "test_classifier.py",
+      "file": "test_analysis/test_classifier.py",
       "line": 283,
       "direct": [
         "ContextBuilder",
@@ -1693,8 +1790,18 @@
       },
       "template_refs": []
     },
+    "chat_provider_from_conventions": {
+      "file": "ollama_chat.py",
+      "line": 77,
+      "direct": [
+        "ChatProviderFromConventionsTests",
+        "QueryEngine"
+      ],
+      "test": null,
+      "template_refs": []
+    },
     "classify_test_file": {
-      "file": "test_classifier.py",
+      "file": "test_analysis/test_classifier.py",
       "line": 193,
       "direct": [
         "TestClassifyFile",
@@ -1708,231 +1815,231 @@
       "template_refs": []
     },
     "cmd_backup": {
-      "file": "cli_handlers.py",
-      "line": 679,
+      "file": "cli/cli_handlers.py",
+      "line": 693,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_backup_inspect": {
-      "file": "cli_handlers.py",
-      "line": 737,
+      "file": "cli/cli_handlers.py",
+      "line": 751,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_build": {
-      "file": "cli_handlers.py",
-      "line": 435,
+      "file": "cli/cli_handlers.py",
+      "line": 454,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_callees": {
-      "file": "cli_handlers.py",
-      "line": 163,
+      "file": "cli/cli_handlers.py",
+      "line": 188,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_calls": {
-      "file": "cli_handlers.py",
-      "line": 276,
+      "file": "cli/cli_handlers.py",
+      "line": 300,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_card": {
-      "file": "cli_handlers.py",
-      "line": 193,
+      "file": "cli/cli_handlers.py",
+      "line": 216,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_changed": {
-      "file": "cli_handlers.py",
-      "line": 324,
+      "file": "cli/cli_handlers.py",
+      "line": 346,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_coverage": {
-      "file": "cli_handlers.py",
-      "line": 593,
+      "file": "cli/cli_handlers.py",
+      "line": 610,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_decorated": {
-      "file": "cli_handlers.py",
-      "line": 258,
+      "file": "cli/cli_handlers.py",
+      "line": 283,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_file_card": {
-      "file": "cli_handlers.py",
-      "line": 291,
+      "file": "cli/cli_handlers.py",
+      "line": 314,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_find": {
-      "file": "cli_handlers.py",
-      "line": 51,
+      "file": "cli/cli_handlers.py",
+      "line": 64,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_init": {
-      "file": "cli_handlers.py",
-      "line": 504,
+      "file": "cli/cli_handlers.py",
+      "line": 523,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_lint": {
-      "file": "cli_handlers.py",
-      "line": 559,
+      "file": "cli/cli_handlers.py",
+      "line": 578,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_module": {
-      "file": "cli_handlers.py",
-      "line": 399,
+      "file": "cli/cli_handlers.py",
+      "line": 421,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_modules": {
-      "file": "cli_handlers.py",
-      "line": 425,
+      "file": "cli/cli_handlers.py",
+      "line": 445,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_ng_ajs_find": {
-      "file": "cli_handlers.py",
-      "line": 612,
+      "file": "cli/cli_handlers.py",
+      "line": 628,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_ng_module_members": {
-      "file": "cli_handlers.py",
-      "line": 627,
+      "file": "cli/cli_handlers.py",
+      "line": 643,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_raises": {
-      "file": "cli_handlers.py",
-      "line": 178,
+      "file": "cli/cli_handlers.py",
+      "line": 202,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_recall_experience": {
-      "file": "cli_handlers.py",
-      "line": 135,
+      "file": "cli/cli_handlers.py",
+      "line": 157,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_remember_experience": {
-      "file": "cli_handlers.py",
-      "line": 108,
+      "file": "cli/cli_handlers.py",
+      "line": 127,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_repo_map": {
-      "file": "cli_handlers.py",
-      "line": 345,
+      "file": "cli/cli_handlers.py",
+      "line": 366,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_restore": {
-      "file": "cli_handlers.py",
-      "line": 708,
+      "file": "cli/cli_handlers.py",
+      "line": 722,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_role": {
-      "file": "cli_handlers.py",
-      "line": 389,
+      "file": "cli/cli_handlers.py",
+      "line": 412,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_roles": {
-      "file": "cli_handlers.py",
-      "line": 415,
+      "file": "cli/cli_handlers.py",
+      "line": 436,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_route": {
-      "file": "cli_handlers.py",
-      "line": 648,
-      "direct": [],
-      "test": null,
-      "template_refs": []
-    },
-    "cmd_route_callers": {
-      "file": "cli_handlers.py",
+      "file": "cli/cli_handlers.py",
       "line": 664,
       "direct": [],
       "test": null,
       "template_refs": []
     },
+    "cmd_route_callers": {
+      "file": "cli/cli_handlers.py",
+      "line": 679,
+      "direct": [],
+      "test": null,
+      "template_refs": []
+    },
     "cmd_semantic": {
-      "file": "cli_handlers.py",
-      "line": 76,
+      "file": "cli/cli_handlers.py",
+      "line": 92,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_slice": {
-      "file": "cli_handlers.py",
-      "line": 367,
+      "file": "cli/cli_handlers.py",
+      "line": 387,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_stats": {
-      "file": "cli_handlers.py",
-      "line": 761,
+      "file": "cli/cli_handlers.py",
+      "line": 775,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_status": {
-      "file": "cli_handlers.py",
-      "line": 820,
+      "file": "cli/cli_handlers.py",
+      "line": 837,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_test": {
-      "file": "cli_handlers.py",
-      "line": 573,
+      "file": "cli/cli_handlers.py",
+      "line": 591,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "cmd_verify": {
-      "file": "cli_handlers.py",
-      "line": 245,
+      "file": "cli/cli_handlers.py",
+      "line": 267,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "collect": {
-      "file": "mypy_inspector.py",
+      "file": "linters/mypy_inspector.py",
       "line": 194,
       "direct": [
         "CollectTests"
@@ -1941,7 +2048,7 @@
       "template_refs": []
     },
     "collect_callbacks": {
-      "file": "callback_index.py",
+      "file": "indexers/callback_index.py",
       "line": 160,
       "direct": [
         "ContextBuilder",
@@ -1968,7 +2075,7 @@
       "template_refs": []
     },
     "collect_js_calls": {
-      "file": "route_bridge.py",
+      "file": "indexers/route_bridge.py",
       "line": 192,
       "direct": [
         "CollectJsCallsTests",
@@ -1978,7 +2085,7 @@
       "template_refs": []
     },
     "collect_python_calls": {
-      "file": "http_callers.py",
+      "file": "indexers/http_callers.py",
       "line": 241,
       "direct": [
         "TestCollectPythonCalls",
@@ -1992,7 +2099,7 @@
       "template_refs": []
     },
     "collect_python_routes": {
-      "file": "route_bridge.py",
+      "file": "indexers/route_bridge.py",
       "line": 95,
       "direct": [
         "CollectPythonRoutesTests",
@@ -2016,7 +2123,7 @@
       "template_refs": []
     },
     "collect_test_categories": {
-      "file": "test_classifier.py",
+      "file": "test_analysis/test_classifier.py",
       "line": 232,
       "direct": [
         "ContextBuilder",
@@ -2035,8 +2142,8 @@
       "template_refs": []
     },
     "db_path": {
-      "file": "semantic_store.py",
-      "line": 360,
+      "file": "stores/semantic_store.py",
+      "line": 356,
       "direct": [
         "ExperienceStoreTests",
         "SemanticSearchTests",
@@ -2057,7 +2164,7 @@
     },
     "detect_aiogram_state_check_in_body": {
       "file": "anti_patterns.py",
-      "line": 97,
+      "line": 101,
       "direct": [],
       "test": null,
       "template_refs": []
@@ -2082,6 +2189,15 @@
       "test": null,
       "template_refs": []
     },
+    "detect_knowledge_reuse": {
+      "file": "mcp/quality.py",
+      "line": 238,
+      "direct": [
+        "quality_report"
+      ],
+      "test": null,
+      "template_refs": []
+    },
     "detect_wasteful_pairs": {
       "file": "mcp/quality.py",
       "line": 80,
@@ -2092,9 +2208,18 @@
       "test": null,
       "template_refs": []
     },
+    "detect_with_llm": {
+      "file": "anti_patterns.py",
+      "line": 267,
+      "direct": [
+        "DetectWithLlmTests"
+      ],
+      "test": null,
+      "template_refs": []
+    },
     "ensure_doc_store": {
-      "file": "semantic_store.py",
-      "line": 594,
+      "file": "stores/semantic_store.py",
+      "line": 615,
       "direct": [
         "BuildDocStoreTests"
       ],
@@ -2130,8 +2255,8 @@
       "template_refs": []
     },
     "ensure_symbol_store": {
-      "file": "semantic_store.py",
-      "line": 477,
+      "file": "stores/semantic_store.py",
+      "line": 491,
       "direct": [
         "semantic_search"
       ],
@@ -2169,7 +2294,7 @@
       "template_refs": []
     },
     "extract_section_bodies": {
-      "file": "markdown_index.py",
+      "file": "indexers/markdown_index.py",
       "line": 574,
       "direct": [
         "BuildDocStoreTests",
@@ -2181,7 +2306,7 @@
       "template_refs": []
     },
     "filter_test_records": {
-      "file": "_test_filter.py",
+      "file": "test_analysis/_test_filter.py",
       "line": 44,
       "direct": [
         "FilterRecordsTests"
@@ -2191,16 +2316,17 @@
     },
     "find_anti_patterns": {
       "file": "anti_patterns.py",
-      "line": 166,
+      "line": 174,
       "direct": [
         "Dispatcher",
-        "FindAntiPatternsTests"
+        "FindAntiPatternsTests",
+        "QueryEngineLlmAntiPatternsTests"
       ],
       "test": null,
       "template_refs": []
     },
     "find_call_sites": {
-      "file": "call_sites.py",
+      "file": "indexers/call_sites.py",
       "line": 202,
       "direct": [
         "Dispatcher",
@@ -2215,7 +2341,7 @@
       "template_refs": []
     },
     "find_callback": {
-      "file": "callback_index.py",
+      "file": "indexers/callback_index.py",
       "line": 236,
       "direct": [
         "Dispatcher",
@@ -2231,7 +2357,7 @@
       "template_refs": []
     },
     "find_drift": {
-      "file": "locale_index.py",
+      "file": "indexers/locale_index.py",
       "line": 200,
       "direct": [
         "FindDriftTests"
@@ -2240,21 +2366,21 @@
       "template_refs": []
     },
     "find_keys": {
-      "file": "locale_index.py",
+      "file": "indexers/locale_index.py",
       "line": 173,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "find_orphans": {
-      "file": "callback_index.py",
+      "file": "indexers/callback_index.py",
       "line": 308,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "find_route_for_path": {
-      "file": "route_bridge.py",
+      "file": "indexers/route_bridge.py",
       "line": 372,
       "direct": [
         "callers_for_route",
@@ -2264,7 +2390,7 @@
       "template_refs": []
     },
     "find_section": {
-      "file": "markdown_index.py",
+      "file": "indexers/markdown_index.py",
       "line": 274,
       "direct": [
         "QueryEngine"
@@ -2273,7 +2399,7 @@
       "template_refs": []
     },
     "find_test_for_symbol": {
-      "file": "test_linking.py",
+      "file": "test_analysis/test_linking.py",
       "line": 516,
       "direct": [
         "CoLocationFallbackTests",
@@ -2286,7 +2412,7 @@
       "template_refs": []
     },
     "find_usage": {
-      "file": "orm_field_usage.py",
+      "file": "indexers/orm_field_usage.py",
       "line": 62,
       "direct": [
         "TestBasics"
@@ -2299,7 +2425,7 @@
       "template_refs": []
     },
     "find_xref": {
-      "file": "markdown_index.py",
+      "file": "indexers/markdown_index.py",
       "line": 373,
       "direct": [
         "QueryEngine"
@@ -2325,13 +2451,16 @@
         "GetStatusErrorHandlingTests",
         "GetStatusIndexTests",
         "InspectClassTsTests",
+        "LoadLlmRulesTests",
         "MethodDecoratorsTest",
         "MetricsWriter",
+        "OllamaChatProvider",
         "OpenAIEmbeddingProvider",
         "QueryEngine",
         "QueryEngineSearchDocTextTests",
         "RunCheckCacheTests",
         "SemanticSearchTests",
+        "SummariseModuleWithChatTests",
         "TestAttachAndQuery",
         "TestCollectAndQuery",
         "TestLogLineParse",
@@ -2349,6 +2478,7 @@
         "build_test_index",
         "callers_for_route",
         "category_summary",
+        "chat_provider_from_conventions",
         "cmd_backup_inspect",
         "cmd_card",
         "cmd_changed",
@@ -2370,7 +2500,9 @@
         "collect_python_calls",
         "detect_empty_streaks",
         "detect_hot_rereads",
+        "detect_knowledge_reuse",
         "detect_wasteful_pairs",
+        "detect_with_llm",
         "extract_section_bodies",
         "filter_test_records",
         "find_anti_patterns",
@@ -2394,6 +2526,7 @@
         "load_check_specs",
         "load_custom_roles",
         "load_http_clients",
+        "load_llm_rules",
         "load_rules",
         "local_state_dir",
         "logline_to_symbol",
@@ -2424,7 +2557,7 @@
       "template_refs": []
     },
     "get_key": {
-      "file": "locale_index.py",
+      "file": "indexers/locale_index.py",
       "line": 191,
       "direct": [],
       "test": null,
@@ -2438,6 +2571,7 @@
         "ContextBuilder",
         "CssParser",
         "DevOpsParser",
+        "EndLineForExtractBodyTests",
         "ExtractFactsTests",
         "FactProjectionTests",
         "FilenameRegistrationTests",
@@ -2471,13 +2605,12 @@
     },
     "get_status": {
       "file": "status.py",
-      "line": 125,
+      "line": 165,
       "direct": [
         "Dispatcher",
         "GetStatusEmbeddingsTests",
         "GetStatusErrorHandlingTests",
-        "GetStatusIndexTests",
-        "cmd_status"
+        "GetStatusIndexTests"
       ],
       "test": null,
       "template_refs": []
@@ -2490,6 +2623,7 @@
         "ContextBuilder",
         "CssParser",
         "DevOpsParser",
+        "EndLineForExtractBodyTests",
         "ExtractFactsTests",
         "FactProjectionTests",
         "FilenameRegistrationTests",
@@ -2529,6 +2663,7 @@
         "ContextBuilder",
         "CssParser",
         "DevOpsParser",
+        "EndLineForExtractBodyTests",
         "ExtractFactsTests",
         "FactProjectionTests",
         "FilenameRegistrationTests",
@@ -2561,7 +2696,7 @@
       "template_refs": []
     },
     "get_toc": {
-      "file": "markdown_index.py",
+      "file": "indexers/markdown_index.py",
       "line": 246,
       "direct": [
         "QueryEngine",
@@ -2592,6 +2727,15 @@
       "direct": [
         "LintProjectTests",
         "cmd_lint"
+      ],
+      "test": null,
+      "template_refs": []
+    },
+    "has_static_rule": {
+      "file": "anti_patterns.py",
+      "line": 170,
+      "direct": [
+        "HasStaticRuleTests"
       ],
       "test": null,
       "template_refs": []
@@ -2693,7 +2837,7 @@
       "template_refs": []
     },
     "is_test_path": {
-      "file": "_test_filter.py",
+      "file": "test_analysis/_test_filter.py",
       "line": 29,
       "direct": [
         "IsTestPathTests",
@@ -2714,7 +2858,7 @@
       "template_refs": []
     },
     "link_graph": {
-      "file": "markdown_index.py",
+      "file": "indexers/markdown_index.py",
       "line": 516,
       "direct": [
         "QueryEngine"
@@ -2738,17 +2882,18 @@
     },
     "list_anti_patterns": {
       "file": "anti_patterns.py",
-      "line": 161,
+      "line": 165,
       "direct": [
         "Dispatcher",
-        "FindAntiPatternsTests"
+        "FindAntiPatternsTests",
+        "QueryEngineLlmAntiPatternsTests"
       ],
       "test": null,
       "template_refs": []
     },
     "list_checks": {
       "file": "checks.py",
-      "line": 108,
+      "line": 112,
       "direct": [
         "Dispatcher",
         "TestLoadChecks",
@@ -2762,7 +2907,7 @@
       "template_refs": []
     },
     "list_docs": {
-      "file": "markdown_index.py",
+      "file": "indexers/markdown_index.py",
       "line": 346,
       "direct": [
         "Dispatcher",
@@ -2776,14 +2921,14 @@
       "template_refs": []
     },
     "list_keys": {
-      "file": "locale_index.py",
+      "file": "indexers/locale_index.py",
       "line": 163,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "list_kinds": {
-      "file": "configs_scanner.py",
+      "file": "indexers/configs_scanner.py",
       "line": 103,
       "direct": [
         "TestListKinds"
@@ -2819,10 +2964,12 @@
         "McpServerTests",
         "QueryEngine",
         "WriteLocaleIndexTests",
+        "chat_provider_from_conventions",
         "cmd_init",
         "is_enabled",
         "load_custom_roles",
         "load_http_clients",
+        "load_llm_rules",
         "load_rules",
         "provider_from_conventions",
         "should_skip_mypy",
@@ -2839,6 +2986,7 @@
       "file": "checks.py",
       "line": 77,
       "direct": [
+        "TestKarmaJasmineParser",
         "list_checks",
         "load_checks",
         "run_check"
@@ -2870,7 +3018,7 @@
       "template_refs": []
     },
     "load_http_clients": {
-      "file": "http_callers.py",
+      "file": "indexers/http_callers.py",
       "line": 90,
       "direct": [
         "TestAttachAndQuery",
@@ -2883,6 +3031,15 @@
         "test_function": "test_attach_idempotent",
         "line": 226
       },
+      "template_refs": []
+    },
+    "load_llm_rules": {
+      "file": "anti_patterns.py",
+      "line": 189,
+      "direct": [
+        "LoadLlmRulesTests"
+      ],
+      "test": null,
       "template_refs": []
     },
     "load_rules": {
@@ -2921,7 +3078,7 @@
       "template_refs": []
     },
     "lookup_tests_by_category": {
-      "file": "test_classifier.py",
+      "file": "test_analysis/test_classifier.py",
       "line": 265,
       "direct": [
         "TestCollectAndQuery"
@@ -2936,12 +3093,45 @@
     "main": {
       "file": "cli.py",
       "line": 381,
-      "direct": [],
+      "direct": [
+        "cmd_backup",
+        "cmd_backup_inspect",
+        "cmd_build",
+        "cmd_callees",
+        "cmd_calls",
+        "cmd_card",
+        "cmd_changed",
+        "cmd_coverage",
+        "cmd_decorated",
+        "cmd_file_card",
+        "cmd_find",
+        "cmd_init",
+        "cmd_lint",
+        "cmd_module",
+        "cmd_modules",
+        "cmd_ng_ajs_find",
+        "cmd_ng_module_members",
+        "cmd_raises",
+        "cmd_recall_experience",
+        "cmd_remember_experience",
+        "cmd_repo_map",
+        "cmd_restore",
+        "cmd_role",
+        "cmd_roles",
+        "cmd_route",
+        "cmd_route_callers",
+        "cmd_semantic",
+        "cmd_slice",
+        "cmd_stats",
+        "cmd_status",
+        "cmd_test",
+        "cmd_verify"
+      ],
       "test": null,
       "template_refs": []
     },
     "match_calls_to_routes": {
-      "file": "route_bridge.py",
+      "file": "indexers/route_bridge.py",
       "line": 267,
       "direct": [
         "MatchCallsToRoutesTests",
@@ -2952,7 +3142,7 @@
     },
     "maybe_auto_reindex": {
       "file": "auto_reindex.py",
-      "line": 105,
+      "line": 106,
       "direct": [
         "AutoReindexTests",
         "serve"
@@ -2984,6 +3174,7 @@
       "file": "parsers/_ts_ast.py",
       "line": 204,
       "direct": [
+        "ExtractChunksTests",
         "ExtractFactsTests",
         "FailureModeTests",
         "IntegrationTests",
@@ -3000,6 +3191,7 @@
         "collect_python_routes",
         "collect_state_groups",
         "detect_aiogram_state_check_in_body",
+        "detect_with_llm",
         "extract_scheduler_jobs_from_codebase",
         "find_call_sites",
         "find_usage",
@@ -3036,8 +3228,8 @@
       "template_refs": []
     },
     "provider_from_conventions": {
-      "file": "semantic_store.py",
-      "line": 280,
+      "file": "stores/semantic_store.py",
+      "line": 276,
       "direct": [
         "ContextBuilder",
         "ProviderFromConventionsOllamaTests",
@@ -3075,7 +3267,7 @@
       "template_refs": []
     },
     "python_callers_for_route": {
-      "file": "http_callers.py",
+      "file": "indexers/http_callers.py",
       "line": 388,
       "direct": [],
       "test": null,
@@ -3083,7 +3275,7 @@
     },
     "quality_report": {
       "file": "mcp/quality.py",
-      "line": 232,
+      "line": 296,
       "direct": [
         "QualityReportTests"
       ],
@@ -3091,7 +3283,7 @@
       "template_refs": []
     },
     "query_impact": {
-      "file": "impact_graph.py",
+      "file": "indexers/impact_graph.py",
       "line": 171,
       "direct": [
         "QueryEngine"
@@ -3101,7 +3293,7 @@
     },
     "read_metrics": {
       "file": "mcp/metrics.py",
-      "line": 369,
+      "line": 439,
       "direct": [
         "DispatcherIntegrationTests",
         "ReadMetricsTests",
@@ -3111,25 +3303,23 @@
       "template_refs": []
     },
     "recall_experience": {
-      "file": "experience_store.py",
-      "line": 162,
+      "file": "stores/experience_store.py",
+      "line": 171,
       "direct": [
         "Dispatcher",
         "ExperienceStoreTests",
-        "QueryEngine",
-        "cmd_recall_experience"
+        "QueryEngine"
       ],
       "test": null,
       "template_refs": []
     },
     "remember_experience": {
-      "file": "experience_store.py",
-      "line": 99,
+      "file": "stores/experience_store.py",
+      "line": 108,
       "direct": [
         "Dispatcher",
         "ExperienceStoreTests",
-        "QueryEngine",
-        "cmd_remember_experience"
+        "QueryEngine"
       ],
       "test": null,
       "template_refs": []
@@ -3153,14 +3343,14 @@
       "template_refs": []
     },
     "route_for_js_file": {
-      "file": "route_bridge.py",
+      "file": "indexers/route_bridge.py",
       "line": 419,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "route_for_path": {
-      "file": "ng_route_bridge.py",
+      "file": "indexers/ng_route_bridge.py",
       "line": 303,
       "direct": [],
       "test": {
@@ -3171,7 +3361,7 @@
       "template_refs": []
     },
     "routes_for_component": {
-      "file": "ng_route_bridge.py",
+      "file": "indexers/ng_route_bridge.py",
       "line": 293,
       "direct": [],
       "test": {
@@ -3190,7 +3380,7 @@
     },
     "run_check": {
       "file": "checks.py",
-      "line": 232,
+      "line": 301,
       "direct": [
         "Dispatcher",
         "RunCheckCacheTests",
@@ -3205,7 +3395,7 @@
       "template_refs": []
     },
     "run_mypy": {
-      "file": "mypy_inspector.py",
+      "file": "linters/mypy_inspector.py",
       "line": 136,
       "direct": [
         "collect"
@@ -3214,14 +3404,14 @@
       "template_refs": []
     },
     "run_ruff": {
-      "file": "ruff_inspector.py",
+      "file": "linters/ruff_inspector.py",
       "line": 99,
       "direct": [],
       "test": null,
       "template_refs": []
     },
     "run_ruff_format": {
-      "file": "ruff_format_inspector.py",
+      "file": "linters/ruff_format_inspector.py",
       "line": 59,
       "direct": [],
       "test": null,
@@ -3243,7 +3433,7 @@
       "template_refs": []
     },
     "scan": {
-      "file": "configs_scanner.py",
+      "file": "indexers/configs_scanner.py",
       "line": 135,
       "direct": [
         "TestScanBasics"
@@ -3273,8 +3463,8 @@
       "template_refs": []
     },
     "search_doc_sections": {
-      "file": "semantic_store.py",
-      "line": 626,
+      "file": "stores/semantic_store.py",
+      "line": 647,
       "direct": [
         "BuildDocStoreTests",
         "QueryEngine"
@@ -3283,7 +3473,7 @@
       "template_refs": []
     },
     "search_doc_text": {
-      "file": "markdown_index.py",
+      "file": "indexers/markdown_index.py",
       "line": 439,
       "direct": [
         "Dispatcher",
@@ -3298,13 +3488,12 @@
       "template_refs": []
     },
     "semantic_search": {
-      "file": "semantic_store.py",
-      "line": 714,
+      "file": "stores/semantic_store.py",
+      "line": 735,
       "direct": [
         "Dispatcher",
         "QueryEngine",
-        "SemanticSearchTests",
-        "cmd_semantic"
+        "SemanticSearchTests"
       ],
       "test": null,
       "template_refs": []
@@ -3318,7 +3507,7 @@
     },
     "should_auto_reindex": {
       "file": "auto_reindex.py",
-      "line": 87,
+      "line": 88,
       "direct": [
         "AutoReindexTests",
         "maybe_auto_reindex"
@@ -3341,7 +3530,7 @@
       "template_refs": []
     },
     "should_skip_mypy": {
-      "file": "mypy_inspector.py",
+      "file": "linters/mypy_inspector.py",
       "line": 62,
       "direct": [
         "collect"
@@ -3350,7 +3539,7 @@
       "template_refs": []
     },
     "should_skip_ruff": {
-      "file": "ruff_inspector.py",
+      "file": "linters/ruff_inspector.py",
       "line": 42,
       "direct": [],
       "test": null,
@@ -3403,7 +3592,7 @@
       "template_refs": []
     },
     "write_callback_index": {
-      "file": "callback_index.py",
+      "file": "indexers/callback_index.py",
       "line": 214,
       "direct": [
         "ContextBuilder",
@@ -3424,7 +3613,7 @@
       "template_refs": []
     },
     "write_impact_graph": {
-      "file": "impact_graph.py",
+      "file": "indexers/impact_graph.py",
       "line": 163,
       "direct": [
         "ContextBuilder"
@@ -3433,7 +3622,7 @@
       "template_refs": []
     },
     "write_index": {
-      "file": "markdown_index.py",
+      "file": "indexers/markdown_index.py",
       "line": 225,
       "direct": [
         "QueryEngineSearchDocTextTests"
@@ -3442,7 +3631,7 @@
       "template_refs": []
     },
     "write_locale_index": {
-      "file": "locale_index.py",
+      "file": "indexers/locale_index.py",
       "line": 145,
       "direct": [
         "ContextBuilder",
@@ -3452,7 +3641,7 @@
       "template_refs": []
     },
     "write_ng_route_index": {
-      "file": "ng_route_bridge.py",
+      "file": "indexers/ng_route_bridge.py",
       "line": 276,
       "direct": [
         "ContextBuilder"
@@ -3461,7 +3650,7 @@
       "template_refs": []
     },
     "write_route_index": {
-      "file": "route_bridge.py",
+      "file": "indexers/route_bridge.py",
       "line": 355,
       "direct": [
         "ContextBuilder",
@@ -3471,7 +3660,7 @@
       "template_refs": []
     },
     "write_test_categories": {
-      "file": "test_classifier.py",
+      "file": "test_analysis/test_classifier.py",
       "line": 245,
       "direct": [
         "ContextBuilder"
@@ -3480,7 +3669,7 @@
       "template_refs": []
     },
     "write_test_index": {
-      "file": "test_linking.py",
+      "file": "test_analysis/test_linking.py",
       "line": 632,
       "direct": [
         "BuildTestIndexTests",

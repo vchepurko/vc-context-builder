@@ -261,7 +261,10 @@ class TestKarmaJasmineParser(unittest.TestCase):
         self.assertEqual(summary["total"], 120)
         self.assertEqual(
             summary["failures"][0],
-            {"suite": "CollectionGateService — loadGateState()", "test": "returns 'none' when no gates"},
+            {
+                "suite": "CollectionGateService — loadGateState()",
+                "test": "returns 'none' when no gates",
+            },
         )
         # Nearest describe header wins (the leaf "iconClass", not the parent component).
         self.assertEqual(summary["failures"][1]["suite"], "iconClass")

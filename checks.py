@@ -260,8 +260,8 @@ def _parse_karma_jasmine(stdout: str, stderr: str) -> Dict[str, Any]:
         stripped = line.strip()
         if not stripped:
             continue
-        # webpack / ts-loader compile errors ("ERROR in src/foo.ts:1:2 - error TS1234: ...") — a green
-        # `failed: 0` would otherwise hide them, since ts-loader still emits and the specs run.
+        # webpack / ts-loader compile errors ("ERROR in src/foo.ts:1:2 - error TS1234: …")
+        # — a green `failed: 0` would hide them; ts-loader still emits and the specs run.
         if stripped.startswith("ERROR in "):
             msg = stripped[len("ERROR in ") :].strip()[:300]
             if msg not in seen_compile:

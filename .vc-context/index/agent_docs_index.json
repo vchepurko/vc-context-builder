@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generated_at": "2026-05-28T08:22:55+00:00",
+  "generated_at": "2026-06-04T16:50:56+00:00",
   "docs": {
     ".agents/skills/source-command-ng-overview/SKILL.md": {
       "size_bytes": 2049,
@@ -112,14 +112,14 @@
       "links": []
     },
     "AGENTS.md": {
-      "size_bytes": 5839,
+      "size_bytes": 7602,
       "top_header": "vc-context-builder — Agent Instructions",
       "sections": [
         {
           "level": 1,
           "text": "vc-context-builder — Agent Instructions",
           "line": 1,
-          "end_line": 149,
+          "end_line": 182,
           "anchor": "vc-context-builder-agent-instructions"
         },
         {
@@ -168,7 +168,7 @@
           "level": 2,
           "text": "Efficiency rules (from session quality analysis)",
           "line": 74,
-          "end_line": 139,
+          "end_line": 172,
           "anchor": "efficiency-rules-from-session-quality-analysis"
         },
         {
@@ -200,10 +200,52 @@
           "anchor": "ng-eslint-violations-only-for-lint-audits"
         },
         {
+          "level": 3,
+          "text": "Don't re-read a file already in context",
+          "line": 140,
+          "end_line": 146,
+          "anchor": "dont-re-read-a-file-already-in-context"
+        },
+        {
+          "level": 3,
+          "text": "find_symbol on TypeScript can miss",
+          "line": 147,
+          "end_line": 151,
+          "anchor": "find-symbol-on-typescript-can-miss"
+        },
+        {
+          "level": 3,
+          "text": "find_in_templates can cost more than grep",
+          "line": 152,
+          "end_line": 156,
+          "anchor": "find-in-templates-can-cost-more-than-grep"
+        },
+        {
+          "level": 3,
+          "text": "semantic_search is slow (~12 s/call)",
+          "line": 157,
+          "end_line": 162,
+          "anchor": "semantic-search-is-slow-12-scall"
+        },
+        {
+          "level": 3,
+          "text": "Stop after two empties",
+          "line": 163,
+          "end_line": 167,
+          "anchor": "stop-after-two-empties"
+        },
+        {
+          "level": 3,
+          "text": "ng_* navigation tools — verify inputs",
+          "line": 168,
+          "end_line": 172,
+          "anchor": "ng-navigation-tools-verify-inputs"
+        },
+        {
           "level": 2,
           "text": "Angular tools (Angular projects only)",
-          "line": 140,
-          "end_line": 149,
+          "line": 173,
+          "end_line": 182,
           "anchor": "angular-tools-angular-projects-only"
         }
       ],
@@ -273,119 +315,119 @@
       "links": []
     },
     "CHANGELOG.md": {
-      "size_bytes": 14642,
+      "size_bytes": 15442,
       "top_header": "Changelog",
       "sections": [
         {
           "level": 1,
           "text": "Changelog",
           "line": 1,
-          "end_line": 290,
+          "end_line": 302,
           "anchor": "changelog"
         },
         {
           "level": 2,
           "text": "[Unreleased]",
           "line": 10,
-          "end_line": 216,
+          "end_line": 228,
           "anchor": "unreleased"
         },
         {
           "level": 3,
           "text": "Added",
           "line": 12,
-          "end_line": 46,
+          "end_line": 58,
           "anchor": "added"
         },
         {
           "level": 3,
           "text": "Fixed",
-          "line": 47,
-          "end_line": 55,
+          "line": 59,
+          "end_line": 67,
           "anchor": "fixed"
         },
         {
           "level": 3,
           "text": "Changed",
-          "line": 56,
-          "end_line": 156,
+          "line": 68,
+          "end_line": 168,
           "anchor": "changed"
         },
         {
           "level": 3,
           "text": "Changed",
-          "line": 157,
-          "end_line": 172,
+          "line": 169,
+          "end_line": 184,
           "anchor": "changed"
         },
         {
           "level": 3,
           "text": "Fixed",
-          "line": 173,
-          "end_line": 178,
+          "line": 185,
+          "end_line": 190,
           "anchor": "fixed"
         },
         {
           "level": 3,
           "text": "Removed",
-          "line": 179,
-          "end_line": 186,
+          "line": 191,
+          "end_line": 198,
           "anchor": "removed"
         },
         {
           "level": 3,
           "text": "Planned (next PR)",
-          "line": 187,
-          "end_line": 195,
+          "line": 199,
+          "end_line": 207,
           "anchor": "planned-next-pr"
         },
         {
           "level": 3,
           "text": "Added (this PR — verify + mixin split)",
-          "line": 196,
-          "end_line": 202,
+          "line": 208,
+          "end_line": 214,
           "anchor": "added-this-pr-verify-mixin-split"
         },
         {
           "level": 3,
           "text": "Changed (this PR — verify + mixin split)",
-          "line": 203,
-          "end_line": 216,
+          "line": 215,
+          "end_line": 228,
           "anchor": "changed-this-pr-verify-mixin-split"
         },
         {
           "level": 2,
           "text": "[0.5.0] — 2026-05-08",
-          "line": 217,
-          "end_line": 269,
+          "line": 229,
+          "end_line": 281,
           "anchor": "050-2026-05-08"
         },
         {
           "level": 3,
           "text": "Added",
-          "line": 223,
-          "end_line": 248,
+          "line": 235,
+          "end_line": 260,
           "anchor": "added"
         },
         {
           "level": 3,
           "text": "Changed",
-          "line": 249,
-          "end_line": 262,
+          "line": 261,
+          "end_line": 274,
           "anchor": "changed"
         },
         {
           "level": 3,
           "text": "Fixed",
-          "line": 263,
-          "end_line": 269,
+          "line": 275,
+          "end_line": 281,
           "anchor": "fixed"
         },
         {
           "level": 2,
           "text": "[0.4.0] — pre-CHANGELOG",
-          "line": 270,
-          "end_line": 290,
+          "line": 282,
+          "end_line": 302,
           "anchor": "040-pre-changelog"
         }
       ],
@@ -405,25 +447,25 @@
         {
           "text": "`_test_filter.py`",
           "target": "_test_filter.py",
-          "line": 137,
+          "line": 149,
           "external": false
         },
         {
           "text": "`tests/test_test_filter.py`",
           "target": "tests/test_test_filter.py",
-          "line": 138,
+          "line": 150,
           "external": false
         },
         {
           "text": "`ROADMAP.md`",
           "target": "ROADMAP.md",
-          "line": 192,
+          "line": 204,
           "external": false
         },
         {
           "text": "LICENSE",
           "target": "LICENSE",
-          "line": 224,
+          "line": 236,
           "external": false
         }
       ]
@@ -549,310 +591,339 @@
       ]
     },
     "README.md": {
-      "size_bytes": 34583,
+      "size_bytes": 42071,
       "top_header": "🤖 vc-context-builder",
       "sections": [
         {
           "level": 1,
           "text": "🤖 vc-context-builder",
           "line": 1,
-          "end_line": 977,
+          "end_line": 1169,
           "anchor": "vc-context-builder"
         },
         {
           "level": 2,
           "text": "TL;DR",
-          "line": 5,
-          "end_line": 52,
+          "line": 9,
+          "end_line": 34,
           "anchor": "tldr"
         },
         {
           "level": 2,
+          "text": "What is this?",
+          "line": 35,
+          "end_line": 69,
+          "anchor": "what-is-this"
+        },
+        {
+          "level": 2,
           "text": "Demo — what an agent actually sees",
-          "line": 53,
-          "end_line": 131,
+          "line": 70,
+          "end_line": 148,
           "anchor": "demo-what-an-agent-actually-sees"
         },
         {
           "level": 3,
           "text": "Symbol overview — one call, ~250 tokens",
-          "line": 58,
-          "end_line": 74,
+          "line": 75,
+          "end_line": 91,
           "anchor": "symbol-overview-one-call-250-tokens"
         },
         {
           "level": 3,
           "text": "Project shape at a glance",
-          "line": 75,
-          "end_line": 90,
+          "line": 92,
+          "end_line": 107,
           "anchor": "project-shape-at-a-glance"
         },
         {
           "level": 3,
           "text": "Bounded source slice as evidence",
-          "line": 91,
-          "end_line": 108,
+          "line": 108,
+          "end_line": 125,
           "anchor": "bounded-source-slice-as-evidence"
         },
         {
           "level": 3,
           "text": "Telemetry — see how the agent is using the surface",
-          "line": 109,
-          "end_line": 131,
+          "line": 126,
+          "end_line": 148,
           "anchor": "telemetry-see-how-the-agent-is-using-the-surface"
         },
         {
           "level": 2,
           "text": "What gets indexed",
-          "line": 132,
-          "end_line": 263,
+          "line": 149,
+          "end_line": 280,
           "anchor": "what-gets-indexed"
         },
         {
           "level": 3,
           "text": "Angular routes",
-          "line": 154,
-          "end_line": 177,
+          "line": 171,
+          "end_line": 194,
           "anchor": "angular-routes"
         },
         {
           "level": 3,
           "text": "Incremental builds",
-          "line": 178,
-          "end_line": 204,
+          "line": 195,
+          "end_line": 221,
           "anchor": "incremental-builds"
         },
         {
           "level": 3,
           "text": "Test linking",
-          "line": 205,
-          "end_line": 222,
+          "line": 222,
+          "end_line": 239,
           "anchor": "test-linking"
         },
         {
           "level": 3,
           "text": "Custom roles",
-          "line": 223,
-          "end_line": 263,
+          "line": 240,
+          "end_line": 280,
           "anchor": "custom-roles"
         },
         {
           "level": 2,
           "text": "Quickstart",
-          "line": 264,
-          "end_line": 424,
+          "line": 281,
+          "end_line": 441,
           "anchor": "quickstart"
         },
         {
           "level": 3,
           "text": "Want artifacts committed (team-wide)?",
-          "line": 301,
-          "end_line": 312,
+          "line": 318,
+          "end_line": 329,
           "anchor": "want-artifacts-committed-team-wide"
         },
         {
           "level": 3,
           "text": "Other flags (rarely needed)",
-          "line": 313,
-          "end_line": 326,
+          "line": 330,
+          "end_line": 343,
           "anchor": "other-flags-rarely-needed"
         },
         {
           "level": 3,
           "text": "Pulling new commands after a submodule bump",
-          "line": 327,
-          "end_line": 350,
+          "line": 344,
+          "end_line": 367,
           "anchor": "pulling-new-commands-after-a-submodule-bump"
         },
         {
           "level": 3,
           "text": "Indexing the submodule against itself (contributor mode)",
-          "line": 351,
-          "end_line": 395,
+          "line": 368,
+          "end_line": 412,
           "anchor": "indexing-the-submodule-against-itself-contributor-mode"
         },
         {
           "level": 3,
           "text": "Optional: TypeScript AST upgrade for Angular metadata",
-          "line": 396,
-          "end_line": 424,
+          "line": 413,
+          "end_line": 441,
           "anchor": "optional-typescript-ast-upgrade-for-angular-metadata"
         },
         {
           "level": 2,
           "text": "Quick taste — three ways to ask the same question",
-          "line": 425,
-          "end_line": 488,
+          "line": 442,
+          "end_line": 505,
           "anchor": "quick-taste-three-ways-to-ask-the-same-question"
         },
         {
           "level": 3,
           "text": "Token economy — paying only for what you ask",
-          "line": 440,
-          "end_line": 488,
+          "line": 457,
+          "end_line": 505,
           "anchor": "token-economy-paying-only-for-what-you-ask"
         },
         {
           "level": 2,
           "text": "Telemetry — see how the agent is using the MCP surface",
-          "line": 489,
-          "end_line": 551,
+          "line": 506,
+          "end_line": 568,
           "anchor": "telemetry-see-how-the-agent-is-using-the-mcp-surface"
         },
         {
           "level": 3,
           "text": "Quality findings — wasteful pairs, hot rereads, empty streaks",
-          "line": 517,
-          "end_line": 551,
+          "line": 534,
+          "end_line": 568,
           "anchor": "quality-findings-wasteful-pairs-hot-rereads-empty-streaks"
         },
         {
           "level": 2,
           "text": "Evidence-based answers — fact tools",
-          "line": 552,
-          "end_line": 581,
+          "line": 569,
+          "end_line": 598,
           "anchor": "evidence-based-answers-fact-tools"
         },
         {
           "level": 2,
           "text": "Card-shaped tools — one-call answers",
-          "line": 582,
-          "end_line": 642,
+          "line": 599,
+          "end_line": 659,
           "anchor": "card-shaped-tools-one-call-answers"
         },
         {
           "level": 2,
           "text": "Playbooks — task-shaped MCP recipes",
-          "line": 643,
-          "end_line": 659,
+          "line": 660,
+          "end_line": 676,
           "anchor": "playbooks-task-shaped-mcp-recipes"
         },
         {
           "level": 2,
           "text": "Wiring an MCP host",
-          "line": 660,
-          "end_line": 675,
+          "line": 677,
+          "end_line": 692,
           "anchor": "wiring-an-mcp-host"
         },
         {
           "level": 2,
           "text": "CLI cheatsheet",
-          "line": 676,
-          "end_line": 898,
+          "line": 693,
+          "end_line": 963,
           "anchor": "cli-cheatsheet"
         },
         {
           "level": 3,
           "text": "Conventions config (Feature A)",
-          "line": 711,
-          "end_line": 816,
+          "line": 728,
+          "end_line": 833,
           "anchor": "conventions-config-feature-a"
         },
         {
           "level": 4,
           "text": "Filtering MCP tools per project",
-          "line": 717,
-          "end_line": 750,
+          "line": 734,
+          "end_line": 767,
           "anchor": "filtering-mcp-tools-per-project"
         },
         {
           "level": 4,
           "text": "MCP-startup auto-reindex",
-          "line": 751,
-          "end_line": 816,
+          "line": 768,
+          "end_line": 833,
           "anchor": "mcp-startup-auto-reindex"
         },
         {
           "level": 3,
           "text": "HTTP-clients config (Feature E)",
-          "line": 817,
-          "end_line": 839,
+          "line": 834,
+          "end_line": 856,
           "anchor": "http-clients-config-feature-e"
         },
         {
           "level": 3,
           "text": "Whitelisted check runner (Feature J)",
-          "line": 840,
-          "end_line": 898,
+          "line": 857,
+          "end_line": 963,
           "anchor": "whitelisted-check-runner-feature-j"
         },
         {
           "level": 2,
+          "text": "LLM-enhanced tools",
+          "line": 964,
+          "end_line": 1031,
+          "anchor": "llm-enhanced-tools"
+        },
+        {
+          "level": 3,
+          "text": "`summarise_module` — natural-language module descriptions",
+          "line": 971,
+          "end_line": 1000,
+          "anchor": "summarise-module-natural-language-module-descriptions"
+        },
+        {
+          "level": 3,
+          "text": "`find_anti_patterns` — LLM-based custom rules",
+          "line": 1001,
+          "end_line": 1031,
+          "anchor": "find-anti-patterns-llm-based-custom-rules"
+        },
+        {
+          "level": 2,
           "text": "Extending the parsers",
-          "line": 899,
-          "end_line": 923,
+          "line": 1032,
+          "end_line": 1056,
           "anchor": "extending-the-parsers"
         },
         {
           "level": 2,
+          "text": "MCP ↔ CLI parity",
+          "line": 1057,
+          "end_line": 1109,
+          "anchor": "mcp-cli-parity"
+        },
+        {
+          "level": 2,
           "text": "How big is the win",
-          "line": 924,
-          "end_line": 963,
+          "line": 1110,
+          "end_line": 1155,
           "anchor": "how-big-is-the-win"
         },
         {
           "level": 3,
           "text": "Per-command savings (slash commands)",
-          "line": 938,
-          "end_line": 963,
+          "line": 1141,
+          "end_line": 1155,
           "anchor": "per-command-savings-slash-commands"
         },
         {
           "level": 2,
           "text": "What this tool is **not**",
-          "line": 964,
-          "end_line": 974,
+          "line": 1156,
+          "end_line": 1166,
           "anchor": "what-this-tool-is-not"
         },
         {
           "level": 2,
           "text": "License & contributing",
-          "line": 975,
-          "end_line": 977,
+          "line": 1167,
+          "end_line": 1169,
           "anchor": "license-contributing"
         }
       ],
       "links": [
         {
-          "text": "`playbooks/`",
-          "target": "playbooks/",
-          "line": 26,
-          "external": false
-        },
-        {
           "text": "Bug investigation",
           "target": "playbooks/bug_investigation.md",
-          "line": 648,
+          "line": 665,
           "external": false
         },
         {
           "text": "Impact analysis",
           "target": "playbooks/impact_analysis.md",
-          "line": 650,
+          "line": 667,
           "external": false
         },
         {
           "text": "Refactoring review",
           "target": "playbooks/refactoring_review.md",
-          "line": 652,
+          "line": 669,
           "external": false
         },
         {
           "text": "playbooks/README.md",
           "target": "playbooks/README.md",
-          "line": 655,
+          "line": 672,
           "external": false
         },
         {
           "text": "`docs/MCP_SETUP.md`",
           "target": "docs/MCP_SETUP.md",
-          "line": 662,
+          "line": 679,
           "external": false
         },
         {
           "text": "`docs/USAGE.md`",
           "target": "docs/USAGE.md",
-          "line": 815,
+          "line": 832,
           "external": false
         }
       ]

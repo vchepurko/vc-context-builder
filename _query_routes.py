@@ -13,7 +13,7 @@ Mixin contract: assumes the host class provides the lazy loaders
 
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional
+from typing import Any, ClassVar, Dict, List, Optional, Tuple
 
 
 class _RoutesMixin:
@@ -25,6 +25,7 @@ class _RoutesMixin:
 
     # Type stubs so mypy knows what the host class provides.
     project_root: str
+    _llm_antipattern_cache: ClassVar[Dict[Tuple[Any, ...], List[Dict[str, Any]]]]
 
     def _load_routes(self) -> Dict[str, Dict[str, Any]]:
         raise NotImplementedError  # pragma: no cover

@@ -419,7 +419,7 @@ def cmd_role(args: argparse.Namespace) -> int:
 
 
 def cmd_module(args: argparse.Namespace) -> int:
-    summary = _call_tool(args, "summarise_module", {"path": args.path})
+    summary = _call_tool(args, "summarise_module", {"folder": args.path})
     if summary is None:
         if args.json:
             _emit_json(None)
