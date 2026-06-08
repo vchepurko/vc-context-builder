@@ -238,8 +238,18 @@ import re as _re
 _ANSI_RE = _re.compile(r"\x1b\[[0-9;]*m")
 # Lines that are NOT describe headers even though they are indented: stack frames,
 # expectation diffs, error dumps, coverage banners, console logs.
-_KARMA_NON_SUITE = ("FAILED:", "Error", "Expected ", "NullInjector", "error properties",
-                    "TypeError", "Uncaught", "Coverage summary", "===", "ERROR LOG")
+_KARMA_NON_SUITE = (
+    "FAILED:",
+    "Error",
+    "Expected ",
+    "NullInjector",
+    "error properties",
+    "TypeError",
+    "Uncaught",
+    "Coverage summary",
+    "===",
+    "ERROR LOG",
+)
 
 
 def _parse_karma_jasmine(stdout: str, stderr: str) -> Dict[str, Any]:
