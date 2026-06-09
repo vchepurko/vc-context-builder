@@ -57,6 +57,14 @@ bump the minor; fixes bump the patch.
   win is understated" blind spot in the ROADMAP.
 
 ### Fixed
+- **`ng_eslint_violations` returned stale results after an edit** — the
+  per-path cache was purely time-based (`_ESLINT_CACHE_TTL=300s`), so a
+  re-lint within the window kept reporting violations the user had already
+  fixed (and no way to bypass it). The cache entry is now keyed on a cheap
+  file fingerprint (file count + latest mtime over `.ts`/`.html`/`.js`
+  under the path); any add/edit/delete busts it automatically, with the
+  TTL kept only as a secondary upper bound. Added a `nocache` parameter
+  (tool schema + dispatcher) to force a fresh run on demand.
 - **ng-component selector backfill** in `ts_js_parser` — long
   imports or extensive `@Component(...)` metadata used to push
   `selector` outside the primary regex path's 2 KB lookback
