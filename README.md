@@ -341,6 +341,55 @@ worktrees.
 
 `--help` prints the full reference.
 
+### Shared install (one checkout for many projects)
+
+You don't have to vendor the submodule into every repo. Keep a **single**
+`vc-context-builder` checkout anywhere (a sibling directory, `~/tools/…`,
+etc.) and point each project's `.mcp.json` at it with `--root .`:
+
+```jsonc
+// <project>/.mcp.json
+{
+  "mcpServers": {
+    "vc-context": {
+      "type": "stdio",
+      "command": "/abs/path/to/vc-context-builder/bin/vc-context-mcp",
+      "args": ["--root", "."]
+    }
+  }
+}
+```
+
+`bin/vc-context-mcp` resolves its own location, while `--root` selects which
+project to operate on — so the binary's location and the project are fully
+decoupled. MCP hosts launch the server with `cwd = project root`, so
+`--root .` resolves to the project (use an absolute path if your host
+doesn't). This is identical in behaviour to the submodule wiring (where
+`--root` defaults to the cwd); only the `command` path differs.
+
+**Indexing does not change.** The index always lands in
+`<project>/.vc-context/` (symbol/route/test maps), with embeddings + metrics
+under `~/.vc-context/<repo-hash>` keyed by the project's **absolute path** —
+never inside the vc-context checkout. So the index is per-project and
+independent of where the binary lives. Build/refresh it exactly as before,
+just via the shared path:
+
+- **Auto on MCP start** — enable once per project in
+  `<project>/.vc-context/conventions.json`
+  (`"auto_reindex": {"enabled": true, "interval_seconds": 3600}`); the server
+  rebuilds a missing/stale index on launch. Generate the file with
+  `python3 /abs/path/to/vc-context-builder/cli.py init` run from the project root.
+- **On demand** — call the `rebuild_index` MCP tool.
+- **CLI / scripts / CI** —
+  `python3 /abs/path/to/vc-context-builder/agent_map.py --root /abs/path/to/project`.
+
+Trade-off vs the submodule: the niceties `install.sh` wires up are now
+manual — the `git pre-push` hook that rebuilds the index before each push,
+the auto-generated `.mcp.json`, and `git status` hiding of artifacts. You
+also lose per-project version pinning and "clone-and-go" (a fresh clone / CI
+runner must have the shared checkout present). In return: one source of
+truth, no per-repo vendoring.
+
 ### Pulling new commands after a submodule bump
 
 `install.sh` is a one-shot. When a `git submodule update --remote
