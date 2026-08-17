@@ -1037,8 +1037,9 @@ Drop a new parser into `parsers/` that subclasses `BaseParser`:
 # parsers/go_parser.py
 from parsers.base_parser import BaseParser
 
+
 class GoParser(BaseParser):
-    extensions = ['.go']
+    extensions = [".go"]
 
     def extract(self, file_path: str):
         # … parse a .go file, return:
