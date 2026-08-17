@@ -691,6 +691,24 @@ or path. Confirm the name from \`ng_overview\`/\`list_modules\` before calling.
 
 Run \`vc-context status\` (CLI) or the \`status\` MCP tool to check:
 index age + staleness, embedding provider + model, SQLite size + indexed symbols.
+
+## Cross-agent handoff
+
+Use \`vc-context handoff\` to keep project-local task memory that survives
+chat, model, IDE, and account switches.
+
+- Before continuing unfamiliar in-progress work, read \`HANDOFF.md\`; it points
+  to \`.vc-context/HANDOFF.md\`.
+- Before handing off unfinished work, run
+  \`vc-context handoff snapshot --task \"...\" --agent \"...\" --next-step \"...\"\`.
+- Treat \`.vc-context/HANDOFF.md\` as the current shared session and
+  \`.vc-context/handoffs/\` as the append-only-ish history of previous
+  snapshots.
+- Keep the handoff concrete: current state, blockers, next step, and files or
+  areas that should not be touched.
+- Any Codex, Claude, Gemini, Cursor, Aider, or other coding agent should treat
+  the handoff as the task resume point, not as a replacement for git status,
+  tests, or these repo rules.
 $VC_SECTION_END"
 
 # Idempotent: strip old block, then re-append.
