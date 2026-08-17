@@ -1435,10 +1435,11 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
                     return out
         return out
 
-    # Per-instance ESLint cache: key → (timestamp, results)
-    # Avoids re-running the 40+ s subprocess for the same path twice in
-    # one MCP session. TTL=300s — stale enough to avoid thrashing, fresh
-    # enough that a re-lint within the same session picks up edits.
+    # Per-instance ESLint cache: key → (timestamp, fingerprint, results)
+    # Avoids re-running the 40+ s subprocess for the same path twice in one
+    # MCP session. The fingerprint (file count + latest mtime under the path)
+    # busts the cache the moment a source file changes, so a re-lint after a
+    # fix never returns stale violations; TTL is only a secondary upper bound.
     _eslint_cache: ClassVar[Dict[str, Any]] = {}
     _summary_cache: ClassVar[Dict[str, str]] = {}  # sha256(prompt) → LLM text
     # keyed by (rule_name, abs_path, mtime_int) → hits
@@ -1449,6 +1450,7 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
         self,
         path: Optional[str] = None,
         max_results: int = 100,
+        nocache: bool = False,
     ) -> List[Dict[str, Any]]:
         """Run ESLint on a path and return structured violations.
 
@@ -1458,23 +1460,34 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
         project's own eslint config and plugins are always respected.
         Returns ``[{error}]`` on spawn failure.
 
-        Results are cached for ``_ESLINT_CACHE_TTL`` seconds per path
-        to avoid re-running the 40+ s subprocess multiple times in one
-        session.
+        Results are cached per path to avoid re-running the 40+ s
+        subprocess repeatedly in one session, but the cache entry is keyed
+        on a fingerprint of the target's source files (file count + latest
+        mtime). Any add/edit/delete under ``path`` changes the fingerprint
+        and auto-invalidates the cache, so a re-lint right after a fix
+        never returns stale violations. The ``_ESLINT_CACHE_TTL`` is only a
+        secondary upper bound. Pass ``nocache=True`` to force a fresh run.
         """
         import json as _json
         import subprocess as _sp
         import time as _time
 
         target_rel = path or "src"
-        cache_key = f"{self.project_root}:{target_rel}"
-        cached = self._eslint_cache.get(cache_key)
-        now = _time.monotonic()
-        if cached and (now - cached[0]) < self._ESLINT_CACHE_TTL:
-            raw_results: List[Dict[str, Any]] = cached[1]
-            return raw_results[:max_results]
-
         abs_target = os.path.join(self.project_root, target_rel)
+        cache_key = f"{self.project_root}:{target_rel}"
+        fingerprint = self._eslint_target_fingerprint(abs_target)
+        now = _time.monotonic()
+        if not nocache:
+            cached = self._eslint_cache.get(cache_key)
+            # cached entry: (timestamp, fingerprint, results)
+            if (
+                cached
+                and (now - cached[0]) < self._ESLINT_CACHE_TTL
+                and cached[1] == fingerprint
+            ):
+                raw_results: List[Dict[str, Any]] = cached[2]
+                return raw_results[:max_results]
+
         try:
             proc = _sp.run(
                 ["npx", "eslint", "--format", "json", abs_target],
@@ -1486,7 +1499,7 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
             )
             raw = (proc.stdout or "").strip()
             if not raw:
-                self._eslint_cache[cache_key] = (now, [])
+                self._eslint_cache[cache_key] = (now, fingerprint, [])
                 return []
             data = _json.loads(raw)
         except _sp.TimeoutExpired:
@@ -1510,8 +1523,42 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
                         "message": msg.get("message"),
                     }
                 )
-        self._eslint_cache[cache_key] = (now, out)
+        self._eslint_cache[cache_key] = (now, fingerprint, out)
         return out[:max_results]
+
+    def _eslint_target_fingerprint(self, abs_target: str) -> tuple:
+        """Cheap content-change fingerprint for an eslint target.
+
+        Returns ``(file_count, latest_mtime_ns)`` over lint-relevant source
+        files under ``abs_target`` (or the single file's stat when it's a
+        file). Walking + stat is orders of magnitude cheaper than spawning
+        eslint, so it's computed on every call to bust the cache the moment
+        any ``.ts``/``.html``/``.js`` file is added, edited, or removed.
+        Returns ``(0, 0)`` when the path is missing.
+        """
+        exts = (".ts", ".html", ".js", ".mjs", ".cjs")
+        skip = {"node_modules", "dist", "dist_webpack", ".git", "coverage", ".angular"}
+
+        if os.path.isfile(abs_target):
+            try:
+                return (1, os.stat(abs_target).st_mtime_ns)
+            except OSError:
+                return (0, 0)
+
+        count = 0
+        latest = 0
+        for root, dirs, files in os.walk(abs_target):
+            dirs[:] = [d for d in dirs if d not in skip]
+            for fn in files:
+                if fn.endswith(exts):
+                    count += 1
+                    try:
+                        mtime = os.stat(os.path.join(root, fn)).st_mtime_ns
+                        if mtime > latest:
+                            latest = mtime
+                    except OSError:
+                        pass
+        return (count, latest)
 
     def ng_find_module(self, component_name: str) -> Optional[Dict[str, Any]]:
         """Find the NgModule that declares a given Angular symbol.

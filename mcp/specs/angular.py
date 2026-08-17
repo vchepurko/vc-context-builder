@@ -159,7 +159,12 @@ def specs() -> List[Dict[str, Any]]:
                 "``read_slice``, ``find_in_file``, or "
                 "``ng_ts_class_shape`` instead. Pass a narrow "
                 "``path`` (e.g. a single file or feature directory) "
-                "to cut runtime when the project is large."
+                "to cut runtime when the project is large.\n\n"
+                "Results are cached per path but the cache auto-invalidates "
+                "when any source file under ``path`` changes (it is keyed on "
+                "a file count + latest-mtime fingerprint), so a re-lint right "
+                "after an edit returns fresh violations. Pass "
+                "``nocache: true`` to force a fresh run regardless."
             ),
             "inputSchema": {
                 "type": "object",
@@ -171,6 +176,13 @@ def specs() -> List[Dict[str, Any]]:
                     "max_results": {
                         "type": "integer",
                         "description": "Cap on returned violations (default 100, max 500).",
+                    },
+                    "nocache": {
+                        "type": "boolean",
+                        "description": (
+                            "Force a fresh eslint run, bypassing the "
+                            "per-path cache (default false)."
+                        ),
                     },
                 },
             },

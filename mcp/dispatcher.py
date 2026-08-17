@@ -741,7 +741,10 @@ class Dispatcher:
                 max_results = max(1, min(500, int(args["max_results"])))
             except (TypeError, ValueError):
                 pass
-        return self.engine.ng_eslint_violations(path=path_arg, max_results=max_results)
+        nocache = bool(args.get("nocache", False))
+        return self.engine.ng_eslint_violations(
+            path=path_arg, max_results=max_results, nocache=nocache
+        )
 
     def _ng_find_module(self, args: Dict[str, Any]) -> Any:
         name = str(args.get("name", "")).strip()
