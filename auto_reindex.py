@@ -26,7 +26,7 @@ from typing import Any, Dict, Optional
 
 from paths import index_read_path
 
-DEFAULT_INTERVAL_SECONDS = 3600
+DEFAULT_INTERVAL_SECONDS = 1800
 MIN_INTERVAL_SECONDS = 60
 
 _PROVIDER_PACKAGES = {

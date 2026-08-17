@@ -34,6 +34,7 @@ if _HERE not in sys.path:
     sys.path.insert(0, _HERE)
 
 from cli.cli_handlers import (
+    cmd_agent_start,
     cmd_backup,
     cmd_backup_inspect,
     cmd_build,
@@ -248,6 +249,25 @@ def _build_parser() -> argparse.ArgumentParser:
     p_build = sub.add_parser("build", help="Run the builder (agent_map.py).")
     p_build.set_defaults(handler=cmd_build)
 
+    p_agent_start = sub.add_parser(
+        "agent-start",
+        help="Prepare a shared-session startup packet for a coding agent.",
+    )
+    p_agent_start.add_argument("--agent", default="", help="Agent name, e.g. codex.")
+    p_agent_start.add_argument(
+        "--reindex",
+        choices=("auto", "always", "never"),
+        default="auto",
+        help="Rebuild policy for startup (default: auto).",
+    )
+    p_agent_start.add_argument(
+        "--stale-minutes",
+        type=int,
+        default=30,
+        help="Index age that triggers --reindex auto (default: 30).",
+    )
+    p_agent_start.set_defaults(handler=cmd_agent_start)
+
     p_init = sub.add_parser(
         "init",
         help="Generate .vc-context/conventions.json for a new project.",
@@ -283,6 +303,17 @@ def _build_parser() -> argparse.ArgumentParser:
     p_handoff_snapshot.add_argument("--agent", default="", help="Agent writing the handoff.")
     p_handoff_snapshot.add_argument("--status", default="in_progress", help="Task status.")
     p_handoff_snapshot.add_argument("--next-step", default="", help="Exact next step.")
+    p_handoff_snapshot.add_argument(
+        "--auto-reindex",
+        action="store_true",
+        help="Refresh a missing or stale index before writing the snapshot.",
+    )
+    p_handoff_snapshot.add_argument(
+        "--stale-minutes",
+        type=int,
+        default=30,
+        help="Index age that triggers --auto-reindex (default: 30).",
+    )
     p_handoff_snapshot.add_argument(
         "--note",
         action="append",

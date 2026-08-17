@@ -22,6 +22,7 @@ import subprocess
 import sys
 from typing import Any, Dict
 
+from agent_session import DEFAULT_STALE_SECONDS, agent_start, maybe_reindex
 from cli.cli_renderers import (
     _emit_json,
     _print_callers,
@@ -460,6 +461,23 @@ def cmd_build(args: argparse.Namespace) -> int:
     return proc.returncode
 
 
+def cmd_agent_start(args: argparse.Namespace) -> int:
+    stale_minutes = getattr(args, "stale_minutes", DEFAULT_STALE_SECONDS // 60)
+    stale_seconds = int(stale_minutes) * 60
+    out = agent_start(
+        args.root,
+        agent=getattr(args, "agent", "") or "",
+        reindex=getattr(args, "reindex", "auto"),
+        stale_seconds=stale_seconds,
+    )
+    if args.json:
+        _emit_json(out)
+        return 0 if out.get("reindex", {}).get("ok", True) else 1
+
+    print(out["prompt"], end="")
+    return 0 if out.get("reindex", {}).get("ok", True) else 1
+
+
 # ----------------------------------------------------------------------
 # Project initialisation
 # ----------------------------------------------------------------------
@@ -594,6 +612,14 @@ def cmd_handoff(args: argparse.Namespace) -> int:
             print(f"  memory written : {out['memory_written']}")
         return 0
     if action == "snapshot":
+        reindex_out = None
+        if bool(getattr(args, "auto_reindex", False)):
+            stale_minutes = getattr(args, "stale_minutes", DEFAULT_STALE_SECONDS // 60)
+            reindex_out = maybe_reindex(
+                args.root,
+                mode="auto",
+                stale_seconds=int(stale_minutes) * 60,
+            )
         out = snapshot_handoff(
             args.root,
             task=getattr(args, "task", "") or "",
@@ -603,12 +629,16 @@ def cmd_handoff(args: argparse.Namespace) -> int:
             notes=list(getattr(args, "note", []) or []),
             blockers=list(getattr(args, "blocker", []) or []),
         )
+        if reindex_out is not None:
+            out["reindex"] = reindex_out
         if args.json:
             _emit_json(out)
         else:
+            if reindex_out is not None:
+                print(f"Reindex: ran={reindex_out.get('ran')} ok={reindex_out.get('ok')}")
             print(f"Handoff snapshot written: {out['memory']} ({out['bytes']} bytes)")
             print(f"Handoff log archived: {out['log']}")
-        return 0
+        return 0 if not reindex_out or reindex_out.get("ok", True) else 1
     if action == "prompt":
         text = prompt_handoff(args.root, agent=getattr(args, "agent", "") or "")
         if args.json:

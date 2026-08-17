@@ -308,12 +308,12 @@ Want MCP startup to refresh stale indexes automatically? Add the
 initial-setup flag:
 
 ```bash
-./.ai-context/install.sh --auto-reindex=60
+./.ai-context/install.sh --auto-reindex=30
 ```
 
 That writes `.vc-context/conventions.json → auto_reindex`, so any MCP
 client that starts `vc-context` rebuilds the index when it is older than
-60 minutes. Use a different number for a shorter/longer interval.
+30 minutes. Use a different number for a shorter/longer interval.
 
 ### Want artifacts committed (team-wide)?
 
@@ -334,7 +334,7 @@ worktrees.
 | `--no-mcp` | Skip writing `.mcp.json` (you manage MCP elsewhere). |
 | `--no-commands` | Skip copying slash commands. |
 | `--force-commands` | Overwrite existing slash command files. |
-| `--auto-reindex[=N]` | Enable MCP-startup reindex when artifacts are older than N minutes (default 60). |
+| `--auto-reindex[=N]` | Enable MCP-startup reindex when artifacts are older than N minutes (default 30). |
 | `--auto-reindex-minutes N` | Same as above, friendlier for scripts. |
 | `--pre-commit` | Use the pre-commit framework instead of native pre-push (legacy; may race with autofix hooks). |
 | `--shared` | Stage artifacts on push (team mode). |
@@ -376,7 +376,7 @@ just via the shared path:
 
 - **Auto on MCP start** — enable once per project in
   `<project>/.vc-context/conventions.json`
-  (`"auto_reindex": {"enabled": true, "interval_seconds": 3600}`); the server
+  (`"auto_reindex": {"enabled": true, "interval_seconds": 1800}`); the server
   rebuilds a missing/stale index on launch. Generate the file with
   `python3 /abs/path/to/vc-context-builder/cli.py init` run from the project root.
 - **On demand** — call the `rebuild_index` MCP tool.
@@ -823,7 +823,7 @@ to call `rebuild_index`, enable:
 {
   "auto_reindex": {
     "enabled": true,
-    "interval_seconds": 3600
+    "interval_seconds": 1800
   }
 }
 ```
@@ -831,7 +831,7 @@ to call `rebuild_index`, enable:
 On MCP startup, `vc-context` checks `agent_root.json`; if the index is
 missing or older than the interval, it runs `agent_map.py --root <project>`.
 The installer writes this block for you with
-`./.ai-context/install.sh --auto-reindex=60`.
+`./.ai-context/install.sh --auto-reindex=30`.
 
 `vc-context init` picks sensible defaults for common stacks:
 - **django / fastapi / flask** → disables `angular`, `locale`, `fsm`, `notify_log`, `route`
@@ -1135,6 +1135,34 @@ The root `HANDOFF.md` is a tiny pointer; the editable project memory lives in
 one agent overwrites the current file. Agents should read the current handoff
 before continuing work and update it before stopping with unfinished work.
 
+## Agent startup protocol
+
+`vc-context agent-start` is the one command to give any coding agent before it
+continues project work:
+
+```bash
+vc-context agent-start --agent codex
+vc-context agent-start --agent gemini-2 --reindex auto --stale-minutes 30
+vc-context agent-start --agent claude --reindex never
+```
+
+It returns a compact startup packet: rules files to read, current handoff
+state, index status, whether reindex ran, and a copy-paste prompt. In
+`--reindex auto` mode the command rebuilds the index when it is missing or
+older than 30 minutes by default. Use `--reindex always` before risky
+refactors, reviews, or long-running handoffs.
+
+Before handing work to another agent, refresh the shared session and index in
+one step:
+
+```bash
+vc-context handoff snapshot \
+  --task admin-panel-catalog \
+  --agent codex \
+  --auto-reindex \
+  --next-step "Continue frontend review and run PR checks."
+```
+
 ---
 
 ## MCP ↔ CLI parity
@@ -1182,6 +1210,8 @@ and CI.
 | **Status** | `status` | `vc-context status` |
 | | `get_session_metrics` | `vc-context metrics` |
 | | `rebuild_index` | `vc-context build` |
+| **Agent session** | — | `vc-context agent-start --agent <name>` |
+| | — | `vc-context handoff snapshot --auto-reindex` |
 
 Tools in the `angular`, `locale`, `fsm`, `notify_log`, `route`,
 `devops` groups can be disabled per-project via `disabled_tool_groups`

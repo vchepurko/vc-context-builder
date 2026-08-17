@@ -10,6 +10,11 @@ bump the minor; fixes bump the patch.
 ## [Unreleased]
 
 ### Added
+- **`vc-context agent-start` CLI** — shared-session startup packet for coding
+  agents. It reports rules files, current handoff state, index status, and a
+  copy-paste resume prompt, rebuilding a missing or older-than-30-minutes
+  index in `--reindex auto` mode. `handoff snapshot --auto-reindex` refreshes
+  stale indexes before writing the next handoff.
 - **`vc-context handoff` CLI** — project-local handoff memory for switching
   between Codex, Claude, Gemini, Cursor, Aider, or subscribed chat accounts
   with minimal context loss. `handoff init` creates a root `HANDOFF.md`
