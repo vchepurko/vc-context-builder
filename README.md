@@ -1054,6 +1054,39 @@ to update.
 
 ---
 
+## Handoff memory between agents
+
+`vc-context handoff` creates a project-local `HANDOFF.md` protocol for
+switching between subscription chats, IDE agents, or model accounts without
+re-explaining the task from scratch.
+
+```bash
+# Create HANDOFF.md + .vc-context/HANDOFF.md
+vc-context handoff init --task admin-panel-catalog --agent codex
+
+# Refresh the task snapshot before handing off to another chat/model
+vc-context handoff snapshot \
+  --task admin-panel-catalog \
+  --agent gemini-1 \
+  --note "Implemented backend route; frontend still needs review." \
+  --blocker "pytest blocked by local venv policy" \
+  --next-step "Open PR checks and address review comments."
+
+# Copy this prompt into another subscribed chat/IDE
+vc-context handoff prompt --agent gemini-2
+
+# Quick status
+vc-context handoff status
+```
+
+The root `HANDOFF.md` is a tiny pointer; the editable project memory lives in
+`.vc-context/HANDOFF.md`. Each snapshot also archives a copy under
+`.vc-context/handoffs/`, so the shared session has a lightweight history if
+one agent overwrites the current file. Agents should read the current handoff
+before continuing work and update it before stopping with unfinished work.
+
+---
+
 ## MCP ↔ CLI parity
 
 Every MCP tool has a CLI equivalent (or vice-versa). The same query

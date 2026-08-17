@@ -33,6 +33,7 @@ from cli.cli_renderers import (
     _print_symbol,
     _print_violations,
 )
+from handoff import init_handoff, prompt_handoff, snapshot_handoff, status_handoff
 from mcp.dispatcher import Dispatcher
 from mcp.metrics import MetricsWriter
 from query_engine import QueryEngine
@@ -572,6 +573,67 @@ def cmd_init(args: argparse.Namespace) -> int:
     else:
         print("  all keys already present; use --force to reset disabled_tool_groups")
     print(f"  available groups (all): {_ALL_GROUPS}")
+    return 0
+
+
+def cmd_handoff(args: argparse.Namespace) -> int:
+    action = getattr(args, "handoff_action", "status")
+    if action == "init":
+        out = init_handoff(
+            args.root,
+            task=getattr(args, "task", "") or "",
+            agent=getattr(args, "agent", "") or "",
+            force=bool(getattr(args, "force", False)),
+        )
+        if args.json:
+            _emit_json(out)
+        else:
+            print(f"Handoff pointer: {out['pointer']}")
+            print(f"Handoff memory : {out['memory']}")
+            print(f"  pointer written: {out['pointer_written']}")
+            print(f"  memory written : {out['memory_written']}")
+        return 0
+    if action == "snapshot":
+        out = snapshot_handoff(
+            args.root,
+            task=getattr(args, "task", "") or "",
+            agent=getattr(args, "agent", "") or "",
+            status=getattr(args, "status", "in_progress") or "in_progress",
+            next_step=getattr(args, "next_step", "") or "",
+            notes=list(getattr(args, "note", []) or []),
+            blockers=list(getattr(args, "blocker", []) or []),
+        )
+        if args.json:
+            _emit_json(out)
+        else:
+            print(f"Handoff snapshot written: {out['memory']} ({out['bytes']} bytes)")
+            print(f"Handoff log archived: {out['log']}")
+        return 0
+    if action == "prompt":
+        text = prompt_handoff(args.root, agent=getattr(args, "agent", "") or "")
+        if args.json:
+            _emit_json({"prompt": text})
+        else:
+            print(text, end="")
+        return 0
+
+    out = status_handoff(args.root)
+    if args.json:
+        _emit_json(out)
+    else:
+        print(f"Handoff pointer: {out['pointer']}  exists={out['pointer_exists']}")
+        print(f"Handoff memory : {out['memory']}  exists={out['memory_exists']}")
+        if out["memory_exists"]:
+            print(f"  task      : {out.get('task') or 'unknown'}")
+            print(f"  status    : {out.get('status') or 'unknown'}")
+            print(f"  agent     : {out.get('agent') or 'unknown'}")
+            if out.get("latest_log"):
+                print(f"  latest log: {out['latest_log']}")
+            next_step = out.get("next_step") or ""
+            if next_step:
+                print("  next step :")
+                for line in next_step.splitlines():
+                    print(f"    {line}")
     return 0
 
 

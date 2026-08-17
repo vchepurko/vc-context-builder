@@ -45,6 +45,7 @@ from cli.cli_handlers import (
     cmd_decorated,
     cmd_file_card,
     cmd_find,
+    cmd_handoff,
     cmd_init,
     cmd_lint,
     cmd_module,
@@ -257,6 +258,54 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Overwrite existing conventions.json.",
     )
     p_init.set_defaults(handler=cmd_init)
+
+    p_handoff = sub.add_parser(
+        "handoff",
+        help="Manage project-local HANDOFF.md memory for agent/chat switches.",
+    )
+    handoff_sub = p_handoff.add_subparsers(dest="handoff_action")
+    p_handoff.set_defaults(handler=cmd_handoff, handoff_action="status")
+
+    p_handoff_init = handoff_sub.add_parser(
+        "init",
+        help="Create HANDOFF.md pointer and .vc-context/HANDOFF.md template.",
+    )
+    p_handoff_init.add_argument("--task", default="", help="Current task name/id.")
+    p_handoff_init.add_argument("--agent", default="", help="Agent creating the handoff.")
+    p_handoff_init.add_argument("--force", action="store_true", help="Overwrite existing files.")
+    p_handoff_init.set_defaults(handler=cmd_handoff, handoff_action="init")
+
+    p_handoff_snapshot = handoff_sub.add_parser(
+        "snapshot",
+        help="Rewrite .vc-context/HANDOFF.md with current git snapshot and next step.",
+    )
+    p_handoff_snapshot.add_argument("--task", default="", help="Current task name/id.")
+    p_handoff_snapshot.add_argument("--agent", default="", help="Agent writing the handoff.")
+    p_handoff_snapshot.add_argument("--status", default="in_progress", help="Task status.")
+    p_handoff_snapshot.add_argument("--next-step", default="", help="Exact next step.")
+    p_handoff_snapshot.add_argument(
+        "--note",
+        action="append",
+        default=[],
+        help="Current-state note. Repeat for multiple bullets.",
+    )
+    p_handoff_snapshot.add_argument(
+        "--blocker",
+        action="append",
+        default=[],
+        help="Known blocker. Repeat for multiple bullets.",
+    )
+    p_handoff_snapshot.set_defaults(handler=cmd_handoff, handoff_action="snapshot")
+
+    p_handoff_prompt = handoff_sub.add_parser(
+        "prompt",
+        help="Print a copy-paste resume prompt for another agent/chat.",
+    )
+    p_handoff_prompt.add_argument("--agent", default="", help="Target agent name.")
+    p_handoff_prompt.set_defaults(handler=cmd_handoff, handoff_action="prompt")
+
+    p_handoff_status = handoff_sub.add_parser("status", help="Show current handoff status.")
+    p_handoff_status.set_defaults(handler=cmd_handoff, handoff_action="status")
 
     # Quality / lint / coverage / route / test subcommands ----------
     p_lint = sub.add_parser(

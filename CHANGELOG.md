@@ -10,6 +10,13 @@ bump the minor; fixes bump the patch.
 ## [Unreleased]
 
 ### Added
+- **`vc-context handoff` CLI** — project-local handoff memory for switching
+  between Codex, Claude, Gemini, Cursor, Aider, or subscribed chat accounts
+  with minimal context loss. `handoff init` creates a root `HANDOFF.md`
+  pointer and `.vc-context/HANDOFF.md`; `handoff snapshot` rewrites the task
+  state with git status/diff, notes, blockers, and next step, and archives a
+  copy under `.vc-context/handoffs/`; `handoff prompt` prints a copy-paste
+  resume prompt for the next agent.
 - **`run_checks` structured summaries via per-check `parser`** — a check
   in `.vc-context/conventions.json` (object form) may declare a
   `"parser"`. When set, `run_check` feeds the **full** command output to
