@@ -30,7 +30,7 @@
 #   --force-commands   Overwrite existing slash command files (loses
 #                      any local edits in .claude/commands/).
 #   --auto-reindex[=N] Enable MCP-startup auto-reindex when artifacts
-#                      are older than N minutes (default: 60).
+#                      are older than N minutes (default: 30).
 #   --auto-reindex-minutes N
 #                      Same as above, easier for shells/scripts.
 #   --embedding-provider=NAME
@@ -56,7 +56,7 @@ FORCE_COMMANDS=false
 USE_PRECOMMIT=false
 AUTO_REINDEX=false
 EMBEDDING_PROVIDER=""
-AUTO_REINDEX_MINUTES=60
+AUTO_REINDEX_MINUTES=30
 EXPECT_AUTO_REINDEX_MINUTES=false
 for arg in "$@"; do
     if $EXPECT_AUTO_REINDEX_MINUTES; then
@@ -692,6 +692,19 @@ or path. Confirm the name from \`ng_overview\`/\`list_modules\` before calling.
 Run \`vc-context status\` (CLI) or the \`status\` MCP tool to check:
 index age + staleness, embedding provider + model, SQLite size + indexed symbols.
 
+## Agent startup
+
+At the start of a coding session, run:
+
+\`\`\`bash
+vc-context agent-start --agent <your-agent-name>
+\`\`\`
+
+This reads the shared handoff state, reports rules files, and rebuilds a
+missing or older-than-30-minutes index by default. Use
+\`--reindex never\` only when you intentionally need a no-write orientation
+pass, and \`--reindex always\` before high-risk refactors or reviews.
+
 ## Cross-agent handoff
 
 Use \`vc-context handoff\` to keep project-local task memory that survives
@@ -700,7 +713,7 @@ chat, model, IDE, and account switches.
 - Before continuing unfamiliar in-progress work, read \`HANDOFF.md\`; it points
   to \`.vc-context/HANDOFF.md\`.
 - Before handing off unfinished work, run
-  \`vc-context handoff snapshot --task \"...\" --agent \"...\" --next-step \"...\"\`.
+  \`vc-context handoff snapshot --task \"...\" --agent \"...\" --auto-reindex --next-step \"...\"\`.
 - Treat \`.vc-context/HANDOFF.md\` as the current shared session and
   \`.vc-context/handoffs/\` as the append-only-ish history of previous
   snapshots.
@@ -746,11 +759,12 @@ echo "📋 Updated $CLAUDE_MD with Claude Code MCP pointer."
 echo ""
 echo "🎉 Done. What now:"
 echo "   • Reload Claude Code so it picks up .mcp.json + .claude/commands/."
+echo "   • Agent startup: vc-context agent-start --agent <name>"
 echo "   • Manual rebuild: python3 $RELATIVE_DIR/agent_map.py"
 if $AUTO_REINDEX; then
     echo "   • Auto-reindex: enabled in .vc-context/conventions.json (${AUTO_REINDEX_MINUTES}m)."
 else
-    echo "   • Optional auto-reindex: ./$RELATIVE_DIR/install.sh --auto-reindex=60"
+    echo "   • Optional auto-reindex: ./$RELATIVE_DIR/install.sh --auto-reindex=30"
 fi
 if ! $SHARED; then
     echo "   • Switch to shared mode (commit artifacts): ./$RELATIVE_DIR/install.sh --shared"

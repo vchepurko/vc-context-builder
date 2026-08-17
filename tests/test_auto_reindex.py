@@ -43,6 +43,9 @@ class AutoReindexTests(unittest.TestCase):
     def test_disabled_by_default(self) -> None:
         self.assertFalse(auto_reindex.should_auto_reindex(self.root, now=time.time()))
 
+    def test_default_interval_is_thirty_minutes(self) -> None:
+        self.assertEqual(auto_reindex._interval_seconds({}), 1800)
+
     def test_enabled_missing_index_runs(self) -> None:
         self._configure()
         self.assertTrue(auto_reindex.should_auto_reindex(self.root, now=time.time()))
