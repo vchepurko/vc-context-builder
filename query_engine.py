@@ -1480,11 +1480,7 @@ class QueryEngine(_QuerySymbolsMixin, _InspectorsMixin, _RoutesMixin, _TestsMixi
         if not nocache:
             cached = self._eslint_cache.get(cache_key)
             # cached entry: (timestamp, fingerprint, results)
-            if (
-                cached
-                and (now - cached[0]) < self._ESLINT_CACHE_TTL
-                and cached[1] == fingerprint
-            ):
+            if cached and (now - cached[0]) < self._ESLINT_CACHE_TTL and cached[1] == fingerprint:
                 raw_results: List[Dict[str, Any]] = cached[2]
                 return raw_results[:max_results]
 
