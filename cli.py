@@ -49,6 +49,7 @@ from cli.cli_handlers import (
     cmd_handoff,
     cmd_init,
     cmd_lint,
+    cmd_lock,
     cmd_module,
     cmd_modules,
     cmd_ng_ajs_find,
@@ -337,6 +338,37 @@ def _build_parser() -> argparse.ArgumentParser:
 
     p_handoff_status = handoff_sub.add_parser("status", help="Show current handoff status.")
     p_handoff_status.set_defaults(handler=cmd_handoff, handoff_action="status")
+
+    p_lock = sub.add_parser(
+        "lock",
+        help="Named semaphores for shared resources multiple agents can race on "
+        "(e.g. a local docker-compose deploy slot).",
+    )
+    lock_sub = p_lock.add_subparsers(dest="lock_action")
+    p_lock.set_defaults(handler=cmd_lock, lock_action="status")
+
+    p_lock_acquire = lock_sub.add_parser("acquire", help="Claim a named lock (atomic; fails if already held).")
+    p_lock_acquire.add_argument("--name", required=True, help="Lock name, e.g. 'deploy-engine'.")
+    p_lock_acquire.add_argument("--agent", required=True, help="Identity to record as the holder.")
+    p_lock_acquire.add_argument("--task", default="", help="What you're about to do with it.")
+    p_lock_acquire.set_defaults(handler=cmd_lock, lock_action="acquire")
+
+    p_lock_release = lock_sub.add_parser("release", help="Release a lock you hold (no-op if you don't hold it).")
+    p_lock_release.add_argument("--name", required=True, help="Lock name.")
+    p_lock_release.add_argument("--agent", required=True, help="Your identity — must match the current holder.")
+    p_lock_release.set_defaults(handler=cmd_lock, lock_action="release")
+
+    p_lock_break = lock_sub.add_parser(
+        "break", help="Forcibly clear a lock regardless of holder (stale/crashed session)."
+    )
+    p_lock_break.add_argument("--name", required=True, help="Lock name.")
+    p_lock_break.add_argument("--agent", required=True, help="Your identity, recorded as who broke it.")
+    p_lock_break.add_argument("--reason", required=True, help="Why you're overriding someone else's lock.")
+    p_lock_break.set_defaults(handler=cmd_lock, lock_action="break")
+
+    p_lock_status = lock_sub.add_parser("status", help="Show one lock's state, or every held lock if --name omitted.")
+    p_lock_status.add_argument("--name", default="", help="Lock name (omit to list all held locks).")
+    p_lock_status.set_defaults(handler=cmd_lock, lock_action="status")
 
     # Quality / lint / coverage / route / test subcommands ----------
     p_lint = sub.add_parser(

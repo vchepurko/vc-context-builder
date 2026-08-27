@@ -39,6 +39,8 @@ from mcp.dispatcher import Dispatcher
 from mcp.metrics import MetricsWriter
 from query_engine import QueryEngine
 
+import semaphore
+
 # Re-exported so cli.py can resolve `python3 cli.py build` to the
 # adjacent ``agent_map.py`` regardless of cwd.
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -664,6 +666,69 @@ def cmd_handoff(args: argparse.Namespace) -> int:
                 print("  next step :")
                 for line in next_step.splitlines():
                     print(f"    {line}")
+    return 0
+
+
+def cmd_lock(args: argparse.Namespace) -> int:
+    action = getattr(args, "lock_action", "status")
+    name = getattr(args, "name", "") or ""
+    if action == "acquire":
+        out = semaphore.acquire(
+            args.root, name, agent=getattr(args, "agent", "") or "", task=getattr(args, "task", "") or ""
+        )
+        if args.json:
+            _emit_json(out)
+        elif out["acquired"]:
+            print(f"Acquired lock '{name}' for {out['held_by']['agent']}.")
+        else:
+            held = out["held_by"] or {}
+            print(f"Lock '{name}' already held by {held.get('agent', 'unknown')} " f"(task: {held.get('task') or 'n/a'}).")
+            print("Use 'vc-context lock status' to check age, or 'lock break --reason ...' to force-clear it.")
+        return 0 if out["acquired"] else 1
+    if action == "release":
+        out = semaphore.release(args.root, name, agent=getattr(args, "agent", "") or "")
+        if args.json:
+            _emit_json(out)
+        elif out["released"]:
+            print(f"Released lock '{name}'.")
+        else:
+            print(f"Did not release '{name}': {out['reason']}.")
+        return 0 if out["released"] else 1
+    if action == "break":
+        out = semaphore.force_break(
+            args.root, name, agent=getattr(args, "agent", "") or "", reason=getattr(args, "reason", "") or ""
+        )
+        if args.json:
+            _emit_json(out)
+        else:
+            was = out["was_held_by"]
+            was_text = f"{was.get('agent')} ({was.get('task') or 'n/a'})" if was else "nobody"
+            print(f"Broke lock '{name}' (was held by {was_text}). Reason: {out['reason']}")
+        return 0
+
+    if name:
+        out = semaphore.status(args.root, name)
+        if args.json:
+            _emit_json(out)
+        elif not out["held"]:
+            print(f"Lock '{name}': free.")
+        else:
+            held = out["held_by"]
+            stale = " (possibly stale)" if out["possibly_stale"] else ""
+            age = f"{int(out['age_seconds'] // 60)}m" if out["age_seconds"] is not None else "unknown"
+            print(f"Lock '{name}': held by {held.get('agent')} for {age}{stale} — {held.get('task') or 'n/a'}")
+        return 0
+
+    locks = semaphore.list_locks(args.root)
+    if args.json:
+        _emit_json(locks)
+    elif not locks:
+        print("No locks held.")
+    else:
+        for lock in locks:
+            held = lock["held_by"]
+            stale = " (possibly stale)" if lock["possibly_stale"] else ""
+            print(f"{lock['name']}: held by {held.get('agent')}{stale} — {held.get('task') or 'n/a'}")
     return 0
 
 

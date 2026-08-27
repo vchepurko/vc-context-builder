@@ -15,6 +15,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+import semaphore
+
 HANDOFF_POINTER = "HANDOFF.md"
 HANDOFF_PATH = ".vc-context/HANDOFF.md"
 HANDOFF_LOG_DIR = ".vc-context/handoffs"
@@ -115,6 +117,7 @@ def status_handoff(project_root: str | os.PathLike[str]) -> dict[str, Any]:
         "agent": _extract_field(content, "Agent"),
         "next_step": _extract_section(content, "Next Step"),
         "latest_log": _latest_log(hp.root),
+        "active_locks": semaphore.list_locks(hp.root),
     }
 
 
@@ -155,6 +158,7 @@ def render_handoff(
     status_short = git["status_short"] or "(clean)"
     diff_stat = git["diff_stat"] or "(no diff)"
     branch = git["branch"] or "unknown"
+    locks_text = semaphore.render_active_locks(project_root)
     return f"""# HANDOFF
 
 Last updated: {now}
@@ -177,6 +181,15 @@ overwritten.
 ## Current State
 
 {notes_text}
+
+## Active Locks
+
+Named semaphores held via `vc-context lock` — a shared resource (e.g. the local
+docker-compose deploy slot) shows here as occupied so a second agent doesn't
+race the first one. `vc-context lock status --name <name>` for detail,
+`vc-context lock break --name <name> --reason ...` to clear a stale one.
+
+{locks_text}
 
 ## Git Snapshot
 
