@@ -458,6 +458,8 @@ def cmd_modules(args: argparse.Namespace) -> int:
 def cmd_build(args: argparse.Namespace) -> int:
     """Shell out to the builder to keep its existing behaviour intact."""
     builder = os.path.join(_HERE, "agent_map.py")
+    if not os.path.exists(builder):
+        builder = os.path.join(os.path.dirname(_HERE), "agent_map.py")
     cmd = [sys.executable, builder]
     proc = subprocess.run(cmd, cwd=args.root)
     return proc.returncode
