@@ -375,6 +375,10 @@ def lint_project(project_root: str) -> List[Dict[str, Any]]:
     return violations
 
 
-def has_error(violations: List[Dict[str, Any]]) -> bool:
+def has_error(violations: Any) -> bool:
     """True if any violation is severity ``error`` (drives CLI exit code)."""
-    return any(v.get("severity") == "error" for v in violations)
+    if isinstance(violations, dict):
+        violations = violations.get("violations", [])
+    if not isinstance(violations, list):
+        return False
+    return any(isinstance(v, dict) and v.get("severity") == "error" for v in violations)

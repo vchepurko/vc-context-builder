@@ -733,9 +733,10 @@ def cmd_lock(args: argparse.Namespace) -> int:
 
 
 def cmd_lint(args: argparse.Namespace) -> int:
-    violations = _call_tool(args, "lint_violations", {})
+    res = _call_tool(args, "lint_violations", {})
+    violations = res.get("violations", res) if isinstance(res, dict) else res
     if args.json:
-        _emit_json(violations)
+        _emit_json(res)
     else:
         _print_violations(violations)
     # Exit 1 on any error-severity hit, 0 otherwise (warn/info don't
